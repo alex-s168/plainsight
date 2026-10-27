@@ -1010,11 +1010,11 @@ def test_block_overlay_demo_lit():
     editor_on()
     cmd("tp @s 0.5 -60 0.5 0 0")
     time.sleep(0.5)
-    c.click(*widget("module_block_overlay_demo"), b=1)
+    c.click(*widget("view_block_overlay_demo"), b=1)
     time.sleep(1.0)
     s = state()
     # the hut stands 8 blocks south of the player: x 0..6 (with x-3), z 5..11
-    check(s["modules"]["block_overlay_demo"], "toolbar button enables the overlay demo")
+    check(s["modules"]["block_overlay_demo"], "viewport button enables the overlay demo")
     check(s["overlayBlocksSubmitted"] > 100, "overlay blocks are submitted: %s" % s["overlayBlocksSubmitted"])
     # look at it from outside
     cam(-9, -54, -3, -40, 20)
@@ -1042,7 +1042,7 @@ def test_block_overlay_demo_lit():
     ghost = avg_color(shot("block-overlay-ghost"), int(x) - 10, int(y) - 10, 20, 20)
     print("      overlay solid/ghost", solid, ghost)
     check(color_dist(solid, ghost) > 12, "the default overlay is translucent")
-    c.click(*widget("module_block_overlay_demo"), b=1)
+    c.click(*widget("view_block_overlay_demo"), b=1)
     time.sleep(0.5)
     check(state()["overlayBlocksSubmitted"] == 0, "disabled overlay is gone")
 
@@ -1052,10 +1052,10 @@ def test_path_overlay_demo():
     # facing the oak wall (x 4..8, y -60..-57, z 8..10): the plan has to tunnel through it
     cmd("tp @s 6.5 -60 2.5 0 0")
     time.sleep(0.5)
-    c.click(*widget("module_path_overlay_demo"), b=1)
+    c.click(*widget("view_path_overlay_demo"), b=1)
     time.sleep(0.5)
     s = state()
-    check(s["modules"]["path_overlay_demo"], "toolbar button enables the path demo")
+    check(s["modules"]["path_overlay_demo"], "viewport button enables the path demo")
     lines, tris = int(s["overlay"]["WORLD"].split()[0]), int(s["overlay"]["WORLD"].split()[2])
     check(lines > 20 and tris > 50, "path lines, node markers and goal drawn: %s" % s["overlay"])
     check(int(s["overlay"]["XRAY"].split()[0]) > 20, "path also shown faintly through terrain")
@@ -1066,18 +1066,18 @@ def test_path_overlay_demo():
     time.sleep(0.5)
     shot("path-overlay")
     # the settings popup opens with a right click
-    c.click(*widget("module_path_overlay_demo"), b=3)
+    c.click(*widget("view_path_overlay_demo"), b=3)
     time.sleep(0.4)
     shot("path-overlay-popup")
     c.key(K["ESC"])
     time.sleep(0.2)
-    c.click(*widget("module_path_overlay_demo"), b=1)
+    c.click(*widget("view_path_overlay_demo"), b=1)
     time.sleep(0.3)
 
 
 def test_escape_closes_popup_without_pausing():
     editor_on()
-    c.click(*widget("module_path_overlay_demo"), b=3)
+    c.click(*widget("view_path_overlay_demo"), b=3)
     time.sleep(0.4)
     c.key(K["ESC"])
     time.sleep(0.4)

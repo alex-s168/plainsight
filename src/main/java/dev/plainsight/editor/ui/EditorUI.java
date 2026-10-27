@@ -166,12 +166,6 @@ public final class EditorUI {
 				if (iconButton("tool_" + t.id(), size, editor.tool() == t, t::drawIcon)) editor.toggleTool(t);
 				tooltip(t.name(), t.description() + (editor.tool() == t ? " Click again to unselect." : ""));
 			}
-			for (Module m : editor.modules) {
-				if (i++ % perRow != 0) ImGui.sameLine(0, 4);
-				if (iconButton("module_" + m.id(), size, m.enabled(), m::drawIcon)) m.toggle();
-				if (ImGui.isItemClicked(ImGuiMouseButton.Right)) openModulePopup(m);
-				tooltip(m.name(), m.description() + (m.description().contains("Right-click") ? "" : " Right-click for settings."));
-			}
 		}
 		ImGui.setNextItemOpen(true, ImGuiCond.FirstUseEver);
 		if (ImGui.collapsingHeader("Tool Options")) {
@@ -262,8 +256,8 @@ public final class EditorUI {
 		ImGui.popStyleVar();
 		try {
 			guarded("viewport buttons", () -> {
-				Module[] buttons = {editor.fluids, editor.seeThrough};
-				String[] labels = {"Fluids", "See-through"};
+				Module[] buttons = {editor.fluids, editor.seeThrough, editor.blockOverlayDemo, editor.pathDemo};
+				String[] labels = {"Fluids", "See-through", "Block overlay", "Path overlay"};
 				for (int i = 0; i < buttons.length; i++) {
 					Module m = buttons[i];
 					if (i > 0) ImGui.sameLine(0, 6);

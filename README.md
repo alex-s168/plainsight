@@ -70,7 +70,7 @@ puts the box down (hides its handles). Tool options show name, centre, size and 
 
 **Entity Select**: RMB on an entity (players included, also yourself) adds it to the tree.
 
-### Overlays (APIs for later automation, with demos in the tool bar)
+### Overlays (APIs for later automation, with demos as viewport buttons)
 
 * `BlockOverlay`: blocks drawn as if placed (paste preview): real block models tesselated with the
   world's sky/block light and ambient occlusion, faces between overlay blocks culled, slightly
