@@ -66,6 +66,9 @@ public final class Editor {
 	public final EntitySelectTool entityTool = new EntitySelectTool(this);
 	public final List<Tool> tools = List.of(boxTool, entityTool);
 	private Tool tool = boxTool;
+	/** The tool to return to after editing a box that was picked in the tree (null otherwise). */
+	private @Nullable Tool toolBeforeTreeEdit;
+	private boolean switchingTool;
 
 	public final FluidTransparency fluids = new FluidTransparency();
 	public final SeeThrough seeThrough = new SeeThrough(this);
@@ -119,8 +122,15 @@ public final class Editor {
 
 	public void setTool(Tool t) {
 		if (tool != t) {
-			tool.deactivate();
+			switchingTool = true;
+			try {
+				tool.deactivate();
+			} finally {
+				switchingTool = false;
+			}
 			tool = t;
+			// choosing a tool by hand ends "editing a box picked in the tree"
+			toolBeforeTreeEdit = null;
 		}
 	}
 
@@ -556,8 +566,23 @@ public final class Editor {
 		return true;
 	}
 
+	/**
+	 * A box clicked in the selection tree: switches to the box tool to show its gizmo. Putting it down
+	 * again deselects it and restores the tool that was active before (see {@link #onBoxPutDown}).
+	 */
 	public void editBox(BoxNode box) {
+		Tool before = toolBeforeTreeEdit != null ? toolBeforeTreeEdit : tool;
 		setTool(boxTool);
+		toolBeforeTreeEdit = before;
 		boxTool.edit(box);
+	}
+
+	/** The box tool stopped editing {@code box}: deselect it in the tree, give back the earlier tool. */
+	public void onBoxPutDown(BoxNode box) {
+		tree.deselect(box);
+		if (switchingTool || toolBeforeTreeEdit == null) return;
+		Tool restore = toolBeforeTreeEdit;
+		toolBeforeTreeEdit = null;
+		setTool(restore);
 	}
 }

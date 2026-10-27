@@ -99,12 +99,14 @@ public final class BoxSelectTool implements Tool {
 	}
 
 	public void stopEditing() {
+		BoxNode was = editing;
 		editing = null;
 		dragging = false;
 		creating = false;
 		gizmo.endDrag();
 		gizmo.hovered = null;
 		hoveredHandle = null;
+		if (was != null) editor.onBoxPutDown(was);
 	}
 
 	// -- geometry -----------------------------------------------------------------------------------------------

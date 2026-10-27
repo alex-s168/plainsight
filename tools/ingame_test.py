@@ -332,7 +332,7 @@ def test_camera_arcball_centring_is_smooth():
 def test_camera_arcball_zoom_keeps_centre():
     editor_on()
     fresh_tree()
-    ed("follow", "")
+    ed("unfollow")
     cam(6.5, -52, 0, 0, 30)
     vp = state()["viewport"]
     gx, gy = vp[0] + vp[2] * 0.6, vp[1] + vp[3] * 0.55
@@ -609,6 +609,36 @@ def test_box_put_down_without_enter():
     time.sleep(0.2)
     check(state().get("editing"), "looking around keeps editing")
     c.key(K["ENTER"])
+
+
+def test_tree_pick_restores_tool_and_selection():
+    editor_on()
+    fresh_tree()
+    cam(2, -54, -6, 0, 35)
+    create_box(650, 550, 950, 700)
+    c.key(K["ENTER"])
+    time.sleep(0.2)
+    for before in ("none", "entity_select", "box_select"):
+        ed("selectTool", before)
+        pos, _ = find_node("box 1")
+        c.click(*pos, b=1)
+        time.sleep(0.3)
+        s = state()
+        check(s["tool"] == "box_select" and s.get("editing") and s["selected"], "picking the box in the tree edits it (from %s)" % before)
+        c.click(790, 150, b=1)  # empty space
+        time.sleep(0.3)
+        s = state()
+        check(s.get("editing") is None, "clicking elsewhere hides the gizmo")
+        check(s["selected"] == [], "and deselects the box in the tree: %s" % s["selected"])
+        check(s["tool"] == before, "and restores the tool: %s, expected %s" % (s["tool"], before))
+    # choosing a tool by hand while editing keeps that tool
+    ed("selectTool", "none")
+    c.click(*find_node("box 1")[0], b=1)
+    time.sleep(0.3)
+    c.click(*widget("tool_entity_select"), b=1)
+    time.sleep(0.3)
+    check(state()["tool"] == "entity_select" and state().get("editing") is None, "a hand-picked tool wins")
+    ed("selectTool", "box_select")
 
 
 def test_world_view_buttons_only_in_viewport():

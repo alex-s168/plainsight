@@ -220,6 +220,10 @@ public final class SelectionTree {
 		else selected.add(n);
 	}
 
+	public void deselect(SelectionNode n) {
+		selected.remove(n);
+	}
+
 	public void clearSelection() {
 		selected.clear();
 	}
