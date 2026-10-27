@@ -115,8 +115,26 @@ public final class SeeThrough implements Module {
 			if (d < 1.5) continue;
 			segs.add(new CutawayRegion.Segment(cx, cy, cz, tx, ty, tz, p.getY()));
 		}
-		int sky = mc.level.getBrightness(net.minecraft.world.level.LightLayer.SKY, net.minecraft.core.BlockPos.containing(cx, cy, cz));
-		return new CutawayRegion(segs, cameraRadius, radius, sky);
+		return new CutawayRegion(segs, cameraRadius, radius, openingLight(mc.level, cx, cy, cz, targets));
+	}
+
+	/** Minimum sky light of the opened space, so it never renders pitch black (e.g. seen from a cave). */
+	static final int MIN_OPENING_LIGHT = 10;
+
+	/**
+	 * Sky light for the opened space: the brightest of what the camera sees around itself and the open
+	 * sky above the players (the cut opens their room towards it), but at least {@link #MIN_OPENING_LIGHT}.
+	 */
+	private static int openingLight(net.minecraft.client.multiplayer.ClientLevel level, double cx, double cy, double cz, List<Player> targets) {
+		var sky = net.minecraft.world.level.LightLayer.SKY;
+		int light = level.getBrightness(sky, net.minecraft.core.BlockPos.containing(cx, cy, cz));
+		for (Player p : targets) {
+			var above = p.blockPosition().above(2);
+			for (int i = 0; i < 24 && light < 15; i++, above = above.above()) {
+				if (level.getBlockState(above).isAir()) light = Math.max(light, level.getBrightness(sky, above));
+			}
+		}
+		return Math.max(MIN_OPENING_LIGHT, light);
 	}
 
 	private void apply(CutawayRegion next) {

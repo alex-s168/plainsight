@@ -124,4 +124,35 @@ class CameraViewportTest {
 		assertEquals(2 * normal, fast.pos.z, 1e-6);
 		assertTrue(normal > 8 && normal < 10.5, "about BASE_SPEED blocks in one second: " + normal);
 	}
+
+	@Test
+	void orbitTurnsSmoothlyToCentreThePivot() {
+		EditorCamera cam = new EditorCamera();
+		cam.set(new Vector3d(0, 70, 0), 0, 0);
+		Vector3d pivot = new Vector3d(8, 64, 10);
+		cam.beginDrag(EditorCamera.Drag.ORBIT, pivot);
+		Vector3d start = new Vector3d(cam.pos);
+		cam.update(0.016);
+		Vector3d toPivot = new Vector3d(pivot).sub(cam.pos).normalize();
+		double first = Math.toDegrees(cam.forward(new Vector3d()).angle(toPivot));
+		assertTrue(first > 5, "smooth: not there after one frame (" + first + " deg)");
+		for (int i = 0; i < 25; i++) cam.update(0.016);
+		double after = Math.toDegrees(cam.forward(new Vector3d()).angle(new Vector3d(pivot).sub(cam.pos).normalize()));
+		assertTrue(after < 0.5, "quick: centred within 0.4 s (" + after + " deg off)");
+		assertTrue(cam.pos.distance(start) < 1e-9, "centring only turns the view");
+		cam.endDrag();
+		for (int i = 0; i < 10; i++) cam.update(0.016);
+		assertFalse(cam.isCentering());
+	}
+
+	@Test
+	void centringTakesTheShortWayAround() {
+		EditorCamera cam = new EditorCamera();
+		cam.set(new Vector3d(0, 70, 0), 170, 0);
+		// pivot at yaw -170 (20 degrees away across the wrap)
+		Vector3d pivot = new Vector3d(EditorCamera.direction(-170, 0, new Vector3d())).mul(10).add(cam.pos);
+		cam.beginDrag(EditorCamera.Drag.ORBIT, pivot);
+		cam.update(0.016);
+		assertTrue(cam.yaw > 170, "turns through 180, not back through 0: " + cam.yaw);
+	}
 }

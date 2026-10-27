@@ -140,6 +140,8 @@ def setup_world():
         "fill 12 -61 -2 16 -61 2 water",
         # a stone hut north-west with an armor stand inside: used by the see-through test
         "fill -12 -60 -12 -6 -55 -6 stone hollow",
+        # a cave under the hut and to its north, to look at the player from below
+        "fill -14 -63 -20 -4 -62 -4 air",
         'summon armor_stand 4.5 -60 2.5 {NoGravity:1b,Invisible:0b,CustomName:"Stand"}',
     ]:
         cmd(line)
@@ -247,14 +249,18 @@ def test_camera_arcball_around_entity_and_follow():
     piv = s["camera"]["pivot"]
     check(abs(piv[0] - 4.5) < 0.01 and abs(piv[2] - 2.5) < 0.01, "pivot is the entity's centre: %s" % piv)
     check("Arcball" in s["statusHints"], "status bar shows the Ctrl hints: %s" % s["statusHints"])
+    time.sleep(0.5)
+    vp = s["viewport"]
+    centre = (vp[0] + vp[2] / 2, vp[1] + vp[3] / 2)
     before = tuple(map(float, ed("project", *piv).split(",")))
+    check(math.dist(before, centre) < 3, "the view turns to centre the pivot: %s vs %s" % (before, centre))
     for i in range(1, 16):
         c.move(x + i * 12, y + i * 8)
         time.sleep(0.03)
     shot("arcball-entity")
     s = state()
     after = tuple(map(float, ed("project", *piv).split(",")))
-    check(math.dist(before, after) < 2, "the entity stays put on screen while orbiting: %s -> %s" % (before, after))
+    check(math.dist(before, after) < 2, "the entity stays in the centre while orbiting: %s -> %s" % (before, after))
     up = ed("project", piv[0], piv[1] + 3, piv[2])
     ux, uy = map(float, up.split(","))
     check(abs(ux - after[0]) < 1.5 and uy < after[1], "no tilt: world up stays screen up (%s above %s)" % (up, after))
@@ -276,6 +282,30 @@ def test_camera_arcball_around_entity_and_follow():
     time.sleep(0.3)
     check(state()["camera"]["following"] == "", "clicking the chip stops following")
     cmd("tp @e[type=armor_stand] 4.5 -60 2.5")
+
+
+def test_camera_arcball_centring_is_smooth():
+    editor_on()
+    fresh_tree()
+    cam(6.5, -52, 0, 0, 30)
+    vp = state()["viewport"]
+    gx, gy = vp[0] + vp[2] * 0.8, vp[1] + vp[3] * 0.7
+    c.key(K["LCTRL"], "press")
+    c.move(gx, gy)
+    time.sleep(0.05)
+    c.button(1, "press")
+    piv = state()["camera"]["pivot"]
+    centre = (vp[0] + vp[2] / 2, vp[1] + vp[3] / 2)
+    samples = []
+    t0 = time.time()
+    while time.time() - t0 < 0.6:
+        samples.append(math.dist(tuple(map(float, ed("project", *piv).split(","))), centre))
+        time.sleep(0.03)
+    c.button(1, "release")
+    c.key(K["LCTRL"], "release")
+    print("      distance of the pivot from the centre:", [round(v) for v in samples[:8]], "...", round(samples[-1], 1))
+    check(len([v for v in samples if 10 < v < samples[0] - 10]) >= 2, "it moves through intermediate positions (smooth)")
+    check(samples[-1] < 3, "and reaches the centre quickly")
 
 
 def test_camera_pan_ctrl_rmb():
@@ -796,6 +826,29 @@ def test_see_through_players_button():
     time.sleep(2)
     c3 = avg_color(shot("seethrough-off-again"), int(x) - 6, int(y) - 12, 12, 24)
     check(state()["cutawaySegments"] == 0, "turning it off clears the cut")
+    cmd("tp @s 0.5 -60 0.5 0 0")
+    time.sleep(0.5)
+
+
+def test_see_through_from_below():
+    editor_on()
+    fresh_tree()
+    ed("setModule", "see_through", "false")
+    cmd("tp @s -8.5 -59 -8.5")
+    time.sleep(0.8)
+    # in the cave below, north of the hut, looking up at the player
+    cam(-8.5, -62.5, -17, 0, -30)
+    time.sleep(1.5)
+    hx, hy = map(float, ed("project", -8.5, -58.5, -8.5).split(","))
+    off = avg_color(shot("seethrough-below-off"), int(hx) - 4, int(hy) - 4, 8, 8)
+    ed("setModule", "see_through", "true")
+    time.sleep(2.5)
+    col = ed("cutColumn", -9, -9, -62, -59)
+    check(col.startswith("####"), "from below the ground under the player is cut: %s" % col[:12])
+    on = avg_color(shot("seethrough-below-on"), int(hx) - 4, int(hy) - 4, 8, 8)
+    print("      player from below", off, "->", on)
+    check(color_dist(off, on) > 25, "the player becomes visible from below")
+    ed("setModule", "see_through", "false")
     cmd("tp @s 0.5 -60 0.5 0 0")
     time.sleep(0.5)
 

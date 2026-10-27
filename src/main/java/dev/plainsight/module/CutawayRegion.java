@@ -8,7 +8,7 @@ import java.util.Set;
  * Immutable description of the blocks hidden by {@link SeeThrough}. For each target (a player) it is a
  * cone from the camera to the target: thin at the camera ({@code cameraRadius}) and wide around the
  * target ({@code targetRadius}), so the target is seen with its surroundings, not through a keyhole.
- * The ground the target stands on and everything more than {@link #BEYOND} blocks beyond the target stay.
+ * Seen from above, the ground the target stands on stays; everything more than {@link #BEYOND} blocks beyond the target stay.
  */
 public final class CutawayRegion {
 	public static final CutawayRegion EMPTY = new CutawayRegion(List.of(), 0, 0, 0);
@@ -95,8 +95,9 @@ public final class CutawayRegion {
 			double r = cameraRadius + (targetRadius - cameraRadius) * tc + margin;
 			double cx = s.ax + dx * tc - px, cy = s.ay + dy * tc - py, cz = s.az + dz * tc - pz;
 			if (cx * cx + cy * cy + cz * cz > r * r) continue;
-			// keep the ground under and around the target
-			if (keepGround && py < s.feetY && Math.hypot(px - s.bx, pz - s.bz) < targetRadius + 1.5) continue;
+			// seen from above, keep the ground under and around the target; seen from below the ground is
+			// exactly what is in the way
+			if (keepGround && s.ay > s.feetY && py < s.feetY && Math.hypot(px - s.bx, pz - s.bz) < targetRadius + 1.5) continue;
 			return true;
 		}
 		return false;

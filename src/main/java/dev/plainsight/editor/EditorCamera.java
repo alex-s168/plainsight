@@ -28,6 +28,10 @@ public final class EditorCamera {
 
 	private final Vector3d velocity = new Vector3d();
 	private Drag drag = Drag.NONE;
+	/** While true the view turns towards the orbit pivot until it is in the centre. */
+	private boolean centering;
+	/** Rate of the centring turn (1/s): about 95% of the way in 0.2 s. */
+	public static final double CENTER_RATE = 15;
 	private final Vector3d pivot = new Vector3d();
 	private double panDistance;
 
@@ -92,6 +96,7 @@ public final class EditorCamera {
 	/** Integrates keyboard flight; {@code dt} in seconds. */
 	public void update(double dt) {
 		dt = Math.min(dt, 0.1);
+		center(dt);
 		Vector3d wish = new Vector3d();
 		double yr = Math.toRadians(yaw);
 		Vector3d flatForward = new Vector3d(-Math.sin(yr), 0, Math.cos(yr));
@@ -115,6 +120,7 @@ public final class EditorCamera {
 	/** @param pivotPoint point under the cursor (for orbit and pan); may be null for look */
 	public void beginDrag(Drag mode, Vector3dc pivotPoint) {
 		drag = mode;
+		centering = mode == Drag.ORBIT;
 		if (pivotPoint != null) pivot.set(pivotPoint);
 		else forward(pivot).mul(10).add(pos);
 		panDistance = Math.max(0.5, pivot.distance(pos));
@@ -122,6 +128,46 @@ public final class EditorCamera {
 
 	public void endDrag() {
 		drag = Drag.NONE;
+	}
+
+	public boolean isCentering() {
+		return centering;
+	}
+
+	/** Yaw/pitch that look from the camera at {@code target}. */
+	public float[] lookAt(Vector3dc target) {
+		Vector3d d = new Vector3d(target).sub(pos);
+		double h = Math.sqrt(d.x * d.x + d.z * d.z);
+		float y = h < 1e-9 && Math.abs(d.y) > 0 ? yaw : (float) Math.toDegrees(Math.atan2(-d.x, d.z));
+		float p = (float) Math.toDegrees(Math.atan2(-d.y, h));
+		return new float[]{y, clampPitch(p)};
+	}
+
+	/** Turns smoothly towards the pivot; done once it is (almost exactly) in the centre. */
+	private void center(double dt) {
+		if (!centering) return;
+		if (pivot.distanceSquared(pos) < 1e-4) {
+			centering = false;
+			return;
+		}
+		float[] target = lookAt(pivot);
+		float dYaw = wrapDegrees(target[0] - yaw), dPitch = target[1] - pitch;
+		if (Math.abs(dYaw) < 0.05f && Math.abs(dPitch) < 0.05f) {
+			yaw = target[0];
+			pitch = target[1];
+			centering = false;
+			return;
+		}
+		double k = 1 - Math.exp(-dt * CENTER_RATE);
+		yaw += (float) (dYaw * k);
+		pitch = clampPitch(pitch + (float) (dPitch * k));
+	}
+
+	static float wrapDegrees(float d) {
+		d %= 360;
+		if (d >= 180) d -= 360;
+		if (d < -180) d += 360;
+		return d;
 	}
 
 	/**

@@ -35,6 +35,15 @@ class CutawayRegionTest {
 	}
 
 	@Test
+	void fromBelowTheGroundIsCut() {
+		// camera 8 blocks below and 6 north of a player standing on a floor at y 63
+		CutawayRegion r = new CutawayRegion(List.of(new CutawayRegion.Segment(0.5, 57, -5.5, 0.5, 65, 0.5, 64)), 1, 4, 15);
+		assertTrue(r.contains(0, 63, 0), "the floor under the player");
+		assertTrue(r.contains(0, 61, -2), "the blocks between camera and player");
+		assertFalse(r.contains(0, 68, 3), "beyond the player");
+	}
+
+	@Test
 	void nearIncludesTheGroundAndAMargin() {
 		CutawayRegion r = region();
 		assertTrue(r.near(0, 63, 0, 1.0), "the kept ground is still meshed without the cut's shadows");
