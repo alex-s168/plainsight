@@ -4,6 +4,7 @@ import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.CardinalLighting;
 import net.minecraft.world.level.ColorResolver;
+import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -12,8 +13,11 @@ import net.minecraft.world.level.material.FluidState;
 import org.jspecify.annotations.Nullable;
 
 /**
- * The world as seen by blocks next to the cutaway: cut blocks look like air, so their neighbours keep
- * the faces that would otherwise be culled against them (no holes into the void).
+ * The world as seen by blocks in and around the cutaway: cut blocks look like air, so neighbours keep
+ * the faces that would otherwise be culled against them (no holes into the void) and get no ambient
+ * occlusion from them; the opened space gets the sky light the camera sees instead of the darkness of a
+ * closed room. Used consistently for every block near the cut, because the mesher caches light and
+ * shading per position.
  */
 public final class CutNeighborView implements BlockAndTintGetter {
 	private final BlockAndTintGetter level;
@@ -61,6 +65,13 @@ public final class CutNeighborView implements BlockAndTintGetter {
 	}
 
 	@Override
+	public int getBrightness(LightLayer layer, BlockPos pos) {
+		int real = level.getBrightness(layer, pos);
+		if (layer == LightLayer.SKY && real < cut.skyLight() && cut.near(pos.getX(), pos.getY(), pos.getZ(), 1.0)) return cut.skyLight();
+		return real;
+	}
+
+	@Override
 	public int getHeight() {
 		return level.getHeight();
 	}
@@ -70,10 +81,8 @@ public final class CutNeighborView implements BlockAndTintGetter {
 		return level.getMinY();
 	}
 
-	/** Whether any of the six neighbours of {@code pos} is cut. */
-	public static boolean touchesCut(CutawayRegion cut, BlockPos pos) {
-		int x = pos.getX(), y = pos.getY(), z = pos.getZ();
-		return cut.contains(x + 1, y, z) || cut.contains(x - 1, y, z) || cut.contains(x, y + 1, z)
-				|| cut.contains(x, y - 1, z) || cut.contains(x, y, z + 1) || cut.contains(x, y, z - 1);
+	/** Whether a block is close enough to the cut that its mesh depends on it (faces, shading, light). */
+	public static boolean affected(CutawayRegion cut, BlockPos pos) {
+		return cut.near(pos.getX(), pos.getY(), pos.getZ(), 2.5);
 	}
 }

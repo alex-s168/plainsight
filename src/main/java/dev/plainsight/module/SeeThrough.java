@@ -24,7 +24,8 @@ public final class SeeThrough implements Module {
 
 	private final Editor editor;
 	private boolean enabled;
-	public float radius = 2.5f;
+	/** Radius of the cut around players and at the camera. */
+	public float radius = 4.5f, cameraRadius = 1.5f;
 	public boolean allPlayers = true;
 	private long lastUpdate;
 	private int rebuilds;
@@ -114,7 +115,8 @@ public final class SeeThrough implements Module {
 			if (d < 1.5) continue;
 			segs.add(new CutawayRegion.Segment(cx, cy, cz, tx, ty, tz, p.getY()));
 		}
-		return new CutawayRegion(segs, radius);
+		int sky = mc.level.getBrightness(net.minecraft.world.level.LightLayer.SKY, net.minecraft.core.BlockPos.containing(cx, cy, cz));
+		return new CutawayRegion(segs, cameraRadius, radius, sky);
 	}
 
 	private void apply(CutawayRegion next) {
@@ -134,7 +136,10 @@ public final class SeeThrough implements Module {
 	public void options() {
 		float[] r = {radius};
 		ImGui.setNextItemWidth(160);
-		if (ImGui.sliderFloat("Radius", r, 1f, 8f, "%.1f")) radius = r[0];
+		if (ImGui.sliderFloat("Radius around players", r, 1f, 12f, "%.1f")) radius = r[0];
+		float[] rc = {cameraRadius};
+		ImGui.setNextItemWidth(160);
+		if (ImGui.sliderFloat("Radius at camera", rc, 0.5f, 6f, "%.1f")) cameraRadius = rc[0];
 		float[] o = {opacity};
 		ImGui.setNextItemWidth(160);
 		if (ImGui.sliderFloat("Opacity", o, 0f, 0.8f, "%.2f")) opacity = o[0];

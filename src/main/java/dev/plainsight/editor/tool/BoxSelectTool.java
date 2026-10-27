@@ -86,6 +86,7 @@ public final class BoxSelectTool implements Tool {
 		return creating;
 	}
 
+	@Override
 	public boolean isDragging() {
 		return dragging;
 	}
@@ -193,6 +194,8 @@ public final class BoxSelectTool implements Tool {
 		TransformGizmo.Part part = gizmo.pick(o, dir);
 		if (part != null) {
 			dragging = true;
+			// Shift held for free moving must not keep the camera descending
+			editor.camera.down = false;
 			dragStart.set(editing.box());
 			gizmo.beginDrag(part, o, dir);
 			return true;

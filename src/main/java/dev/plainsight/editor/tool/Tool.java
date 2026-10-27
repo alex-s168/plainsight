@@ -31,6 +31,11 @@ public interface Tool {
 	default void rightPressed() {
 	}
 
+	/** Whether a gizmo or handle drag is in progress (modifier keys then belong to the tool). */
+	default boolean isDragging() {
+		return false;
+	}
+
 	/** LMB clicked (pressed and released without dragging) where the tool had nothing to grab. */
 	default void clickedNothing() {
 	}

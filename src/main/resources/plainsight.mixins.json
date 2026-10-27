@@ -6,6 +6,7 @@
 	"client": [
 		"BufferBuilderMixin",
 		"CameraMixin",
+		"EntityRendererMixin",
 		"GameRendererMixin",
 		"HudMixin",
 		"KeyboardHandlerMixin",

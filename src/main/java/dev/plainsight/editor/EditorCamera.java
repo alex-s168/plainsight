@@ -8,8 +8,8 @@ import org.joml.Vector3dc;
  * Free editor camera. Angles follow Minecraft's convention (yaw 0 looks towards +Z, positive pitch looks
  * down). Controls (driven by {@link Editor}):
  * <ul>
- *   <li>LMB drag: look around; Ctrl+LMB drag: arcball around the point under the cursor (a trackball:
- *   the scene follows the cursor as if grabbed on a sphere; in turntable mode the horizon stays level);</li>
+ *   <li>LMB drag: look around; Ctrl+LMB drag: arcball around the point (or entity) under the cursor,
+ *   keeping the horizon level (no tilt);</li>
  *   <li>Ctrl+RMB drag: pan, keeping the grabbed point under the cursor;</li>
  *   <li>scroll: move towards/away from the point under the cursor;</li>
  *   <li>WASD horizontal flight, Space/Shift up/down, Ctrl faster; the speed slider scales all of it.</li>
@@ -21,12 +21,8 @@ public final class EditorCamera {
 
 	public enum Drag {NONE, LOOK, ORBIT, PAN}
 
-	public enum ArcballMode {TRACKBALL, TURNTABLE}
-
 	public final Vector3d pos = new Vector3d();
-	/** Degrees; roll is only non-zero after a trackball orbit (Home levels it). */
-	public float yaw, pitch, roll;
-	public ArcballMode arcballMode = ArcballMode.TRACKBALL;
+	public float yaw, pitch;
 	public float speed = 1f;
 	public boolean forward, back, left, right, up, down, fast;
 
@@ -43,7 +39,6 @@ public final class EditorCamera {
 		pos.set(p);
 		this.yaw = yaw;
 		this.pitch = clampPitch(pitch);
-		this.roll = 0;
 		velocity.zero();
 	}
 
@@ -51,39 +46,23 @@ public final class EditorCamera {
 		return new Vector3d(pivot);
 	}
 
-	/**
-	 * Orientation in Minecraft's camera convention: local -z looks forward, +y is up, +x is right.
-	 * Equal to {@code Camera.setRotation(yaw, pitch)} followed by a roll about the view direction.
-	 */
-	public Quaterniond orientation(Quaterniond dest) {
-		return dest.rotationYXZ(Math.PI - Math.toRadians(yaw), -Math.toRadians(pitch), Math.toRadians(roll));
-	}
-
-	/** Sets yaw, pitch and roll from an orientation (inverse of {@link #orientation}). */
-	public void setOrientation(Quaterniond q) {
-		Vector3d e = q.getEulerAnglesYXZ(new Vector3d());
-		yaw = (float) wrap(180 - Math.toDegrees(e.y));
-		pitch = (float) -Math.toDegrees(e.x);
-		roll = (float) wrap(Math.toDegrees(e.z));
-	}
-
-	private static double wrap(double deg) {
-		deg %= 360;
-		if (deg >= 180) deg -= 360;
-		if (deg < -180) deg += 360;
-		return deg;
-	}
-
-	/** Removes the roll, keeping the view direction. */
-	public void levelHorizon() {
-		Vector3d f = forward(new Vector3d());
-		pitch = (float) Math.toDegrees(Math.asin(Math.max(-1, Math.min(1, -f.y))));
-		if (Math.abs(f.y) < 0.9999) yaw = (float) Math.toDegrees(Math.atan2(-f.x, f.z));
-		roll = 0;
-	}
-
 	public static float clampPitch(float p) {
 		return Math.max(-90f, Math.min(90f, p));
+	}
+
+	/** Orientation in Minecraft's camera convention: local -z looks forward, +y is up, +x is right. */
+	public Quaterniond orientation(Quaterniond dest) {
+		return dest.rotationYXZ(Math.PI - Math.toRadians(yaw), -Math.toRadians(pitch), 0);
+	}
+
+	/** Moves the orbit pivot (e.g. following an entity) and the camera with it. */
+	public void movePivot(Vector3dc to) {
+		pos.add(to.x() - pivot.x, to.y() - pivot.y, to.z() - pivot.z);
+		pivot.set(to);
+	}
+
+	public void setPivot(Vector3dc p) {
+		pivot.set(p);
 	}
 
 	public Vector3d forward(Vector3d dest) {
@@ -147,8 +126,7 @@ public final class EditorCamera {
 
 	/**
 	 * Applies a mouse movement of (dx, dy) pixels. {@code worldPerPixel} is the size of one pixel at unit
-	 * distance (used for panning). Trackball orbits need the absolute positions: see
-	 * {@link #dragTo(double, double, double, double, Viewport, double)}.
+	 * distance (used for panning).
 	 */
 	public void dragBy(double dx, double dy, double worldPerPixel) {
 		switch (drag) {
@@ -156,10 +134,7 @@ public final class EditorCamera {
 				yaw += (float) (dx * LOOK_DEGREES_PER_PIXEL);
 				pitch = clampPitch(pitch + (float) (dy * LOOK_DEGREES_PER_PIXEL));
 			}
-			case ORBIT -> {
-				roll = 0;
-				orbit(dx * LOOK_DEGREES_PER_PIXEL, dy * LOOK_DEGREES_PER_PIXEL);
-			}
+			case ORBIT -> orbit(dx * LOOK_DEGREES_PER_PIXEL, dy * LOOK_DEGREES_PER_PIXEL);
 			case PAN -> {
 				double s = panDistance * worldPerPixel;
 				Vector3d r = right(new Vector3d()), u = up(new Vector3d());
@@ -168,41 +143,6 @@ public final class EditorCamera {
 			case NONE -> {
 			}
 		}
-	}
-
-	/** A mouse move from (x0, y0) to (x1, y1) window pixels while dragging. */
-	public void dragTo(double x0, double y0, double x1, double y1, Viewport viewport, double worldPerPixel) {
-		if (drag == Drag.ORBIT && arcballMode == ArcballMode.TRACKBALL) trackball(x0, y0, x1, y1, viewport);
-		else dragBy(x1 - x0, y1 - y0, worldPerPixel);
-	}
-
-	/**
-	 * Shoemake/Holroyd arcball: both cursor positions are mapped onto a virtual sphere filling the
-	 * viewport; the scene turns by the rotation between them, so the camera orbits the pivot the opposite
-	 * way. Reversible: dragging back returns to the start.
-	 */
-	public void trackball(double x0, double y0, double x1, double y1, Viewport v) {
-		Vector3d a = sphere(x0, y0, v), b = sphere(x1, y1, v);
-		if (a.distanceSquared(b) < 1e-14) return;
-		// scene rotation in camera space, a -> b
-		Quaterniond sceneLocal = new Quaterniond().rotationTo(a, b);
-		Quaterniond q = orientation(new Quaterniond());
-		// camera motion in world space: the inverse scene rotation, expressed in world coordinates
-		Quaterniond world = new Quaterniond(q).mul(sceneLocal.conjugate()).mul(new Quaterniond(q).conjugate());
-		Vector3d off = new Vector3d(pos).sub(pivot);
-		world.transform(off);
-		pos.set(pivot).add(off);
-		setOrientation(world.mul(q, new Quaterniond()).normalize());
-	}
-
-	/** Point on the arcball for a window pixel, in camera space (+x right, +y up, +z towards the viewer). */
-	static Vector3d sphere(double px, double py, Viewport v) {
-		double r = Math.min(v.width, v.height) * 0.5;
-		double x = (px - (v.x + v.width / 2)) / r, y = ((v.y + v.height / 2) - py) / r;
-		double d2 = x * x + y * y;
-		// sphere in the middle, hyperbolic sheet outside: continuous and never flat
-		double z = d2 <= 0.5 ? Math.sqrt(1 - d2) : 0.5 / Math.sqrt(d2);
-		return new Vector3d(x, y, z).normalize();
 	}
 
 	/** Rotates the camera around the pivot, keeping the pivot at the same place on screen. */

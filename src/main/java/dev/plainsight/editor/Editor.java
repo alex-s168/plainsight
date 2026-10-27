@@ -80,6 +80,10 @@ public final class Editor {
 	private boolean movedSincePress;
 	/** Arcball pivot: the point under the cursor, or (like Axiom's option) the point at the viewport centre. */
 	public boolean arcballAtViewportCenter;
+	private @Nullable Entity orbitEntity;
+	private java.util.@Nullable UUID follow;
+	private String followName = "";
+	private @Nullable Vector3d followLast;
 	private double lastDragX, lastDragY;
 	public boolean ctrl, shift, alt;
 	private long lastFrameNanos;
@@ -160,6 +164,7 @@ public final class Editor {
 		}
 		if (mc.gui.screen() != null) camera.stopMovement();
 		camera.update(dt);
+		trackEntities();
 		seeThrough.frame();
 		if (now - lastSaveCheck > 2_000_000_000L) {
 			lastSaveCheck = now;
@@ -312,12 +317,77 @@ public final class Editor {
 		return best;
 	}
 
-	private Vector3d arcballPivot() {
-		if (!arcballAtViewportCenter) return pointUnderCursor(10);
-		Vector3d dir = rayAt(viewport.x + viewport.width / 2, viewport.y + viewport.height / 2);
-		BlockHitResult hit = raycastBlock(dir, false);
-		if (hit != null) return new Vector3d(hit.getLocation().x, hit.getLocation().y, hit.getLocation().z);
-		return new Vector3d(camera.pos).fma(10, dir);
+	/**
+	 * Starts an arcball drag. The pivot is the followed entity if there is one, else the entity or block
+	 * under the cursor (or at the viewport centre, if configured). An entity pivot moves with the entity.
+	 */
+	private void beginOrbit() {
+		Entity target = followed();
+		Vector3d pivot;
+		if (target == null) {
+			double px = arcballAtViewportCenter ? viewport.x + viewport.width / 2 : mouseX;
+			double py = arcballAtViewportCenter ? viewport.y + viewport.height / 2 : mouseY;
+			Vector3d dir = rayAt(px, py);
+			BlockHitResult block = raycastBlock(dir, false);
+			double max = block != null ? block.getLocation().distanceTo(new Vec3(camera.pos.x, camera.pos.y, camera.pos.z)) : REACH;
+			EntityHit hit = raycastEntity(dir, max);
+			if (hit != null) {
+				target = hit.entity();
+			}
+			if (target != null) pivot = centre(target);
+			else if (block != null) pivot = new Vector3d(block.getLocation().x, block.getLocation().y, block.getLocation().z);
+			else pivot = new Vector3d(camera.pos).fma(10, dir);
+		} else {
+			pivot = centre(target);
+		}
+		orbitEntity = target;
+		camera.beginDrag(EditorCamera.Drag.ORBIT, pivot);
+	}
+
+	public static Vector3d centre(Entity e) {
+		AABB b = e.getBoundingBox();
+		return new Vector3d((b.minX + b.maxX) / 2, (b.minY + b.maxY) / 2, (b.minZ + b.maxZ) / 2);
+	}
+
+	/** The entity being orbited right now (during a Ctrl+LMB drag), if any. */
+	public @Nullable Entity orbitEntity() {
+		return camera.drag() == EditorCamera.Drag.ORBIT ? orbitEntity : null;
+	}
+
+	/** The entity the camera follows (keeps its offset to), or null. */
+	public @Nullable Entity followed() {
+		Minecraft mc = Minecraft.getInstance();
+		if (follow == null || mc.level == null) return null;
+		for (Entity e : mc.level.entitiesForRendering()) if (e.getUUID().equals(follow)) return e;
+		return null;
+	}
+
+	public void follow(@Nullable Entity e) {
+		follow = e == null ? null : e.getUUID();
+		followName = e == null ? "" : dev.plainsight.editor.tool.EntitySelectTool.of(e).label();
+		followLast = e == null ? null : centre(e);
+	}
+
+	public String followName() {
+		return followName;
+	}
+
+	/** Keeps the camera's offset to a followed or orbited entity while it moves. */
+	private void trackEntities() {
+		Entity f = followed();
+		if (follow != null && f == null) {
+			// gone (unloaded or dead): stop following
+			follow(null);
+		}
+		Entity moving = orbitEntity() != null ? orbitEntity : f;
+		if (moving == null || moving.isRemoved()) return;
+		Vector3d c = centre(moving);
+		if (camera.drag() == EditorCamera.Drag.ORBIT && moving == orbitEntity) {
+			camera.movePivot(c);
+		} else if (followLast != null) {
+			camera.pos.add(c.x - followLast.x, c.y - followLast.y, c.z - followLast.z);
+		}
+		followLast = c;
 	}
 
 	/** Point under the cursor (block hit), or a point at {@code fallback} distance along the ray. */
@@ -337,7 +407,7 @@ public final class Editor {
 		mouseX = x;
 		mouseY = y;
 		if (camera.drag() != EditorCamera.Drag.NONE) {
-			camera.dragTo(lastDragX, lastDragY, x, y, viewport, viewport.worldPerPixel(fov()));
+			camera.dragBy(x - lastDragX, y - lastDragY, viewport.worldPerPixel(fov()));
 			lastDragX = x;
 			lastDragY = y;
 		}
@@ -362,7 +432,7 @@ public final class Editor {
 		pressY = mouseY;
 		movedSincePress = false;
 		if (button == 1) {
-			if (ctrl) camera.beginDrag(EditorCamera.Drag.ORBIT, arcballPivot());
+			if (ctrl) beginOrbit();
 			else if (!tool.leftPressed()) camera.beginDrag(EditorCamera.Drag.LOOK, null);
 		} else if (button == 3) {
 			if (ctrl) camera.beginDrag(EditorCamera.Drag.PAN, pointUnderCursor(10));
@@ -414,10 +484,6 @@ public final class Editor {
 				deleteSelected();
 				return true;
 			}
-			case InputConstants.KEY_HOME -> {
-				camera.levelHorizon();
-				return true;
-			}
 			case InputConstants.KEY_ESCAPE -> {
 				// Escape closes ImGui popups first; only an idle editor lets the game open its menu
 				if (imgui.ImGui.isPopupOpen("", imgui.flag.ImGuiPopupFlags.AnyPopupId | imgui.flag.ImGuiPopupFlags.AnyPopupLevel)) return true;
@@ -440,11 +506,9 @@ public final class Editor {
 			case InputConstants.KEY_A -> camera.left = down;
 			case InputConstants.KEY_D -> camera.right = down;
 			case InputConstants.KEY_SPACE -> camera.up = down;
-			case InputConstants.KEY_LSHIFT -> camera.down = down;
-			case InputConstants.KEY_LCONTROL -> {
-				camera.fast = down;
-				return false;
-			}
+			// Shift is the gizmo's "free move" modifier while dragging, not "fly down"
+			case InputConstants.KEY_LSHIFT -> camera.down = down && !tool.isDragging();
+			case InputConstants.KEY_LCONTROL -> camera.fast = down;
 			default -> {
 				return false;
 			}

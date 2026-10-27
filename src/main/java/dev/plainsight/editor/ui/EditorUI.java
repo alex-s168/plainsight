@@ -133,18 +133,13 @@ public final class EditorUI {
 			ImGui.endMenu();
 		}
 		if (ImGui.beginMenu("Camera")) {
-			var cam = editor.camera;
 			ImGui.textDisabled("Arcball (Ctrl + LMB drag)");
-			if (ImGui.menuItem("Trackball (free rotation)", "", cam.arcballMode == dev.plainsight.editor.EditorCamera.ArcballMode.TRACKBALL)) {
-				cam.arcballMode = dev.plainsight.editor.EditorCamera.ArcballMode.TRACKBALL;
-			}
-			if (ImGui.menuItem("Turntable (keep horizon level)", "", cam.arcballMode == dev.plainsight.editor.EditorCamera.ArcballMode.TURNTABLE)) {
-				cam.arcballMode = dev.plainsight.editor.EditorCamera.ArcballMode.TURNTABLE;
-				cam.levelHorizon();
-			}
 			if (ImGui.menuItem("Pivot at viewport centre", "", editor.arcballAtViewportCenter)) editor.arcballAtViewportCenter = !editor.arcballAtViewportCenter;
 			ImGui.separator();
-			if (ImGui.menuItem("Level horizon", "Home")) cam.levelHorizon();
+			boolean following = editor.followed() != null;
+			if (ImGui.menuItem(following ? "Stop following " + editor.followName() : "Follow: right-click an entity in the tree", "", following, following)) {
+				editor.follow(null);
+			}
 			ImGui.endMenu();
 		}
 		if (ImGui.beginMenu("Help")) {
@@ -156,16 +151,17 @@ public final class EditorUI {
 	private void helpContents() {
 		ImGui.textDisabled("Camera");
 		ImGui.bulletText("LMB drag: rotate (look around)");
-		ImGui.bulletText("Ctrl + LMB drag: arcball - orbit the point under the cursor");
+		ImGui.bulletText("Ctrl + LMB drag: arcball - orbit the block or entity under the cursor");
+		ImGui.bulletText("  (an entity pivot moves with the entity; the horizon stays level)");
 		ImGui.bulletText("Ctrl + RMB drag: pan   Scroll: move to/from the point under the cursor");
-		ImGui.bulletText("Home: level the horizon after a trackball orbit");
+		ImGui.bulletText("Follow an entity: right-click it in the tree; arcball then orbits it");
 		ImGui.bulletText("WASD: fly, Space / Shift: up / down, hold Ctrl: faster");
 		ImGui.textDisabled("Tools");
 		ImGui.bulletText("RMB: use tool   MMB: pick block");
 		ImGui.bulletText("Box: LMB on a handle selects it; drag gizmo arrows, squares, rings");
 		ImGui.bulletText("Enter, a click on empty space or Done: put the box down");
 		ImGui.bulletText("Esc: cancel   Del: delete   Arrows / PgUp / PgDn: nudge");
-		ImGui.textDisabled("World view (left panel, or the buttons in the viewport)");
+		ImGui.textDisabled("World view (buttons at the top of the viewport)");
 		ImGui.bulletText("Transparent fluids, see-through to players; right-click for settings");
 	}
 
@@ -183,21 +179,6 @@ public final class EditorUI {
 	}
 
 	private void toolsPanel(float w) {
-		ImGui.setNextItemOpen(true, ImGuiCond.FirstUseEver);
-		if (ImGui.collapsingHeader("World View")) {
-			for (Module m : new Module[]{editor.fluids, editor.seeThrough}) {
-				ImGui.pushID(m.id());
-				if (ImGui.checkbox(m.name(), m.enabled())) m.toggle();
-				rect("check_" + m.id());
-				tooltip(m.name(), m.description());
-				if (m.enabled()) {
-					ImGui.indent();
-					guarded("module " + m.id(), m::options);
-					ImGui.unindent();
-				}
-				ImGui.popID();
-			}
-		}
 		ImGui.setNextItemOpen(true, ImGuiCond.FirstUseEver);
 		if (ImGui.collapsingHeader("Tools")) {
 			float size = 40;
@@ -310,6 +291,12 @@ public final class EditorUI {
 					Module m = buttons[i];
 					if (i > 0) ImGui.sameLine(0, 6);
 					labeledToggle("view_" + m.id(), labels[i], m);
+				}
+				if (editor.followed() != null) {
+					ImGui.sameLine(0, 14);
+					if (ImGui.button("Following " + editor.followName() + "  x", 0, 30)) editor.follow(null);
+					rect("view_follow");
+					tooltip("Following", "The camera moves with this entity and the arcball orbits it. Click to stop.");
 				}
 				if (editor.boxTool.editing() != null) {
 					ImGui.sameLine(0, 14);
@@ -505,6 +492,14 @@ public final class EditorUI {
 				tree.touch();
 			}
 			if (ImGui.menuItem("Focus camera")) editor.focus(n);
+			if (n instanceof EntityNode en) {
+				var mc = Minecraft.getInstance();
+				var entity = mc.level == null ? null : mc.level.getEntity(en.entity());
+				if (ImGui.menuItem("Follow with camera", "", false, entity != null)) {
+					editor.focus(n);
+					editor.follow(entity);
+				}
+			}
 			ImGui.separator();
 			if (ImGui.menuItem("Delete", "Del")) deferred = editor::deleteSelected;
 		}
@@ -609,7 +604,7 @@ public final class EditorUI {
 	private void statusContents(float w) {
 		boolean ctrl = editor.ctrl;
 		String[] hints = ctrl
-				? new String[]{"Ctrl+LMB - Arcball Camera", "Ctrl+RMB - Pan Camera", "Home - Level Horizon"}
+				? new String[]{"Ctrl+LMB - Arcball Camera (block or entity)", "Ctrl+RMB - Pan Camera"}
 				: new String[]{"LMB - Rotate Camera", "MMB - Pick Block", editor.tool().hints()};
 		for (int i = 0; i < hints.length; i++) {
 			if (i > 0) {
@@ -621,8 +616,8 @@ public final class EditorUI {
 		}
 		ImGui.sameLine(0, 30);
 		if (ctrl) {
-			ImGui.textDisabled("arcball: " + (editor.camera.arcballMode == dev.plainsight.editor.EditorCamera.ArcballMode.TRACKBALL ? "trackball" : "turntable")
-					+ (editor.arcballAtViewportCenter ? ", pivot at viewport centre" : ", pivot under cursor") + "  (Camera menu)");
+			ImGui.textDisabled("arcball pivot: " + (editor.followed() != null ? editor.followName()
+					: editor.arcballAtViewportCenter ? "viewport centre" : "under the cursor") + "  (Camera menu)");
 		} else {
 			ImGui.textDisabled("Hold Ctrl for more options");
 		}

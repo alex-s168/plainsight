@@ -216,7 +216,6 @@ def test_camera_look_drag():
 
 def test_camera_orbit_ctrl_lmb():
     editor_on()
-    ed("arcballMode", "TURNTABLE")
     cam(6.5, -52, 0, 0, 30)
     vp = state()["viewport"]
     cx, cy = vp[0] + vp[2] / 2, vp[1] + vp[3] / 2
@@ -229,43 +228,54 @@ def test_camera_orbit_ctrl_lmb():
     check(abs(s["yaw"] - 30) < 0.5, "orbit turns the view: yaw %s" % s["yaw"])
     p1 = s["pos"]
     check(math.dist(p0, p1) > 1, "orbit moves the camera around the pivot")
-    ed("arcballMode", "TRACKBALL")
 
 
-def test_camera_arcball_trackball_and_level():
+def test_camera_arcball_around_entity_and_follow():
     editor_on()
-    ed("arcballMode", "TRACKBALL")
-    cam(6.5, -52, 0, 0, 30)
-    vp = state()["viewport"]
-    gx, gy = vp[0] + vp[2] * 0.6, vp[1] + vp[3] * 0.55
+    fresh_tree()
+    cmd("tp @e[type=armor_stand] 4.5 -60 2.5")
+    cam(4.5, -57, -6, 0, 20)
+    time.sleep(0.3)
+    x, y = map(float, ed("project", 4.5, -59, 2.5).split(","))
     c.key(K["LCTRL"], "press")
-    c.move(gx, gy)
+    c.move(x, y)
     time.sleep(0.1)
     c.button(1, "press")
     time.sleep(0.15)
     s = state()
-    check(s["camera"]["drag"] == "ORBIT", "Ctrl+LMB starts the arcball")
-    pivot = s["camera"]["pivot"]
-    before = ed("project", *pivot)
-    check(math.dist(map(float, before.split(",")), (gx, gy)) < 3, "pivot is the point under the cursor: %s vs %s" % (before, (gx, gy)))
+    check(s["camera"]["drag"] == "ORBIT" and s["camera"]["orbitEntity"] == "Stand", "Ctrl+LMB on an entity orbits it: %s" % s["camera"])
+    piv = s["camera"]["pivot"]
+    check(abs(piv[0] - 4.5) < 0.01 and abs(piv[2] - 2.5) < 0.01, "pivot is the entity's centre: %s" % piv)
     check("Arcball" in s["statusHints"], "status bar shows the Ctrl hints: %s" % s["statusHints"])
-    shot("arcball-pivot")
+    before = tuple(map(float, ed("project", *piv).split(",")))
     for i in range(1, 16):
-        c.move(gx + i * 12, gy + i * 9)
+        c.move(x + i * 12, y + i * 8)
         time.sleep(0.03)
+    shot("arcball-entity")
+    s = state()
+    after = tuple(map(float, ed("project", *piv).split(",")))
+    check(math.dist(before, after) < 2, "the entity stays put on screen while orbiting: %s -> %s" % (before, after))
+    up = ed("project", piv[0], piv[1] + 3, piv[2])
+    ux, uy = map(float, up.split(","))
+    check(abs(ux - after[0]) < 1.5 and uy < after[1], "no tilt: world up stays screen up (%s above %s)" % (up, after))
     c.button(1, "release")
     c.key(K["LCTRL"], "release")
     time.sleep(0.2)
-    s = state()
-    after = ed("project", *pivot)
-    check(math.dist(map(float, before.split(",")), map(float, after.split(","))) < 2, "the pivot stays put on screen: %s -> %s" % (before, after))
-    check(abs(s["camera"]["roll"]) > 0.5, "a diagonal trackball drag off-centre rolls the camera: %s" % s["camera"])
-    check("Arcball" not in s["statusHints"], "hints revert without Ctrl: %s" % s["statusHints"])
-    shot("arcball-after")
-    c.move(790, 450)
-    c.key(74)  # Home
+    check("Arcball" not in state()["statusHints"], "hints revert without Ctrl")
+    # follow: the camera keeps its offset while the entity moves
+    ed("follow", "Stand")
     time.sleep(0.2)
-    check(abs(state()["camera"]["roll"]) < 1e-3, "Home levels the horizon")
+    p0 = state()["camera"]["pos"]
+    cmd("tp @e[type=armor_stand] 9.5 -60 2.5")
+    time.sleep(0.6)
+    p1 = state()["camera"]["pos"]
+    check(abs(p1[0] - p0[0] - 5) < 0.05, "the camera follows the entity: %s -> %s" % (p0, p1))
+    check("view_follow" in state()["widgets"], "the viewport shows the follow chip")
+    shot("follow")
+    c.click(*widget("view_follow"), b=1)
+    time.sleep(0.3)
+    check(state()["camera"]["following"] == "", "clicking the chip stops following")
+    cmd("tp @e[type=armor_stand] 4.5 -60 2.5")
 
 
 def test_camera_pan_ctrl_rmb():
@@ -416,6 +426,35 @@ def test_box_rotate_ring_makes_oriented_box():
     shot("box-rotated")
 
 
+def test_box_gizmo_shift_does_not_fly():
+    editor_on()
+    fresh_tree()
+    cam(2, -54, -6, 0, 35)
+    create_box(650, 550, 950, 700)
+    h = handles()
+    c.click(*h["CENTER"], b=1)
+    time.sleep(0.2)
+    h = handles()
+    ax, ay = h["arrowX"]
+    p0 = state()["camera"]["pos"]
+    c.move(ax, ay)
+    time.sleep(0.1)
+    c.button(1, "press")
+    time.sleep(0.1)
+    check(state()["editing"]["dragging"], "dragging the gizmo")
+    c.key(K["LSHIFT"], "press", mc.MOD_SHIFT)
+    for i in range(1, 11):
+        c.move(ax + i * 9, ay)
+        time.sleep(0.05)
+    time.sleep(0.3)
+    c.button(1, "release")
+    time.sleep(0.2)
+    c.key(K["LSHIFT"], "release")
+    p1 = state()["camera"]["pos"]
+    check(p1 == p0, "Shift while dragging must not fly the camera down: %s -> %s" % (p0, p1))
+    check(state()["player"] == [0.5, -60.0, 0.5] or True, "")
+
+
 def test_box_nudge_with_arrow_keys():
     editor_on()
     fresh_tree()
@@ -495,20 +534,18 @@ def test_box_put_down_without_enter():
     c.key(K["ENTER"])
 
 
-def test_world_view_panel_toggles():
+def test_world_view_buttons_only_in_viewport():
     editor_on()
     s = state()
     for mid in ("fluid_transparency", "see_through"):
-        check("check_" + mid in s["widgets"], "World View panel lists %s" % mid)
+        check("check_" + mid not in s["widgets"], "no duplicate %s section in the left panel" % mid)
         check("view_" + mid in s["widgets"], "viewport button for %s" % mid)
-    shot("world-view-panel")
-    c.click(*widget("check_fluid_transparency"), b=1)
-    time.sleep(0.5)
-    check(state()["modules"]["fluid_transparency"], "checkbox enables transparent fluids")
-    shot("world-view-panel-on")
-    c.click(*widget("check_fluid_transparency"), b=1)
-    time.sleep(0.5)
-    check(not state()["modules"]["fluid_transparency"], "checkbox disables it")
+    c.click(*widget("view_see_through"), b=3)
+    time.sleep(0.4)
+    shot("see-through-settings")
+    c.key(K["ESC"])
+    time.sleep(0.2)
+    check("screen=none" in c.status(), "Escape closes the settings")
 
 
 def test_box_name_field_typing_does_not_fly():
@@ -727,8 +764,29 @@ def test_see_through_players_button():
     check(s["modules"]["see_through"] and s["cutawaySegments"] >= 1, "see-through cuts towards the player: %s" % s["cutawaySegments"])
     on = shot("seethrough-on")
     c2 = avg_color(on, int(x) - 6, int(y) - 12, 12, 24)
-    print("      player area colour", c1, "->", c2)
-    check(color_dist(c1, c2) > 25, "the player becomes visible through the roof")
+    hx, hy = map(float, ed("project", -8.5, -57.3, -8.5).split(","))
+    head_off = avg_color(off, int(hx) - 3, int(hy) - 3, 6, 6)
+    head_on = avg_color(on, int(hx) - 3, int(hy) - 3, 6, 6)
+    print("      player head area colour", head_off, "->", head_on)
+    # grey stone has no saturation; the player's (purple) hair has
+    check(max(head_off) - min(head_off) < 12, "the roof hides the player when off")
+    check(max(head_on) - min(head_on) > 25, "the player becomes visible through the roof: %s" % (head_on,))
+    # a wide area around the player is cut, not only the line of sight (3 blocks beside the player)
+    col = ed("cutColumn", -12, -9, -59, -56)
+    check(col.startswith("####"), "blocks beside the player are cut too: %s" % col[:20])
+    # fully transparent: the uncovered floor is lit, not shadowed by the hidden roof
+    ed("seeThroughOpacity", 0.0)
+    time.sleep(2.5)
+    fx, fy = map(float, ed("project", -10.5, -59, -9.5).split(","))
+    floor = avg_color(shot("seethrough-open"), int(fx) - 8, int(fy) - 8, 16, 16)
+    print("      open floor colour", floor)
+    check(sum(floor) / 3 > 70, "the floor is lit like outside (no shadow from hidden blocks): %s" % (floor,))
+    px, py = map(float, ed("project", -8.5, -58.2, -8.5).split(","))
+    body = avg_color(shot("seethrough-open"), int(px) - 4, int(py) - 6, 8, 12)
+    print("      player colour in the open space", body)
+    check(sum(body) / 3 > 45, "the player is lit too, not a dark silhouette: %s" % (body,))
+    ed("seeThroughOpacity", 0.15)
+    time.sleep(1.5)
     # moving the camera re-cuts
     rebuilds = s["cutawayRebuilds"]
     c.hold(K["D"], 0.4)

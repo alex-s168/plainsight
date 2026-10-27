@@ -67,11 +67,12 @@ public abstract class SectionCompilerMixin {
 			if (alpha < 3) return;
 			AlphaOverride.begin(alpha);
 			try {
+				// the real world: faces between cut blocks stay culled, so only their outer shell is drawn faintly
 				original.call(renderer, output, x, y, z, level, pos, state, model, seed);
 			} finally {
 				AlphaOverride.end();
 			}
-		} else if (CutNeighborView.touchesCut(cut, pos)) {
+		} else if (CutNeighborView.affected(cut, pos)) {
 			original.call(renderer, output, x, y, z, new CutNeighborView(level, cut, pos), pos, state, model, seed);
 		} else {
 			original.call(renderer, output, x, y, z, level, pos, state, model, seed);

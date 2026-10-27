@@ -19,24 +19,28 @@ a projection centred on the viewport between the panels.
 | Input | Action |
 |---|---|
 | LMB drag | rotate (look around) |
-| Ctrl + LMB drag | arcball around the point under the cursor (marked while orbiting): a trackball by default, or turntable (horizon stays level), *Camera* menu; the pivot can also be the viewport centre |
+| Ctrl + LMB drag | arcball around the block or entity under the cursor (marked while orbiting; an entity pivot moves with the entity); the horizon stays level. The pivot can also be the viewport centre (*Camera* menu) |
 | Ctrl + RMB drag | pan; the grabbed point stays under the cursor |
 | Scroll | move towards / away from the point under the cursor (never past it) |
-| Home | level the horizon (after a trackball orbit) |
 | W A S D, Space, Shift | fly (horizontal like creative flight), Ctrl = 3× faster; scaled by *Speed* |
 | MMB | pick block (shown in the status bar) |
 | RMB | use the active tool |
 
-Holding Ctrl switches the status bar to the Ctrl controls; *Help* lists everything.
+Right-click an entity in the tree → *Follow with camera*: the camera keeps its offset to the entity
+and the arcball orbits it (the viewport shows a *Following …* chip; click it to stop). Shift while
+dragging a gizmo means "free move", not "fly down". Holding Ctrl switches the status bar to the Ctrl
+controls; *Help* lists everything.
 Chat (<kbd>T</kbd>, <kbd>/</kbd>), F-keys and the pause menu still work; <kbd>Esc</kbd> first cancels
 what the tool is doing and closes ImGui popups.
 
-### World view (the *World View* section at the top of the left panel, the labelled buttons in the viewport, or the *View* menu; right-click a button for settings)
+### World view (the labelled buttons at the top of the viewport, or the *View* menu; right-click a button for settings)
 
 * **Transparent fluids**: water and lava drawn translucent (opacity slider, 0 = hidden).
-* **See-through to players** (RTS cutaway): blocks between the camera and players are drawn faintly
-  (opacity and radius sliders, optionally other players too). Neighbouring blocks keep their faces, and
-  cut blocks do not occlude, so the player behind a roof or wall is visible.
+* **See-through to players** (RTS cutaway): a cone from the camera that widens to a large area around
+  each player (radius sliders for both ends) is drawn faintly (opacity slider, 0 = hidden), optionally
+  for other players too; the ground the player stands on stays. Blocks around the cut are meshed as if
+  the cut blocks were air (no holes, no ambient-occlusion shadows) and the opened space, including the
+  players in it, is lit with the sky light around the camera instead of the darkness of a closed room.
 
 ### Selections
 

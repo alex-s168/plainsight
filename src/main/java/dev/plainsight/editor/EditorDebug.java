@@ -35,8 +35,8 @@ public final class EditorDebug {
 		cam.add("pos", vec(e.camera.pos));
 		cam.addProperty("yaw", e.camera.yaw);
 		cam.addProperty("pitch", e.camera.pitch);
-		cam.addProperty("roll", e.camera.roll);
-		cam.addProperty("arcball", e.camera.arcballMode.name());
+		cam.addProperty("orbitEntity", e.orbitEntity() == null ? "" : e.orbitEntity().getName().getString());
+		cam.addProperty("following", e.followName());
 		cam.add("pivot", vec(e.camera.pivot()));
 		cam.addProperty("drag", e.camera.drag().name());
 		cam.addProperty("speed", e.camera.speed);
@@ -64,7 +64,6 @@ public final class EditorDebug {
 		o.add("modules", mods);
 		o.addProperty("cutawaySegments", SeeThrough.region().segments().size());
 		o.addProperty("cutawayRebuilds", e.seeThrough.rebuilds());
-		o.addProperty("cutawayHits", dev.plainsight.module.CutawayRegion.HITS.get());
 		o.addProperty("overlayBlocksSubmitted", BlockOverlayRenderer.submitted);
 		JsonObject ov = new JsonObject();
 		for (Overlay.Layer l : Overlay.Layer.values()) ov.addProperty(l.name(), e.overlay.lineCount(l) + " lines, " + e.overlay.triangleCount(l) + " tris");
@@ -198,9 +197,21 @@ public final class EditorDebug {
 		return "ok";
 	}
 
-	public static String arcballMode(String mode) {
-		Editor.get().camera.arcballMode = dev.plainsight.editor.EditorCamera.ArcballMode.valueOf(mode);
-		return "ok";
+	/** Follows the first loaded entity whose name matches (or stops with an empty name). */
+	public static String follow(String name) {
+		Editor e = Editor.get();
+		if (name.isEmpty()) {
+			e.follow(null);
+			return "ok";
+		}
+		var level = Minecraft.getInstance().level;
+		for (var ent : level.entitiesForRendering()) {
+			if (ent.getName().getString().equals(name)) {
+				e.follow(ent);
+				return "ok";
+			}
+		}
+		return "no entity " + name;
 	}
 
 	public static String toggle() {

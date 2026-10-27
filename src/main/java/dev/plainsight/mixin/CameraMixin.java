@@ -17,25 +17,6 @@ public abstract class CameraMixin {
 	private boolean detached;
 
 	@Shadow
-	@org.spongepowered.asm.mixin.Final
-	private org.joml.Quaternionf rotation;
-
-	@Shadow
-	@org.spongepowered.asm.mixin.Final
-	private org.joml.Vector3f forwards;
-
-	@Shadow
-	@org.spongepowered.asm.mixin.Final
-	private org.joml.Vector3f up;
-
-	@Shadow
-	@org.spongepowered.asm.mixin.Final
-	private org.joml.Vector3f left;
-
-	@Shadow
-	private int matrixPropertiesDirty;
-
-	@Shadow
 	protected abstract void setPosition(double x, double y, double z);
 
 	@Shadow
@@ -49,14 +30,6 @@ public abstract class CameraMixin {
 		var c = editor.camera;
 		setPosition(c.pos.x, c.pos.y, c.pos.z);
 		setRotation(c.yaw, c.pitch);
-		if (c.roll != 0) {
-			// Minecraft's camera has no roll; add it about the view direction like setRotation would
-			rotation.rotateZ((float) Math.toRadians(c.roll));
-			forwards.set(0, 0, -1).rotate(rotation);
-			up.set(0, 1, 0).rotate(rotation);
-			left.set(-1, 0, 0).rotate(rotation);
-			matrixPropertiesDirty |= 3;
-		}
 		detached = true;
 	}
 
