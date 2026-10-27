@@ -176,6 +176,8 @@ def test_toggle_keeps_player_still():
 def test_overlays_in_game_keybind():
     editor_on()
     fresh_tree()
+    ed("setOverlaysInGame", "false")
+    ed("setModule", "light_overlay", "false")
     cam(2, -54, -6, 0, 35)
     create_box(650, 550, 950, 700)
     c.key(K["ENTER"])
@@ -185,12 +187,12 @@ def test_overlays_in_game_keybind():
     c.key(13)  # J
     time.sleep(0.4)
     check("screen=none" in c.status(), "the key opens no game screen: %s" % c.status().splitlines()[0])
-    on, lines = ed("overlaysInGame").split()
+    on, lines, _ = ed("overlaysInGame").split()
     check(on == "true" and int(lines) >= 12, "J shows the selection boxes in game: %s" % on)
     shot("overlays-in-game")
     c.key(13)
     time.sleep(0.4)
-    check(ed("overlaysInGame").split() == ["false", "0"], "J hides them again")
+    check(ed("overlaysInGame").split()[:2] == ["false", "0"], "J hides them again")
 
 
 def test_camera_fly_keys():
@@ -953,6 +955,58 @@ def test_brightness_toggles():
     shot("brightness-settings")
     c.key(K["ESC"])
     time.sleep(0.2)
+
+
+def test_light_overlay():
+    editor_on()
+    for m in ("editor_brightness", "ingame_brightness"):
+        ed("setModule", m, "false")
+    cmd("time set noon")
+    # a torch on the open grass: the flat world is lit by the sky, so dark = block light <= 0 is yellow
+    cmd("setblock 20 -60 20 torch")
+    cam(20.5, -50, 8, 0, 45)
+    ed("setOverlaysInGame", "false")
+    ed("setModule", "light_overlay", "false")
+    ed("lightOverlay", 0, 40)
+    c.click(*widget("module_light_overlay"), b=1)
+    time.sleep(1.2)
+    s = state()
+    check(s["modules"]["light_overlay"] and s["lightOverlayFaces"] > 100, "light overlay marks faces: %s" % s["lightOverlayFaces"])
+    shot("light-overlay")
+    # near the torch block light > 0: unmarked; far away: yellow (sky light, no block light)
+    near = ed("project", 21.5, -60.98, 20.5)
+    nx, ny = map(float, near.split(","))
+    # 16 blocks (Manhattan) from the torch its light has faded to 0
+    fx, fy = map(float, ed("project", 20.5, -60.98, 36.5).split(","))
+    img = os.path.join(SHOTS, "light-overlay.png")
+    cn, cf = avg_color(img, int(nx) - 3, int(ny) - 3, 6, 6), avg_color(img, int(fx) - 3, int(fy) - 3, 6, 6)
+    print("      next to the torch / far from it:", cn, cf)
+    check(cf[0] > cf[2] + 40 and cf[1] > cf[2] + 30, "far from the torch the ground is marked yellow: %s" % (cf,))
+    check(not (cn[0] > cn[2] + 40 and cn[1] > cn[2] + 30), "next to the torch it is not marked: %s" % (cn,))
+    # inside the sealed hut it is red (no sky light either)
+    cam(-9.5, -56.5, -9.5, 0, 89)
+    ed("setModule", "editor_brightness", "true")
+    time.sleep(1.2)
+    hx, hy = map(float, ed("project", -9.5, -59.98, -8.5).split(","))
+    ch = avg_color(shot("light-overlay-hut"), int(hx) - 3, int(hy) - 3, 6, 6)
+    print("      hut floor:", ch)
+    check(ch[0] > ch[1] + 30 and ch[0] > ch[2] + 30, "the dark hut floor is red: %s" % (ch,))
+    ed("setModule", "editor_brightness", "false")
+    # in the normal game it shows only with J
+    editor_off()
+    time.sleep(0.5)
+    check(int(ed("overlaysInGame").split()[2]) == 0, "not in game without J")
+    c.key(13)
+    time.sleep(1.0)
+    check(int(ed("overlaysInGame").split()[2]) > 100, "J shows it in game too: %s" % ed("overlaysInGame"))
+    shot("light-overlay-ingame")
+    c.key(13)
+    time.sleep(0.4)
+    editor_on()
+    c.click(*widget("module_light_overlay"), b=1)
+    time.sleep(0.3)
+    ed("lightOverlay", 0, 24)
+    cmd("setblock 20 -60 20 air")
 
 
 def test_see_through_only_in_editor():

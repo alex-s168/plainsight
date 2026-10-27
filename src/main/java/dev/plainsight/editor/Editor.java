@@ -80,7 +80,8 @@ public final class Editor {
 	public final dev.plainsight.module.Brightness editorBrightness = new dev.plainsight.module.Brightness(true);
 	public final dev.plainsight.module.Brightness ingameBrightness = new dev.plainsight.module.Brightness(false);
 	/** Toggleable modules shown in the tool bar (right-click for settings). */
-	public final List<Module> modules = List.of(editorBrightness, ingameBrightness);
+	public final dev.plainsight.module.LightOverlay lightOverlay = new dev.plainsight.module.LightOverlay();
+	public final List<Module> modules = List.of(lightOverlay, editorBrightness, ingameBrightness);
 	/** The viewport's buttons: view options and overlay demos. */
 	public final List<Module> viewModules = List.of(fluids, seeThrough, blockOverlayDemo, pathDemo);
 
@@ -218,11 +219,16 @@ public final class Editor {
 	/** Builds this frame's world overlay; called during level rendering. */
 	public void buildOverlay() {
 		overlay.clear();
+		Minecraft mc = Minecraft.getInstance();
 		if (!active) {
-			// outside the editor: only what the player asked to see (the selection tree), no tools
-			if (overlaysInGame && Minecraft.getInstance().level != null) SelectionRenderer.render(this, overlay);
+			// outside the editor: only what the player asked to see (selections, light levels), no tools
+			if (overlaysInGame && mc.level != null && mc.player != null) {
+				SelectionRenderer.render(this, overlay);
+				lightOverlay.render(overlay, new Vector3d(mc.player.getX(), mc.player.getY(), mc.player.getZ()));
+			}
 			return;
 		}
+		lightOverlay.render(overlay, camera.pos);
 		SelectionRenderer.render(this, overlay);
 		tool.render(overlay);
 		if (camera.drag() == EditorCamera.Drag.ORBIT) {

@@ -64,6 +64,7 @@ public final class EditorDebug {
 		o.addProperty("cutawaySegments", SeeThrough.region().segments().size());
 		o.addProperty("cutawayRebuilds", e.seeThrough.rebuilds());
 		o.addProperty("overlayBlocksSubmitted", BlockOverlayRenderer.submitted);
+		o.addProperty("lightOverlayFaces", e.lightOverlay.markedFaces());
 		JsonObject ov = new JsonObject();
 		for (Overlay.Layer l : Overlay.Layer.values()) ov.addProperty(l.name(), e.overlay.lineCount(l) + " lines, " + e.overlay.triangleCount(l) + " tris");
 		o.add("overlay", ov);
@@ -218,7 +219,8 @@ public final class EditorDebug {
 
 	public static String overlaysInGame() {
 		Editor e = Editor.get();
-		return e.overlaysInGame() + " " + e.overlay.lineCount(dev.plainsight.render.Overlay.Layer.WORLD);
+		return e.overlaysInGame() + " " + e.overlay.lineCount(dev.plainsight.render.Overlay.Layer.WORLD)
+				+ " " + e.overlay.triangleCount(dev.plainsight.render.Overlay.Layer.WORLD);
 	}
 
 	public static String spectatorCulling(String on) {
@@ -231,6 +233,17 @@ public final class EditorDebug {
 		Editor e = Editor.get();
 		Vector3d p = e.outOfSolid(e.camera.pos, e.camera.forward(new Vector3d()));
 		return p.x + "," + p.y + "," + p.z;
+	}
+
+	public static String lightOverlay(int threshold, int radius) {
+		Editor.get().lightOverlay.threshold = threshold;
+		Editor.get().lightOverlay.radius = radius;
+		return "ok";
+	}
+
+	public static String setOverlaysInGame(String on) {
+		if (Editor.get().overlaysInGame() != Boolean.parseBoolean(on)) Editor.get().toggleOverlaysInGame();
+		return "ok";
 	}
 
 	public static String unfollow() {

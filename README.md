@@ -48,6 +48,9 @@ what the tool is doing and closes ImGui popups.
 
 ### Tool bar modules (right-click for settings)
 
+* **Light Overlay**: colours the top faces of blocks by the light above them, red where block and sky
+  light are both at or below the threshold (mobs can spawn any time), yellow where only block light is
+  (at night). Threshold (default 0) and radius in the settings; with <kbd>J</kbd> also in the normal game.
 * **Editor Brightness** / **In-game Brightness**: brighter lighting while the editor is open / in the
   normal game, up to fullbright (slider). Purely visual: it raises the lightmap like gamma and night vision.
 
