@@ -228,6 +228,13 @@ public final class EditorDebug {
 		return "ok";
 	}
 
+	/** Window position of the first point outside solid blocks along the view direction, or "behind". */
+	public static String outOfSolidAhead() {
+		Editor e = Editor.get();
+		Vector3d p = e.outOfSolid(e.camera.pos, e.camera.forward(new Vector3d()));
+		return p.x + "," + p.y + "," + p.z;
+	}
+
 	public static String unfollow() {
 		Editor.get().follow(null);
 		return "ok";

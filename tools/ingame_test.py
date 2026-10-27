@@ -888,6 +888,40 @@ def test_camera_in_rock_sees_caves():
     check(col[0] > 120 and col[0] > col[2] + 60, "the cave (gold block) is visible from inside the rock: %s" % (col,))
 
 
+def test_arcball_ctrl_shift_skips_surrounding_rock():
+    editor_on()
+    fresh_tree()
+    ed("unfollow")
+    # inside the rock, looking at the lit cave ~60 blocks ahead
+    cam(-32, -47.5, 20, 0, 3)
+    time.sleep(1.5)
+    # aim at the gold block in the cave
+    cx, cy = map(float, ed("project", -31.5, -48.5, 87).split(","))
+    def orbit_pivot(shift):
+        c.key(K["LCTRL"], "press")
+        if shift:
+            c.key(K["LSHIFT"], "press", mc.MOD_SHIFT)
+        c.move(cx, cy)
+        time.sleep(0.05)
+        c.button(1, "press")
+        time.sleep(0.1)
+        piv = state()["camera"]["pivot"]
+        p0 = state()["camera"]["pos"]
+        c.button(1, "release")
+        if shift:
+            c.key(K["LSHIFT"], "release")
+        c.key(K["LCTRL"], "release")
+        time.sleep(0.2)
+        return piv, p0
+    piv, _ = orbit_pivot(False)
+    check(abs(piv[2] - 20) < 1.5, "plain Ctrl+LMB pivots on the rock the camera is in: %s" % piv)
+    cam(-32, -47.5, 20, 0, 3)
+    time.sleep(0.5)
+    piv, pos = orbit_pivot(True)
+    check(piv[2] > 80, "Ctrl+Shift+LMB pivots on the cave behind the rock: %s" % piv)
+    check(pos == [-32.0, -47.5, 20.0], "holding Shift with Ctrl does not fly the camera down: %s" % pos)
+
+
 def test_see_through_only_in_editor():
     editor_on()
     cmd("tp @s -8.5 -59 -8.5")

@@ -175,11 +175,13 @@ class Client:
 
 
 def hotswap():
-    build = subprocess.run([os.path.join(ROOT, "dev"), "./gradlew", "--no-configuration-cache", "-q",
-                            "classes", "devbridgeClasses"], cwd=ROOT, capture_output=True, text=True)
+    # tools/build.sh does not wait for the dev shell wrapper, which can linger with a Gradle daemon
+    build = subprocess.run([os.path.join(ROOT, "tools", "build.sh"), "classes", "devbridgeClasses"], cwd=ROOT,
+                           capture_output=True, text=True, stdin=subprocess.DEVNULL)
     if build.returncode != 0:
         return "build failed:\n" + build.stdout[-4000:] + build.stderr[-4000:]
-    swap = subprocess.run([os.path.join(ROOT, "dev"), "java", "tools/Hotswap.java", "5011"], cwd=ROOT, capture_output=True, text=True)
+    swap = subprocess.run([os.path.join(ROOT, "dev"), "java", "tools/Hotswap.java", "5011"], cwd=ROOT, capture_output=True,
+                          text=True, stdin=subprocess.DEVNULL, timeout=120)
     return (swap.stdout + swap.stderr).strip()
 
 

@@ -332,9 +332,13 @@ public final class Editor {
 	}
 
 	public @Nullable BlockHitResult raycastBlock(Vector3dc dir, boolean fluids) {
+		return raycastBlock(camera.pos, dir, fluids);
+	}
+
+	public @Nullable BlockHitResult raycastBlock(Vector3dc origin, Vector3dc dir, boolean fluids) {
 		Minecraft mc = Minecraft.getInstance();
 		if (mc.level == null) return null;
-		Vec3 from = new Vec3(camera.pos.x, camera.pos.y, camera.pos.z);
+		Vec3 from = new Vec3(origin.x(), origin.y(), origin.z());
 		Vec3 to = from.add(dir.x() * REACH, dir.y() * REACH, dir.z() * REACH);
 		BlockHitResult hit = mc.level.clip(new ClipContext(from, to, ClipContext.Block.OUTLINE,
 				fluids ? ClipContext.Fluid.SOURCE_ONLY : ClipContext.Fluid.NONE, CollisionContext.empty()));
@@ -368,7 +372,9 @@ public final class Editor {
 		Vector3d pivot;
 		if (target == null) {
 			Vector3d dir = rayAt(mouseX, mouseY);
-			BlockHitResult block = raycastBlock(dir, false);
+			// Ctrl+Shift: look past the rock the camera is buried in (e.g. orbit a cave from underground)
+			Vector3d from = shift ? outOfSolid(camera.pos, dir) : new Vector3d(camera.pos);
+			BlockHitResult block = raycastBlock(from, dir, false);
 			double max = block != null ? block.getLocation().distanceTo(new Vec3(camera.pos.x, camera.pos.y, camera.pos.z)) : REACH;
 			EntityHit hit = raycastEntity(dir, max);
 			if (hit != null) {
@@ -376,7 +382,7 @@ public final class Editor {
 			}
 			if (target != null) pivot = centre(target);
 			else if (block != null) pivot = new Vector3d(block.getLocation().x, block.getLocation().y, block.getLocation().z);
-			else pivot = new Vector3d(camera.pos).fma(10, dir);
+			else pivot = new Vector3d(from).fma(10, dir);
 		} else {
 			pivot = centre(target);
 		}
@@ -385,6 +391,23 @@ public final class Editor {
 		// an entity pivot keeps the view on the entity afterwards too (stop with the "Following" chip)
 		if (target != null && !target.getUUID().equals(follow)) follow(target);
 		else if (target == null && follow != null) follow(null);
+	}
+
+	/**
+	 * The first point along the ray (from {@code from}) that is outside solid blocks: the camera's own
+	 * surroundings are skipped when it is inside rock. Returns {@code from} when it is not in a block.
+	 */
+	public Vector3d outOfSolid(Vector3dc from, Vector3dc dir) {
+		Minecraft mc = Minecraft.getInstance();
+		Vector3d p = new Vector3d(from);
+		if (mc.level == null) return p;
+		BlockPos.MutableBlockPos bp = new BlockPos.MutableBlockPos();
+		for (double t = 0; t < 256; t += 0.1) {
+			p.set(from).fma(t, dir);
+			bp.set(p.x, p.y, p.z);
+			if (mc.level.getBlockState(bp).getCollisionShape(mc.level, bp).isEmpty()) return p;
+		}
+		return new Vector3d(from);
 	}
 
 	public static Vector3d centre(Entity e) {
@@ -475,8 +498,10 @@ public final class Editor {
 		pressY = mouseY;
 		movedSincePress = false;
 		if (button == 1) {
-			if (ctrl) beginOrbit();
-			else if (!tool.leftPressed()) camera.beginDrag(EditorCamera.Drag.LOOK, null);
+			if (ctrl) {
+				camera.down = false;
+				beginOrbit();
+			} else if (!tool.leftPressed()) camera.beginDrag(EditorCamera.Drag.LOOK, null);
 		} else if (button == 3) {
 			if (ctrl) camera.beginDrag(EditorCamera.Drag.PAN, pointUnderCursor(10));
 			else tool.rightPressed();
@@ -517,7 +542,10 @@ public final class Editor {
 	 */
 	public boolean onKey(int scancode, boolean down) {
 		switch (scancode) {
-			case InputConstants.KEY_LCONTROL, InputConstants.KEY_RCONTROL -> ctrl = down;
+			case InputConstants.KEY_LCONTROL, InputConstants.KEY_RCONTROL -> {
+				ctrl = down;
+				if (down) camera.down = false;
+			}
 			case InputConstants.KEY_LSHIFT, InputConstants.KEY_RSHIFT -> shift = down;
 			case InputConstants.KEY_LALT, InputConstants.KEY_RALT -> alt = down;
 			default -> {
@@ -560,7 +588,9 @@ public final class Editor {
 			case InputConstants.KEY_D -> camera.right = down;
 			case InputConstants.KEY_SPACE -> camera.up = down;
 			// Shift is the gizmo's "free move" modifier while dragging, not "fly down"
-			case InputConstants.KEY_LSHIFT -> camera.down = down && !tool.isDragging();
+			// Shift is the gizmo's "free move" modifier while dragging and the "through rock" modifier with
+			// Ctrl (arcball), not "fly down" then
+			case InputConstants.KEY_LSHIFT -> camera.down = down && !tool.isDragging() && !ctrl && camera.drag() == EditorCamera.Drag.NONE;
 			case InputConstants.KEY_LCONTROL -> camera.fast = down;
 			default -> {
 				return false;

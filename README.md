@@ -23,6 +23,7 @@ a projection centred on the viewport between the panels.
 |---|---|
 | LMB drag | rotate (look around) |
 | Ctrl + LMB drag | arcball around the block or entity under the cursor (marked while orbiting; an entity pivot moves with the entity); the horizon stays level. |
+| Ctrl + Shift + LMB drag | arcball as above, but the pivot search first leaves the solid blocks the camera is in (underground: orbit the cave you look at, not the rock around the camera) |
 | Ctrl + RMB drag | pan; the grabbed point stays under the cursor |
 | Scroll | move towards / away from the point under the cursor (never past it); after an arcball orbit (or while following an entity) towards / away from the pivot, keeping the view centred |
 | W A S D, Space, Shift | fly (horizontal like creative flight), Ctrl = 3× faster; scaled by *Speed* |

@@ -130,6 +130,7 @@ public final class EditorUI {
 		ImGui.bulletText("LMB drag: rotate (look around)");
 		ImGui.bulletText("Ctrl + LMB drag: arcball - orbit the block or entity under the cursor");
 		ImGui.bulletText("  (an entity pivot moves with the entity; the horizon stays level)");
+		ImGui.bulletText("Ctrl + Shift + LMB drag: arcball, the pivot search skips the rock the camera is in");
 		ImGui.bulletText("Ctrl + RMB drag: pan   Scroll: move to/from the point under the cursor");
 		ImGui.bulletText("Follow an entity: right-click it in the tree; arcball then orbits it");
 		ImGui.bulletText("WASD: fly, Space / Shift: up / down, hold Ctrl: faster");
@@ -616,7 +617,7 @@ public final class EditorUI {
 	private void statusContents(float w) {
 		boolean ctrl = editor.ctrl;
 		String[] hints = ctrl
-				? new String[]{"Ctrl+LMB - Arcball Camera (block or entity)", "Ctrl+RMB - Pan Camera"}
+				? new String[]{"Ctrl+LMB - Arcball Camera", "Ctrl+Shift+LMB - Arcball through rock", "Ctrl+RMB - Pan Camera"}
 				: new String[]{"LMB - Rotate Camera", "MMB - Pick Block", editor.tool().hints()};
 		for (int i = 0; i < hints.length; i++) {
 			if (i > 0) {
