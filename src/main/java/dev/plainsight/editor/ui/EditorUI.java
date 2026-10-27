@@ -119,29 +119,6 @@ public final class EditorUI {
 			if (ImGui.menuItem("Delete", "Del", false, any)) deferred = editor::deleteSelected;
 			ImGui.endMenu();
 		}
-		if (ImGui.beginMenu("Select")) {
-			if (ImGui.menuItem("Box Select")) editor.setTool(editor.boxTool);
-			if (ImGui.menuItem("Entity Select")) editor.setTool(editor.entityTool);
-			ImGui.separator();
-			if (ImGui.menuItem("Clear tree selection")) editor.tree.clearSelection();
-			ImGui.endMenu();
-		}
-		if (ImGui.beginMenu("View")) {
-			if (ImGui.menuItem("Transparent fluids", "", editor.fluids.enabled())) editor.fluids.toggle();
-			if (ImGui.menuItem("See-through to players", "", editor.seeThrough.enabled())) editor.seeThrough.toggle();
-			ImGui.separator();
-			for (Module m : editor.modules) if (ImGui.menuItem(m.name(), "", m.enabled())) m.toggle();
-			ImGui.endMenu();
-		}
-		if (ImGui.beginMenu("Camera")) {
-			ImGui.textDisabled("Arcball (Ctrl + LMB drag)");
-			ImGui.separator();
-			boolean following = editor.followed() != null;
-			if (ImGui.menuItem(following ? "Stop following " + editor.followName() : "Follow: right-click an entity in the tree", "", following, following)) {
-				editor.follow(null);
-			}
-			ImGui.endMenu();
-		}
 		if (ImGui.beginMenu("Help")) {
 			helpContents();
 			ImGui.endMenu();
@@ -161,7 +138,7 @@ public final class EditorUI {
 		ImGui.bulletText("Box: LMB on a handle selects it; drag gizmo arrows, squares, rings");
 		ImGui.bulletText("Enter, a click on empty space or Done: put the box down");
 		ImGui.bulletText("Esc: cancel   Del: delete   Arrows / PgUp / PgDn: nudge");
-		ImGui.textDisabled("World view (buttons at the top of the viewport)");
+		ImGui.textDisabled("World view and overlays (buttons at the top of the viewport)");
 		ImGui.bulletText("Transparent fluids, see-through to players; right-click for settings");
 	}
 

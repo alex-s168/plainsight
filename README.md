@@ -36,7 +36,7 @@ controls; *Help* lists everything.
 Chat (<kbd>T</kbd>, <kbd>/</kbd>), F-keys and the pause menu still work; <kbd>Esc</kbd> first cancels
 what the tool is doing and closes ImGui popups.
 
-### World view (the labelled buttons at the top of the viewport, or the *View* menu; right-click a button for settings)
+### World view (the labelled buttons at the top of the viewport; right-click a button for settings)
 
 * **Transparent fluids**: water and lava drawn translucent (opacity slider, 0 = hidden).
 * **See-through to players** (RTS cutaway): a cone from the camera that widens to a large area around
