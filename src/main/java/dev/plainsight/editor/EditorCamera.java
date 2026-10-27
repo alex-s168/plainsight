@@ -30,6 +30,11 @@ public final class EditorCamera {
 	private Drag drag = Drag.NONE;
 	/** While true the view turns towards the orbit pivot until it is in the centre. */
 	private boolean centering;
+	/**
+	 * Arcball mode: set by an orbit, kept until the view is moved some other way (look, pan, flying).
+	 * While set, zooming moves towards/away from the pivot, so the view's centre stays where it is.
+	 */
+	private boolean pivotActive;
 	/** Rate of the centring turn (1/s): about 95% of the way in 0.1 s. */
 	public static final double CENTER_RATE = 30;
 	private final Vector3d pivot = new Vector3d();
@@ -113,6 +118,25 @@ public final class EditorCamera {
 		velocity.lerp(wish, k);
 		if (velocity.lengthSquared() < 1e-6 && wish.lengthSquared() == 0) velocity.zero();
 		pos.fma(dt, velocity);
+		if (velocity.lengthSquared() > 1e-4) pivotActive = false;
+	}
+
+	public boolean hasActivePivot() {
+		return pivotActive;
+	}
+
+	/**
+	 * Arcball zoom: moves along the line to {@code target} (20% of the distance per notch, at least one
+	 * block), never closer than {@code minDistance}, so the target stays at the centre of the view.
+	 */
+	public void zoomTowards(double notches, Vector3dc target, double minDistance) {
+		Vector3d d = new Vector3d(target).sub(pos);
+		double dist = d.length();
+		if (dist < 1e-6) return;
+		d.div(dist);
+		double step = Math.max(1.0, dist * 0.2) * notches * Math.max(0.25, speed);
+		if (notches > 0) step = Math.min(step, Math.max(0, dist - minDistance));
+		pos.fma(step, d);
 	}
 
 	// -- mouse drags ----------------------------------------------------------------------------------------
@@ -121,6 +145,7 @@ public final class EditorCamera {
 	public void beginDrag(Drag mode, Vector3dc pivotPoint) {
 		drag = mode;
 		centering = mode == Drag.ORBIT;
+		pivotActive = mode == Drag.ORBIT;
 		if (pivotPoint != null) pivot.set(pivotPoint);
 		else forward(pivot).mul(10).add(pos);
 		panDistance = Math.max(0.5, pivot.distance(pos));

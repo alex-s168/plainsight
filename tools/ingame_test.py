@@ -329,6 +329,32 @@ def test_camera_arcball_centring_is_smooth():
     check(samples[-1] < 3, "and reaches the centre quickly")
 
 
+def test_camera_arcball_zoom_keeps_centre():
+    editor_on()
+    fresh_tree()
+    ed("follow", "")
+    cam(6.5, -52, 0, 0, 30)
+    vp = state()["viewport"]
+    gx, gy = vp[0] + vp[2] * 0.6, vp[1] + vp[3] * 0.55
+    c.key(K["LCTRL"], "press")
+    c.move(gx, gy)
+    time.sleep(0.05)
+    c.button(1, "press")
+    time.sleep(0.4)
+    c.button(1, "release")
+    c.key(K["LCTRL"], "release")
+    piv = state()["camera"]["pivot"]
+    centre = (vp[0] + vp[2] / 2, vp[1] + vp[3] / 2)
+    d0 = math.dist(state()["camera"]["pos"], piv)
+    # zoom out and in with the cursor far from the centre
+    for dy in (-1, -1, 1):
+        c.scroll(dy, vp[0] + 80, vp[1] + 80)
+        time.sleep(0.15)
+        p = tuple(map(float, ed("project", *piv).split(",")))
+        check(math.dist(p, centre) < 2, "zooming keeps the pivot in the centre: %s vs %s" % (p, centre))
+    check(math.dist(state()["camera"]["pos"], piv) > d0, "zoomed out overall")
+
+
 def test_camera_pan_ctrl_rmb():
     editor_on()
     fresh_tree()

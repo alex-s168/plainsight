@@ -24,7 +24,7 @@ a projection centred on the viewport between the panels.
 | LMB drag | rotate (look around) |
 | Ctrl + LMB drag | arcball around the block or entity under the cursor (marked while orbiting; an entity pivot moves with the entity); the horizon stays level. |
 | Ctrl + RMB drag | pan; the grabbed point stays under the cursor |
-| Scroll | move towards / away from the point under the cursor (never past it) |
+| Scroll | move towards / away from the point under the cursor (never past it); after an arcball orbit (or while following an entity) towards / away from the pivot, keeping the view centred |
 | W A S D, Space, Shift | fly (horizontal like creative flight), Ctrl = 3× faster; scaled by *Speed* |
 | MMB | pick block (shown in the status bar) |
 | RMB | use the active tool |

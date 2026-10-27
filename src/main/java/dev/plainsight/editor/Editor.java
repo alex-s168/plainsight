@@ -474,6 +474,16 @@ public final class Editor {
 
 	public void onScroll(double dy) {
 		if (ImGuiLayer.get().wantsMouse() || !viewport.contains(mouseX, mouseY) || dy == 0) return;
+		// arcball (after an orbit, or following an entity): zoom along the view to the pivot
+		Entity f = followed();
+		if (f != null) {
+			camera.zoomTowards(dy, centre(f), 1.5);
+			return;
+		}
+		if (camera.hasActivePivot()) {
+			camera.zoomTowards(dy, camera.pivot(), 1.0);
+			return;
+		}
 		Vector3d dir = mouseRay();
 		BlockHitResult hit = raycastBlock(dir, false);
 		double dist = hit != null ? hit.getLocation().distanceTo(new Vec3(camera.pos.x, camera.pos.y, camera.pos.z)) : 0;

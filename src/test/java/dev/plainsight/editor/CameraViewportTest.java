@@ -155,4 +155,22 @@ class CameraViewportTest {
 		cam.update(0.016);
 		assertTrue(cam.yaw > 170, "turns through 180, not back through 0: " + cam.yaw);
 	}
+
+	@Test
+	void arcballZoomKeepsThePivotInTheCentre() {
+		EditorCamera cam = new EditorCamera();
+		cam.set(new Vector3d(0, 70, 0), 30, 20);
+		Vector3d pivot = new Vector3d(cam.forward(new Vector3d())).mul(12).add(cam.pos);
+		cam.beginDrag(EditorCamera.Drag.ORBIT, pivot);
+		cam.endDrag();
+		assertTrue(cam.hasActivePivot());
+		Vector3d f = cam.forward(new Vector3d());
+		for (int i = 0; i < 5; i++) cam.zoomTowards(-1, pivot, 1);
+		assertTrue(cam.pos.distance(pivot) > 20, "zoomed out");
+		assertTrue(new Vector3d(pivot).sub(cam.pos).normalize().distance(f) < 1e-9, "pivot still straight ahead");
+		for (int i = 0; i < 50; i++) cam.zoomTowards(1, pivot, 1);
+		assertEquals(1, cam.pos.distance(pivot), 1e-9, "zoom in stops before the pivot");
+		cam.beginDrag(EditorCamera.Drag.LOOK, null);
+		assertFalse(cam.hasActivePivot(), "looking around leaves arcball mode");
+	}
 }
