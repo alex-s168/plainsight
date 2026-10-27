@@ -90,6 +90,24 @@ public final class Editor {
 	private int savedVersion = -1;
 	private @Nullable Path storeFile;
 	private long lastSaveCheck;
+	/** Draw the editor's overlays (selections) in the normal game too, not only in the editor. */
+	private boolean overlaysInGame;
+
+	public boolean overlaysInGame() {
+		return overlaysInGame;
+	}
+
+	/** Toggles the editor overlays outside the editor (keybind "Show Editor Overlays In Game"). */
+	public void toggleOverlaysInGame() {
+		overlaysInGame = !overlaysInGame;
+		Minecraft mc = Minecraft.getInstance();
+		if (overlaysInGame && mc.level != null) loadSelections();
+		if (mc.player != null) {
+			mc.gui.hud.setOverlayMessage(net.minecraft.network.chat.Component.literal(
+					"Editor overlays in game: " + (overlaysInGame ? "on" : "off")), false);
+		}
+	}
+
 	/** Status line message (e.g. the picked block) and when it expires. */
 	public String status = "";
 	private long statusUntil;
@@ -176,7 +194,11 @@ public final class Editor {
 	/** Builds this frame's world overlay; called during level rendering. */
 	public void buildOverlay() {
 		overlay.clear();
-		if (!active) return;
+		if (!active) {
+			// outside the editor: only what the player asked to see (the selection tree), no tools
+			if (overlaysInGame && Minecraft.getInstance().level != null) SelectionRenderer.render(this, overlay);
+			return;
+		}
 		SelectionRenderer.render(this, overlay);
 		tool.render(overlay);
 		if (camera.drag() == EditorCamera.Drag.ORBIT) {

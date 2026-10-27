@@ -214,6 +214,11 @@ public final class EditorDebug {
 		return "no entity " + name;
 	}
 
+	public static String overlaysInGame() {
+		Editor e = Editor.get();
+		return e.overlaysInGame() + " " + e.overlay.lineCount(dev.plainsight.render.Overlay.Layer.WORLD);
+	}
+
 	public static String toggle() {
 		Editor.get().toggle();
 		return String.valueOf(Editor.isActive());

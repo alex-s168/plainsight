@@ -171,6 +171,26 @@ def test_toggle_keeps_player_still():
     check(not s["camera"]["mcDetached"], "camera back to first person")
 
 
+def test_overlays_in_game_keybind():
+    editor_on()
+    fresh_tree()
+    cam(2, -54, -6, 0, 35)
+    create_box(650, 550, 950, 700)
+    c.key(K["ENTER"])
+    time.sleep(0.2)
+    editor_off()
+    check(ed("overlaysInGame").split()[1] == "0", "no overlays in game by default")
+    c.key(13)  # J
+    time.sleep(0.4)
+    check("screen=none" in c.status(), "the key opens no game screen: %s" % c.status().splitlines()[0])
+    on, lines = ed("overlaysInGame").split()
+    check(on == "true" and int(lines) >= 12, "J shows the selection boxes in game: %s" % on)
+    shot("overlays-in-game")
+    c.key(13)
+    time.sleep(0.4)
+    check(ed("overlaysInGame").split() == ["false", "0"], "J hides them again")
+
+
 def test_camera_fly_keys():
     editor_on()
     cam(0.5, -55, -4, 0, 0)

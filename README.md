@@ -10,6 +10,9 @@ any SMP, with every automatic-playing feature switchable off. **This first miles
 editor in **any game mode**. It is purely client-side: the camera is a detached free camera, nothing
 is sent to the server, and the player stands still where they were (and is drawn, third person).
 
+<kbd>J</kbd> (*Show Editor Overlays In Game*, rebindable) draws the selection tree's boxes and entity
+outlines in the normal game as well; block and path overlays are shown whenever they are enabled.
+
 Layout: menu bar, tool bar with *Tool Options* on the left, *Selections* tree and *Properties* on the
 right, status bar with hints and the camera **Speed** slider at the bottom. The world is rendered with
 a projection centred on the viewport between the panels.
