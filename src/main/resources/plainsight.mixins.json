@@ -10,10 +10,8 @@
 		"GameRendererMixin",
 		"HudMixin",
 		"KeyboardHandlerMixin",
-		"MovingBlockMixin",
 		"MouseHandlerMixin",
-		"SectionCompilerMixin",
-		"SubmitNodeCollectionMixin"
+		"SectionCompilerMixin"
 	],
 	"injectors": { "defaultRequire": 1 }
 }

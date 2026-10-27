@@ -17,6 +17,7 @@ public final class EditorRendering {
 
 	public static void afterLevel(GameRenderer renderer) {
 		Editor editor = Editor.get();
+		BlockOverlayRenderer.render(renderer.gameRenderState().levelRenderState.cameraRenderState);
 		editor.buildOverlay();
 		double t = System.nanoTime() / 1e9;
 		for (PathOverlay p : PathOverlay.visible()) p.draw(editor.overlay, t);
