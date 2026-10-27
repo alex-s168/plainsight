@@ -1,0 +1,7 @@
+{
+	"required": true,
+	"package": "dev.plainsight.devbridge.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"client": ["WindowMixin"],
+	"injectors": { "defaultRequire": 1 }
+}

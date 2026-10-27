@@ -1,0 +1,19 @@
+{
+	"schemaVersion": 1,
+	"id": "plainsight",
+	"version": "${version}",
+	"name": "Plainsight",
+	"description": "Client-side editor and utilities that work in any game mode.",
+	"authors": ["Alexander C. Nutz"],
+	"environment": "client",
+	"entrypoints": {
+		"client": ["dev.plainsight.Plainsight"]
+	},
+	"mixins": ["plainsight.mixins.json"],
+	"depends": {
+		"fabricloader": ">=0.20.0",
+		"fabric-api": "*",
+		"minecraft": "~26.3",
+		"java": ">=25"
+	}
+}

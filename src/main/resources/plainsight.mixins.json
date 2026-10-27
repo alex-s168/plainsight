@@ -1,0 +1,18 @@
+{
+	"required": true,
+	"package": "dev.plainsight.mixin",
+	"plugin": "dev.plainsight.PlainsightMixinPlugin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"BufferBuilderMixin",
+		"CameraMixin",
+		"GameRendererMixin",
+		"HudMixin",
+		"KeyboardHandlerMixin",
+		"MovingBlockMixin",
+		"MouseHandlerMixin",
+		"SectionCompilerMixin",
+		"SubmitNodeCollectionMixin"
+	],
+	"injectors": { "defaultRequire": 1 }
+}

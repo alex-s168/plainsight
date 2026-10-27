@@ -1,0 +1,15 @@
+{
+	"schemaVersion": 1,
+	"id": "plainsight-devbridge",
+	"version": "0.0.0",
+	"name": "Plainsight Dev Bridge",
+	"description": "Development only: localhost HTTP control of the client (screenshots, input, commands).",
+	"environment": "client",
+	"entrypoints": {
+		"client": ["dev.plainsight.devbridge.DevBridge"]
+	},
+	"mixins": ["plainsight-devbridge.mixins.json"],
+	"depends": {
+		"fabric-api": "*"
+	}
+}
