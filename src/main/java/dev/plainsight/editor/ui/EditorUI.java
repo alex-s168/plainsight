@@ -37,6 +37,7 @@ public final class EditorUI {
 	private final Editor editor;
 	private @Nullable SelectionNode renaming;
 	private boolean renameFocus;
+	private int renameFrames;
 	private final ImString renameField = new ImString(128);
 	/** Pending structural change, applied after the tree has been drawn. */
 	private @Nullable Runnable deferred;
@@ -186,8 +187,8 @@ public final class EditorUI {
 			int i = 0;
 			for (Tool t : editor.tools) {
 				if (i++ % perRow != 0) ImGui.sameLine(0, 4);
-				if (iconButton("tool_" + t.id(), size, editor.tool() == t, t::drawIcon)) editor.setTool(t);
-				tooltip(t.name(), t.description());
+				if (iconButton("tool_" + t.id(), size, editor.tool() == t, t::drawIcon)) editor.toggleTool(t);
+				tooltip(t.name(), t.description() + (editor.tool() == t ? " Click again to unselect." : ""));
 			}
 			for (Module m : editor.modules) {
 				if (i++ % perRow != 0) ImGui.sameLine(0, 4);
@@ -375,18 +376,22 @@ public final class EditorUI {
 
 	private void node(SelectionNode n) {
 		SelectionTree tree = editor.tree;
-		int flags = ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.SpanAvailWidth | ImGuiTreeNodeFlags.FramePadding;
+		int flags = ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.SpanAvailWidth | ImGuiTreeNodeFlags.FramePadding
+				| ImGuiTreeNodeFlags.AllowOverlap;
 		if (tree.selected().contains(n)) flags |= ImGuiTreeNodeFlags.Selected;
 		boolean group = n instanceof GroupNode;
 		if (!group) flags |= ImGuiTreeNodeFlags.Leaf | ImGuiTreeNodeFlags.NoTreePushOnOpen;
 		if (group) ImGui.setNextItemOpen(((GroupNode) n).expanded);
 		boolean renamingThis = renaming == n;
 		String label = renamingThis ? "" : "     " + n.label();
-		if (!n.visible) ImGui.pushStyleColor(ImGuiCol.Text, 0xFF808080);
+		boolean shown = shownInWorld(n);
+		if (!shown) ImGui.pushStyleColor(ImGuiCol.Text, 0xFF808080);
 		boolean open = ImGui.treeNodeEx(n.id().toString(), flags, label);
-		if (!n.visible) ImGui.popStyleColor();
+		if (!shown) ImGui.popStyleColor();
 		rect("node:" + (n instanceof EntityNode ? n.label() : n.name()));
-		if (!renamingThis) drawNodeIcon(n);
+		float rowMinX = ImGui.getItemRectMinX(), rowMinY = ImGui.getItemRectMinY();
+		float rowMaxX = ImGui.getItemRectMaxX(), rowMaxY = ImGui.getItemRectMaxY();
+		if (!renamingThis) drawNodeIcon(n, shown);
 		if (group) ((GroupNode) n).expanded = open;
 		if (ImGui.isItemClicked(ImGuiMouseButton.Left) && !ImGui.isItemToggledOpen()) {
 			boolean ctrl = ImGui.getIO().getKeyCtrl();
@@ -402,7 +407,11 @@ public final class EditorUI {
 		if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(ImGuiMouseButton.Left)) startRename(n);
 		dragAndDrop(n);
 		contextMenu(n);
-		if (renamingThis) renameField(n);
+		// widgets over the row: the eye toggle at the right end, the rename field over the label
+		ImVec2 next = ImGui.getCursorScreenPos();
+		visibilityButton(n, rowMaxX, rowMinY, rowMaxY - rowMinY);
+		if (renamingThis) renameField(n, rowMinX + ImGui.getTreeNodeToLabelSpacing() + 18, rowMinY, rowMaxX - 26);
+		ImGui.setCursorScreenPos(next.x, next.y);
 		if (group && open) {
 			try {
 				for (SelectionNode c : ((GroupNode) n).children()) node(c);
@@ -412,21 +421,50 @@ public final class EditorUI {
 		}
 	}
 
+	/** Whether the node and all its groups are shown in the world. */
+	private static boolean shownInWorld(SelectionNode n) {
+		for (SelectionNode p = n; p != null; p = p.parent()) if (!p.visible) return false;
+		return true;
+	}
+
+	/** Eye button at the right end of a tree row: shows/hides the node (groups: with their children). */
+	private void visibilityButton(SelectionNode n, float rowMaxX, float rowY, float rowH) {
+		float w = 22, x = rowMaxX - w;
+		ImGui.setCursorScreenPos(x, rowY);
+		ImGui.pushID("vis" + n.id());
+		boolean clicked = ImGui.invisibleButton("##vis", w, rowH);
+		ImGui.popID();
+		rect("vis:" + (n instanceof EntityNode ? n.label() : n.name()));
+		boolean hovered = ImGui.isItemHovered();
+		ImDrawList dl = ImGui.getWindowDrawList();
+		float cx = x + w / 2, cy = rowY + rowH / 2;
+		int col = n.visible ? (hovered ? 0xFFFFFFFF : 0xFFC8C8C8) : (hovered ? 0xFFB0B0B0 : 0xFF707070);
+		dl.addBezierCubic(cx - 7, cy, cx - 3, cy - 5, cx + 3, cy - 5, cx + 7, cy, col, 1.5f, 10);
+		dl.addBezierCubic(cx - 7, cy, cx - 3, cy + 5, cx + 3, cy + 5, cx + 7, cy, col, 1.5f, 10);
+		if (n.visible) dl.addCircleFilled(cx, cy, 2.2f, col);
+		else dl.addLine(cx - 6, cy + 5, cx + 6, cy - 5, col, 1.5f);
+		if (hovered) tooltip(n.visible ? "Hide" : "Show", "Show or hide this selection in the world" + (n instanceof GroupNode ? " (with everything in it)." : "."));
+		if (clicked) {
+			n.visible = !n.visible;
+			editor.tree.touch();
+		}
+	}
+
 	/** Small vector icon in front of a tree label: folder (group), box outline, person (entity). */
-	private void drawNodeIcon(SelectionNode n) {
+	private void drawNodeIcon(SelectionNode n, boolean shown) {
 		ImDrawList dl = ImGui.getWindowDrawList();
 		float x = ImGui.getItemRectMinX() + ImGui.getTreeNodeToLabelSpacing() + 2;
 		float cy = (ImGui.getItemRectMinY() + ImGui.getItemRectMaxY()) / 2;
-		int col = n.visible ? 0xFFE8E8E8 : 0xFF808080;
+		int col = shown ? 0xFFE8E8E8 : 0xFF808080;
 		switch (n) {
 			case GroupNode g -> {
-				int folder = n.visible ? 0xFF5CC8F0 : 0xFF606060; // ABGR: warm yellow
+				int folder = shown ? 0xFF5CC8F0 : 0xFF606060; // ABGR: warm yellow
 				dl.addRectFilled(x, cy - 5, x + 6, cy - 3, folder, 1f);
 				dl.addRectFilled(x, cy - 3, x + 14, cy + 6, folder, 1.5f);
 			}
 			case BoxNode b -> {
 				int c = b.box().isAxisAligned() ? 0xFF40E0FF : 0xFF40A0FF;
-				if (!n.visible) c = 0xFF606060;
+				if (!shown) c = 0xFF606060;
 				dl.addRect(x + 1, cy - 5, x + 12, cy + 6, c, 0f, 0, 1.8f);
 				dl.addLine(x + 1, cy - 5, x + 4, cy - 8, c, 1.2f);
 				dl.addLine(x + 12, cy - 5, x + 15, cy - 8, c, 1.2f);
@@ -435,7 +473,7 @@ public final class EditorUI {
 				dl.addLine(x + 12, cy + 6, x + 15, cy + 3, c, 1.2f);
 			}
 			case EntityNode e -> {
-				int c = n.visible ? 0xFFFFE040 : 0xFF606060; // ABGR: cyan
+				int c = shown ? 0xFFFFE040 : 0xFF606060; // ABGR: cyan
 				dl.addCircleFilled(x + 7, cy - 3, 3f, c);
 				dl.addRectFilled(x + 3, cy + 1, x + 11, cy + 7, c, 2f);
 			}
@@ -508,20 +546,24 @@ public final class EditorUI {
 	public void startRename(SelectionNode n) {
 		renaming = n;
 		renameFocus = true;
+		renameFrames = 0;
 		renameField.set(n.customName() != null ? n.customName() : n instanceof EntityNode ? n.label() : n.name());
 	}
 
-	private void renameField(SelectionNode n) {
-		ImGui.sameLine();
-		ImGui.setCursorPosX(ImGui.getCursorPosX() - ImGui.getItemRectSizeX() + ImGui.getTreeNodeToLabelSpacing() + 4);
+	/** The rename text field, drawn over the row's label (x..maxX at the row's y). */
+	private void renameField(SelectionNode n, float x, float y, float maxX) {
+		ImGui.setCursorScreenPos(x, y);
+		// focus takes effect within a frame or two; until then an inactive field is not "clicked away"
+		boolean starting = renameFrames++ < 3;
 		if (renameFocus) {
 			ImGui.setKeyboardFocusHere();
 			renameFocus = false;
 		}
-		ImGui.setNextItemWidth(-1);
+		ImGui.setNextItemWidth(Math.max(60, maxX - x));
 		boolean done = ImGui.inputText("##rename", renameField, ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll);
 		rect("rename");
-		if (done || ImGui.isItemDeactivated()) {
+		// Enter or clicking elsewhere commits, Escape cancels
+		if (done || (!starting && !ImGui.isItemActive())) {
 			if (!ImGui.isKeyPressed(ImGuiKey.Escape)) editor.tree.rename(n, renameField.get());
 			renaming = null;
 		}

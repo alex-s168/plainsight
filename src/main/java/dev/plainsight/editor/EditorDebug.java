@@ -157,6 +157,10 @@ public final class EditorDebug {
 
 	public static String selectTool(String id) {
 		Editor e = Editor.get();
+		if (id.equals("none")) {
+			e.setTool(dev.plainsight.editor.tool.NoTool.INSTANCE);
+			return "ok";
+		}
 		for (var t : e.tools) {
 			if (t.id().equals(id)) {
 				e.setTool(t);

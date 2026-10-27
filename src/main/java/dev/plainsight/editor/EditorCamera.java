@@ -30,8 +30,8 @@ public final class EditorCamera {
 	private Drag drag = Drag.NONE;
 	/** While true the view turns towards the orbit pivot until it is in the centre. */
 	private boolean centering;
-	/** Rate of the centring turn (1/s): about 95% of the way in 0.2 s. */
-	public static final double CENTER_RATE = 15;
+	/** Rate of the centring turn (1/s): about 95% of the way in 0.1 s. */
+	public static final double CENTER_RATE = 30;
 	private final Vector3d pivot = new Vector3d();
 	private double panDistance;
 

@@ -331,10 +331,12 @@ public final class BoxSelectTool implements Tool {
 		return false;
 	}
 
+	/** Switching away puts the edited box down (its handles belong to this tool). */
 	@Override
 	public void deactivate() {
 		creating = false;
 		if (dragging) cancel();
+		stopEditing();
 	}
 
 	// -- rendering ----------------------------------------------------------------------------------------------

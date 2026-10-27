@@ -288,8 +288,8 @@ def test_camera_arcball_around_entity_and_follow():
     c.key(K["LCTRL"], "release")
     time.sleep(0.2)
     check("Arcball" not in state()["statusHints"], "hints revert without Ctrl")
+    check(state()["camera"]["following"] == "armor_stand: Stand", "orbiting an entity keeps following it: %s" % state()["camera"]["following"])
     # follow: the camera keeps its offset while the entity moves
-    ed("follow", "Stand")
     time.sleep(0.2)
     p0 = state()["camera"]["pos"]
     cmd("tp @e[type=armor_stand] 9.5 -60 2.5")
@@ -324,7 +324,8 @@ def test_camera_arcball_centring_is_smooth():
     c.button(1, "release")
     c.key(K["LCTRL"], "release")
     print("      distance of the pivot from the centre:", [round(v) for v in samples[:8]], "...", round(samples[-1], 1))
-    check(len([v for v in samples if 10 < v < samples[0] - 10]) >= 2, "it moves through intermediate positions (smooth)")
+    check(len([v for v in samples if 5 < v < samples[0] - 5]) >= 1, "it moves through intermediate positions (smooth)")
+    check(len([v for v in samples if v > 3]) <= 6, "and quickly: at most ~0.2 s off centre")
     check(samples[-1] < 3, "and reaches the centre quickly")
 
 
@@ -701,6 +702,11 @@ def test_tree_example_through_ui():
     time.sleep(0.05)
     c.button(1)
     time.sleep(0.3)
+    r = state()["widgets"].get("rename")
+    check(r is not None, "the rename field is drawn")
+    x1, y1, x2, y2 = map(float, r.split(","))
+    check(x1 > 1280 and x2 - x1 > 120 and abs((y1 + y2) / 2 - pos[1]) < 6, "rename field over the row, wide enough: %s" % r)
+    shot("tree-rename")
     c.key(K["BACKSPACE"])
     c.type("target")
     c.key(K["ENTER"])
@@ -763,8 +769,79 @@ def test_tree_example_through_ui():
     check(len(newg["group 3"]) == 2, "Delete removes the selected node: %s" % newg)
 
 
+def test_tree_visibility_buttons():
+    editor_on()
+    fresh_tree()
+    cam(2, -54, -6, 0, 35)
+    create_box(650, 550, 950, 700)
+    c.key(K["ENTER"])
+    time.sleep(0.2)
+    c.click(*widget("tree_new_group"), b=1)
+    time.sleep(0.3)
+    a, _ = find_node("box 1")
+    b, r = find_node("group 1")
+    ui_drag(a, (b[0], (r[1] + r[3]) / 2))
+    lines = int(state()["overlay"]["WORLD"].split()[0])
+    check(lines >= 12, "box drawn")
+    c.click(*widget("vis:box 1"), b=1)
+    time.sleep(0.3)
+    check(int(state()["overlay"]["WORLD"].split()[0]) == lines - 12, "eye button hides the box")
+    c.click(*widget("vis:box 1"), b=1)
+    time.sleep(0.3)
+    check(int(state()["overlay"]["WORLD"].split()[0]) == lines, "and shows it again")
+    c.click(*widget("vis:group 1"), b=1)
+    time.sleep(0.3)
+    check(int(state()["overlay"]["WORLD"].split()[0]) == lines - 12, "hiding a group hides its children")
+    shot("tree-hidden-group")
+    c.click(*widget("vis:group 1"), b=1)
+    time.sleep(0.3)
+
+
+def test_tool_click_again_unselects():
+    editor_on()
+    ed("selectTool", "box_select")
+    c.click(*widget("tool_box_select"), b=1)
+    time.sleep(0.3)
+    s = state()
+    check(s["tool"] == "none", "clicking the active tool unselects it: %s" % s["tool"])
+    # RMB does nothing without a tool
+    fresh_tree()
+    ed("selectTool", "none")
+    cam(2, -54, -6, 0, 35)
+    create_box(650, 550, 950, 700)
+    check(state()["tree"] == [], "no box without a tool")
+    c.click(*widget("tool_box_select"), b=1)
+    time.sleep(0.3)
+    check(state()["tool"] == "box_select", "clicking it again selects it")
+
+
+def test_see_through_only_in_editor():
+    editor_on()
+    cmd("tp @s -8.5 -59 -8.5")
+    time.sleep(0.5)
+    cam(-8.5, -50, -16, 0, 45)
+    ed("setModule", "see_through", "true")
+    time.sleep(1)
+    check(state()["cutawaySegments"] >= 1, "cut while in the editor")
+    editor_off()
+    time.sleep(0.8)
+    check(state()["cutawaySegments"] == 0, "no cut in the normal game")
+    editor_on()
+    time.sleep(0.8)
+    check(state()["cutawaySegments"] >= 1, "back when the editor opens again")
+    ed("setModule", "see_through", "false")
+    cmd("tp @s 0.5 -60 0.5 0 0")
+    time.sleep(0.5)
+
+
 def test_selection_persists():
     editor_on()
+    if not state()["tree"]:
+        ed("selectTool", "box_select")
+        cam(2, -54, -6, 0, 35)
+        create_box(650, 550, 950, 700)
+        c.key(K["ENTER"])
+        time.sleep(0.3)
     tree = state()["tree"]
     check(tree, "previous test left a tree")
     editor_off()

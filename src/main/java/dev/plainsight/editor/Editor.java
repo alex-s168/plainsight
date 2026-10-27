@@ -126,6 +126,11 @@ public final class Editor {
 		}
 	}
 
+	/** Tool bar click: selects the tool, or unselects it when it is already the active one. */
+	public void toggleTool(Tool t) {
+		setTool(tool == t ? dev.plainsight.editor.tool.NoTool.INSTANCE : t);
+	}
+
 	// -- lifecycle ------------------------------------------------------------------------------------------
 
 	public void toggle() {
@@ -175,7 +180,11 @@ public final class Editor {
 		double dt = lastFrameNanos == 0 ? 0 : (now - lastFrameNanos) / 1e9;
 		lastFrameNanos = now;
 		Minecraft mc = Minecraft.getInstance();
-		if (!active) return;
+		if (!active) {
+			// the see-through cut is an editor view option: never in the normal game
+			seeThrough.frame();
+			return;
+		}
 		if (mc.player == null || mc.level == null) {
 			disable();
 			return;
@@ -364,6 +373,9 @@ public final class Editor {
 		}
 		orbitEntity = target;
 		camera.beginDrag(EditorCamera.Drag.ORBIT, pivot);
+		// an entity pivot keeps the view on the entity afterwards too (stop with the "Following" chip)
+		if (target != null && !target.getUUID().equals(follow)) follow(target);
+		else if (target == null && follow != null) follow(null);
 	}
 
 	public static Vector3d centre(Entity e) {
