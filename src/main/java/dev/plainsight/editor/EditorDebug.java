@@ -223,6 +223,11 @@ public final class EditorDebug {
 		return e.overlaysInGame() + " " + e.overlay.lineCount(dev.plainsight.render.Overlay.Layer.WORLD);
 	}
 
+	public static String spectatorCulling(String on) {
+		Editor.spectatorCulling = Boolean.parseBoolean(on);
+		return "ok";
+	}
+
 	public static String unfollow() {
 		Editor.get().follow(null);
 		return "ok";

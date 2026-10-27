@@ -183,7 +183,7 @@ public final class DevBridge implements ClientModInitializer {
 					mc.mouseHandler.onScroll(mc.getWindow().handle(), 0, Double.parseDouble(q.getOrDefault("dy", "1")));
 					return "ok";
 				});
-				case "/world" -> onMain(() -> world(q.getOrDefault("name", "plainsight-dev"), q.getOrDefault("mode", "creative")));
+				case "/world" -> onMain(() -> world(q.getOrDefault("name", "plainsight-dev"), q.getOrDefault("mode", "creative"), q.getOrDefault("preset", "flat")));
 				case "/look" -> onMain(() -> {
 					LocalPlayer p = player();
 					p.setYRot(Float.parseFloat(q.getOrDefault("yaw", "0")));
@@ -369,7 +369,7 @@ public final class DevBridge implements ClientModInitializer {
 		return "ok";
 	}
 
-	private static String world(String name, String mode) {
+	private static String world(String name, String mode, String preset) {
 		Minecraft mc = Minecraft.getInstance();
 		if (mc.level != null) return "already in a world";
 		try {
@@ -382,9 +382,9 @@ public final class DevBridge implements ClientModInitializer {
 		}
 		GameType type = mode.equals("survival") ? GameType.SURVIVAL : GameType.CREATIVE;
 		LevelSettings settings = new LevelSettings(name, type, LevelSettings.DifficultySettings.DEFAULT, true, WorldDataConfiguration.DEFAULT);
-		mc.createWorldOpenFlows().createFreshLevel(name, settings, new WorldOptions(0, false, false),
+		mc.createWorldOpenFlows().createFreshLevel(name, settings, new WorldOptions(preset.equals("normal") ? 12345 : 0, preset.equals("normal"), false),
 				registries -> registries.lookupOrThrow(net.minecraft.core.registries.Registries.WORLD_PRESET)
-						.getOrThrow(WorldPresets.FLAT).value().createWorldDimensions(), null);
+						.getOrThrow(preset.equals("normal") ? WorldPresets.NORMAL : WorldPresets.FLAT).value().createWorldDimensions(), null);
 		return "creating " + name;
 	}
 }

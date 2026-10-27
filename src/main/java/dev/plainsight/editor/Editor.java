@@ -51,6 +51,9 @@ public final class Editor {
 		return INSTANCE;
 	}
 
+	/** Camera inside solid blocks renders without cave culling, like spectator mode (switchable for tests). */
+	public static volatile boolean spectatorCulling = true;
+
 	public static boolean isActive() {
 		return INSTANCE.active;
 	}

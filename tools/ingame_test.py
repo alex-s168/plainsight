@@ -133,7 +133,8 @@ def setup_world():
     for line in [
         "gamerule advance_time false", "gamerule advance_weather false", "time set noon", "weather clear",
         "kill @e[type=!player]", "tp @s 0.5 -60 0.5 0 0",
-        "fill -20 -60 -20 40 -40 40 air",
+        # /fill is limited to 32768 blocks: clear the test area in slices
+        *["fill -20 -60 %d 40 -50 %d air" % (z, z + 4) for z in range(-20, 41, 5)],
         # wall in front of the spawn point
         "fill 4 -60 8 8 -57 10 oak_planks",
         # a 5x5 pool to the east
@@ -869,6 +870,20 @@ def test_tool_click_again_unselects():
     c.click(*widget("tool_box_select"), b=1)
     time.sleep(0.3)
     check(state()["tool"] == "box_select", "clicking it again selects it")
+
+
+def test_camera_in_rock_sees_caves():
+    editor_on()
+    fresh_tree()
+    for m in ("see_through", "fluid_transparency", "block_overlay_demo", "path_overlay_demo"):
+        ed("setModule", m, "false")
+    # inside the rock, ~65 blocks (four solid sections) from the sealed cave, looking at the gold block
+    cam(-32, -47.5, 20, 0, 3)
+    time.sleep(3)
+    x, y = map(float, ed("project", -31.5, -48.5, 87).split(","))
+    col = avg_color(shot("cave-from-rock"), int(x) - 6, int(y) - 6, 12, 12)
+    print("      gold block seen from inside the rock:", col)
+    check(col[0] > 120 and col[0] > col[2] + 60, "the cave (gold block) is visible from inside the rock: %s" % (col,))
 
 
 def test_see_through_only_in_editor():

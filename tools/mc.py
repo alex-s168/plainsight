@@ -60,8 +60,8 @@ class Client:
         lines = self.call("/chatlog", "GET", since=before)
         return res + "\n" + "\n".join(l for l in lines.splitlines() if not l.startswith("next="))
 
-    def world(self, name="plainsight-dev", mode="creative"):
-        return self.call("/world", name=name, mode=mode)
+    def world(self, name="plainsight-dev", mode="creative", preset="flat"):
+        return self.call("/world", name=name, mode=mode, preset=preset)
 
     def static(self, cls, method, *args):
         return self.call("/static", **{"class": cls, "method": method, "args": ",".join(str(a) for a in args)})
@@ -199,7 +199,7 @@ def main(argv):
         "chat": lambda: c.call("/chatlog", "GET", since=f(0, 0)),
         "shot": lambda: c.shot(r[0]),
         "full": lambda: c.fullshot(r[0]),
-        "world": lambda: c.world(f(0, "plainsight-dev"), f(1, "creative")),
+        "world": lambda: c.world(f(0, "plainsight-dev"), f(1, "creative"), f(2, "flat")),
         "key": lambda: c.key(r[0], f(1, "tap"), f(2, 0)),
         "type": lambda: c.type(" ".join(r)),
         "move": lambda: c.move(r[0], r[1]),

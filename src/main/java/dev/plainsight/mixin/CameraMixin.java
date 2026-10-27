@@ -34,7 +34,12 @@ public abstract class CameraMixin {
 	}
 
 	@Inject(method = "extractRenderState", at = @At("TAIL"))
-	private void plainsight$viewportProjection(CameraRenderState cameraState, DeltaTracker deltaTracker, CallbackInfo ci) {
-		if (Editor.isActive()) Editor.get().viewport.adjust(cameraState.projectionMatrix);
+	private void plainsight$editorRenderState(CameraRenderState cameraState, DeltaTracker deltaTracker, CallbackInfo ci) {
+		if (!Editor.isActive()) return;
+		Editor.get().viewport.adjust(cameraState.projectionMatrix);
+		// like spectator mode: inside solid blocks, render every section (no cave culling), so cave systems
+		// are visible from within the rock
+		var level = net.minecraft.client.Minecraft.getInstance().level;
+		if (Editor.spectatorCulling && level != null && level.getBlockState(cameraState.blockPos).isSolidRender()) cameraState.smartCull = false;
 	}
 }
