@@ -135,7 +135,6 @@ public final class EditorUI {
 		}
 		if (ImGui.beginMenu("Camera")) {
 			ImGui.textDisabled("Arcball (Ctrl + LMB drag)");
-			if (ImGui.menuItem("Pivot at viewport centre", "", editor.arcballAtViewportCenter)) editor.arcballAtViewportCenter = !editor.arcballAtViewportCenter;
 			ImGui.separator();
 			boolean following = editor.followed() != null;
 			if (ImGui.menuItem(following ? "Stop following " + editor.followName() : "Follow: right-click an entity in the tree", "", following, following)) {
@@ -659,7 +658,7 @@ public final class EditorUI {
 		ImGui.sameLine(0, 30);
 		if (ctrl) {
 			ImGui.textDisabled("arcball pivot: " + (editor.followed() != null ? editor.followName()
-					: editor.arcballAtViewportCenter ? "viewport centre" : "under the cursor") + "  (Camera menu)");
+					: "the block or entity under the cursor"));
 		} else {
 			ImGui.textDisabled("Hold Ctrl for more options");
 		}

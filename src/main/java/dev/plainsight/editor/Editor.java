@@ -78,8 +78,6 @@ public final class Editor {
 	public double mouseX, mouseY;
 	private double pressX, pressY;
 	private boolean movedSincePress;
-	/** Arcball pivot: the point under the cursor, or (like Axiom's option) the point at the viewport centre. */
-	public boolean arcballAtViewportCenter;
 	private @Nullable Entity orbitEntity;
 	private java.util.@Nullable UUID follow;
 	private String followName = "";
@@ -350,15 +348,13 @@ public final class Editor {
 
 	/**
 	 * Starts an arcball drag. The pivot is the followed entity if there is one, else the entity or block
-	 * under the cursor (or at the viewport centre, if configured). An entity pivot moves with the entity.
+	 * under the cursor. An entity pivot moves with the entity.
 	 */
 	private void beginOrbit() {
 		Entity target = followed();
 		Vector3d pivot;
 		if (target == null) {
-			double px = arcballAtViewportCenter ? viewport.x + viewport.width / 2 : mouseX;
-			double py = arcballAtViewportCenter ? viewport.y + viewport.height / 2 : mouseY;
-			Vector3d dir = rayAt(px, py);
+			Vector3d dir = rayAt(mouseX, mouseY);
 			BlockHitResult block = raycastBlock(dir, false);
 			double max = block != null ? block.getLocation().distanceTo(new Vec3(camera.pos.x, camera.pos.y, camera.pos.z)) : REACH;
 			EntityHit hit = raycastEntity(dir, max);
