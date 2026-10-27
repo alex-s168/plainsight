@@ -154,6 +154,7 @@ def setup_world():
 def test_toggle_keeps_player_still():
     editor_off()
     before = state()["player"]
+    check(state()["tool"] == "none", "no tool is selected by default: %s" % state()["tool"])
     c.key(K["RSHIFT"])
     time.sleep(0.6)
     s = state()
@@ -194,6 +195,7 @@ def test_overlays_in_game_keybind():
 
 def test_camera_fly_keys():
     editor_on()
+    ed("selectTool", "box_select")
     cam(0.5, -55, -4, 0, 0)
     p0 = state()["camera"]["pos"]
     c.hold(K["W"], 0.5)

@@ -68,7 +68,7 @@ public final class Editor {
 	public final BoxSelectTool boxTool = new BoxSelectTool(this);
 	public final EntitySelectTool entityTool = new EntitySelectTool(this);
 	public final List<Tool> tools = List.of(boxTool, entityTool);
-	private Tool tool = boxTool;
+	private Tool tool = dev.plainsight.editor.tool.NoTool.INSTANCE;
 	/** The tool to return to after editing a box that was picked in the tree (null otherwise). */
 	private @Nullable Tool toolBeforeTreeEdit;
 	private boolean switchingTool;
