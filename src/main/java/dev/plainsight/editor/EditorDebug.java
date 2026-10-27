@@ -58,8 +58,7 @@ public final class EditorDebug {
 		o.addProperty("statusHints", e.ui.statusHintsText);
 		o.addProperty("ctrl", e.ctrl);
 		JsonObject mods = new JsonObject();
-		mods.addProperty(e.fluids.id(), e.fluids.enabled());
-		mods.addProperty(e.seeThrough.id(), e.seeThrough.enabled());
+		for (Module m : e.viewModules) mods.addProperty(m.id(), m.enabled());
 		for (Module m : e.modules) mods.addProperty(m.id(), m.enabled());
 		o.add("modules", mods);
 		o.addProperty("cutawaySegments", SeeThrough.region().segments().size());
@@ -173,9 +172,8 @@ public final class EditorDebug {
 	public static String setModule(String id, String on) {
 		Editor e = Editor.get();
 		boolean v = Boolean.parseBoolean(on);
-		if (e.fluids.id().equals(id)) e.fluids.setEnabled(v);
-		else if (e.seeThrough.id().equals(id)) e.seeThrough.setEnabled(v);
-		else for (Module m : e.modules) if (m.id().equals(id)) m.setEnabled(v);
+		for (Module m : e.viewModules) if (m.id().equals(id)) m.setEnabled(v);
+		for (Module m : e.modules) if (m.id().equals(id)) m.setEnabled(v);
 		return "ok";
 	}
 

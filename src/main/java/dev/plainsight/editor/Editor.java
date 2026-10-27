@@ -77,8 +77,12 @@ public final class Editor {
 	public final SeeThrough seeThrough = new SeeThrough(this);
 	public final BlockOverlayDemo blockOverlayDemo = new BlockOverlayDemo(this);
 	public final PathOverlayDemo pathDemo = new PathOverlayDemo(this);
-	/** Toggleable modules shown in the tool bar (the viewport buttons cover fluids and see-through). */
-	public final List<Module> modules = List.of(blockOverlayDemo, pathDemo);
+	public final dev.plainsight.module.Brightness editorBrightness = new dev.plainsight.module.Brightness(true);
+	public final dev.plainsight.module.Brightness ingameBrightness = new dev.plainsight.module.Brightness(false);
+	/** Toggleable modules shown in the tool bar (right-click for settings). */
+	public final List<Module> modules = List.of(editorBrightness, ingameBrightness);
+	/** The viewport's buttons: view options and overlay demos. */
+	public final List<Module> viewModules = List.of(fluids, seeThrough, blockOverlayDemo, pathDemo);
 
 	/** Mouse position in window coordinates (ImGui's coordinate space). */
 	public double mouseX, mouseY;

@@ -46,6 +46,11 @@ what the tool is doing and closes ImGui popups.
   the cut blocks were air (no holes, no ambient-occlusion shadows) and the opened space, including the
   players in it, is lit with the sky light around the camera instead of the darkness of a closed room.
 
+### Tool bar modules (right-click for settings)
+
+* **Editor Brightness** / **In-game Brightness**: brighter lighting while the editor is open / in the
+  normal game, up to fullbright (slider). Purely visual: it raises the lightmap like gamma and night vision.
+
 ### Selections
 
 Selections form a tree. Every node is a selection: a **group** is the union of its children, a

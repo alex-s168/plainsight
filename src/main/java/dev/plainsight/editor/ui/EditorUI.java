@@ -167,6 +167,12 @@ public final class EditorUI {
 				if (iconButton("tool_" + t.id(), size, editor.tool() == t, t::drawIcon)) editor.toggleTool(t);
 				tooltip(t.name(), t.description() + (editor.tool() == t ? " Click again to unselect." : ""));
 			}
+			for (Module m : editor.modules) {
+				if (i++ % perRow != 0) ImGui.sameLine(0, 4);
+				if (iconButton("module_" + m.id(), size, m.enabled(), m::drawIcon)) m.toggle();
+				if (ImGui.isItemClicked(ImGuiMouseButton.Right)) openModulePopup(m);
+				tooltip(m.name() + (m.enabled() ? " (on)" : " (off)"), m.description());
+			}
 		}
 		ImGui.setNextItemOpen(true, ImGuiCond.FirstUseEver);
 		if (ImGui.collapsingHeader("Tool Options")) {

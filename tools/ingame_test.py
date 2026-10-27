@@ -922,6 +922,39 @@ def test_arcball_ctrl_shift_skips_surrounding_rock():
     check(pos == [-32.0, -47.5, 20.0], "holding Shift with Ctrl does not fly the camera down: %s" % pos)
 
 
+def test_brightness_toggles():
+    editor_on()
+    for m in ("editor_brightness", "ingame_brightness"):
+        ed("setModule", m, "false")
+    # inside the sealed (unlit) stone hut, looking at its west wall
+    cmd("tp @s 0.5 -60 0.5 0 0")
+    cam(-8.5, -58, -9.5, 90, 0)
+    time.sleep(1.5)
+    def wall():
+        x, y = map(float, ed("project", -10.98, -58, -9.5).split(","))
+        return avg_color(shot("brightness"), int(x) - 8, int(y) - 8, 16, 16)
+    dark = wall()
+    c.click(*widget("module_editor_brightness"), b=1)
+    time.sleep(0.6)
+    check(state()["modules"]["editor_brightness"], "toolbar button enables editor brightness")
+    bright = wall()
+    print("      cave wall normal / fullbright:", dark, bright)
+    check(sum(bright) > sum(dark) + 90, "fullbright lights the cave")
+    shot("brightness-editor")
+    # in-game brightness is separate: off in the game while only the editor one is on
+    editor_off()
+    time.sleep(0.6)
+    check(not state()["modules"]["ingame_brightness"], "in-game brightness stays off")
+    editor_on()
+    c.click(*widget("module_editor_brightness"), b=1)
+    time.sleep(0.3)
+    c.click(*widget("module_ingame_brightness"), b=3)
+    time.sleep(0.4)
+    shot("brightness-settings")
+    c.key(K["ESC"])
+    time.sleep(0.2)
+
+
 def test_see_through_only_in_editor():
     editor_on()
     cmd("tp @s -8.5 -59 -8.5")
