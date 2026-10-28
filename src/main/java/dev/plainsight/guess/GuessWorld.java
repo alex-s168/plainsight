@@ -52,11 +52,20 @@ public final class GuessWorld {
 	private volatile GuessServer server;
 	/** Chunks that show guessed terrain, and chunks the client has really seen (which never show guesses). */
 	private final LongOpenHashSet guessed = new LongOpenHashSet(), real = new LongOpenHashSet(), inFlight = new LongOpenHashSet();
+	/** 2x2-chunk LOD columns already looked up in the normal LOD world this session. */
+	private final LongOpenHashSet lodChecked = new LongOpenHashSet();
+	/** Copies real LOD in the background (one column at a time; reads Voxy storage). */
+	private final java.util.concurrent.ExecutorService lodCopier = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+		Thread t = new Thread(r, "Plainsight LOD copy");
+		t.setDaemon(true);
+		t.setPriority(Thread.NORM_PRIORITY - 1);
+		return t;
+	});
 	private volatile int version;
 	private long lastSave = System.currentTimeMillis();
 	private ChunkPos searchCentre;
 	private int searchRing;
-	public volatile int generatedThisSession, failed;
+	public volatile int generatedThisSession, copiedThisSession, failed;
 	private volatile boolean closed;
 
 	private GuessWorld(String worldKey, ResourceKey<Level> dimension, long seed) {
@@ -178,9 +187,12 @@ public final class GuessWorld {
 				for (int dx = -ring; dx <= ring && inFlight.size() < IN_FLIGHT; dx++) {
 					for (int dz = -ring; dz <= ring && inFlight.size() < IN_FLIGHT; dz++) {
 						if (Math.max(Math.abs(dx), Math.abs(dz)) != ring) continue;
-						long k = ChunkPos.pack(c.x() + dx, c.z() + dz);
-						if (guessed.contains(k) || real.contains(k)) continue;
-						if (!inFlight.contains(k)) request(c.x() + dx, c.z() + dz, k);
+						int cx = c.x() + dx, cz = c.z() + dz;
+						long k = ChunkPos.pack(cx, cz);
+						long column = ChunkPos.pack(cx >> 1, cz >> 1);
+						// done: real, or guessed with the normal LOD world already looked at for it
+						if (real.contains(k) || (guessed.contains(k) && lodChecked.contains(column))) continue;
+						if (!inFlight.contains(k)) request(cx, cz, k);
 						ringDone = false;
 					}
 				}
@@ -191,7 +203,33 @@ public final class GuessWorld {
 		if (System.currentTimeMillis() - lastSave > 30_000) save();
 	}
 
+	/** Real LOD first (the normal LOD world), generation only where there is none. */
 	private void request(int cx, int cz, long key) {
+		long column = ChunkPos.pack(cx >> 1, cz >> 1);
+		if (!lodChecked.contains(column)) {
+			lodChecked.add(column);
+			// the whole 2x2 column is in flight until the lookup is done
+			for (int i = 0; i < 4; i++) inFlight.add(ChunkPos.pack((cx & ~1) + (i & 1), (cz & ~1) + (i >> 1)));
+			lodCopier.execute(() -> {
+				boolean copied = VoxyGuess.copyReal(cx, cz);
+				synchronized (this) {
+					for (int i = 0; i < 4; i++) {
+						long k = ChunkPos.pack((cx & ~1) + (i & 1), (cz & ~1) + (i >> 1));
+						inFlight.remove(k);
+						if (copied && real.add(k)) {
+							version++;
+							copiedThisSession++;
+						}
+					}
+				}
+			});
+			return;
+		}
+		if (guessed.contains(key)) return;
+		generate(cx, cz, key);
+	}
+
+	private void generate(int cx, int cz, long key) {
 		GuessServer s = server;
 		if (s == null) return;
 		inFlight.add(key);
@@ -229,6 +267,7 @@ public final class GuessWorld {
 			server = null;
 		}
 		save();
+		lodCopier.shutdownNow();
 		VoxyGuess.detach();
 		if (s != null) stop(s);
 	}

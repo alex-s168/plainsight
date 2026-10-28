@@ -1168,6 +1168,58 @@ def test_seed_hider():
     c.command("plainsight seed clear")
 
 
+def test_seedcracker_seed_is_taken():
+    """A world seed SeedcrackerX prints (cracked, or found in its database) becomes this world's seed,
+    if it matches the server's hashed seed."""
+    probe = c.static("kaptainwutax.seedcrackerX.util.Log", "translate", "tmachine.foundWorldSeedFromDatabase")
+    if probe.startswith("error") or probe.startswith("bridge"):
+        print("      (needs SeedcrackerX, skipped)")
+        return
+    c.command("plainsight seed clear")
+    real = int(c.static("dev.plainsight.editor.EditorDebug", "worldSeed"))
+    c.static("kaptainwutax.seedcrackerX.util.Log", "printSeed", "tmachine.foundWorldSeed", real + 1)
+    time.sleep(0.5)
+    check(state()["seed"] == "", "a seed that does not match the server's hashed seed is ignored")
+    c.static("kaptainwutax.seedcrackerX.util.Log", "printSeed", "tmachine.foundWorldSeedFromDatabase", real)
+    s = wait_for(lambda s: s["seed"] != "", 3)
+    check(s["seed"] == str(real), "the database seed is taken: %s" % s["seed"])
+    check("from SeedcrackerX saved" in ed("chatShown", 3), "and announced")
+    c.command("plainsight seed clear")
+
+
+def test_guess_prefers_real_lod():
+    """Terrain Voxy already has (here: flat land loaded far from spawn, then unloaded) is copied into the
+    guessed view instead of generated (the seed's generator would make hills there)."""
+    if not state()["lodMod"] or not state()["sodium"]:
+        print("      (needs Voxy, skipped)")
+        return
+    editor_off()
+    c.command("plainsight seed clear")
+    import random
+    far = 20000 + random.randrange(0, 1000) * 64
+    c.command("tp @s %d -60 %d" % (far, far))
+    time.sleep(12)
+    c.command("tp @s 0.5 -60 0.5")
+    time.sleep(12)
+    # a seed nobody used here yet: its guessed world starts empty
+    c.command("plainsight seed %d" % random.randrange(1, 1 << 40))
+    s = wait_for(lambda s: s["guessState"] not in ("", "STARTING"), 60)
+    check(s["guessState"] == "READY", "worldgen server ready: %s" % s["guessState"])
+    editor_on()
+    ed("setCamera", far + 0.5, 40, far + 0.5, 0, 89)
+    s = wait_for(lambda s: s["guessCopied"] > 20 and s["guessShowing"], 40)
+    check(s["guessCopied"] > 20, "real LOD is copied around the camera: %d" % s["guessCopied"])
+    vp = s["viewport"]
+    c.move(vp[0] + vp[2] / 2, vp[1] + vp[3] / 2)
+    time.sleep(3)
+    s = wait_for(lambda s: s["surfaceUnderCursor"] != "", 5, 0.1)
+    y = float(s["surfaceUnderCursor"].split(",")[1]) if s["surfaceUnderCursor"] else 999
+    check(abs(y - (-60)) < 1, "and shown: the flat ground, not generated terrain (%s)" % s["surfaceUnderCursor"])
+    shot("guess-real-lod")
+    editor_off()
+    c.command("plainsight seed clear")
+
+
 def test_guessed_terrain():
     """With a seed (here given by command) and Voxy, the editor shows terrain generated from the seed far
     from the player, tinted; Voxy shows the normal LOD again outside the editor."""
@@ -1218,9 +1270,16 @@ def test_guessed_terrain():
     fy = float(s["surfaceUnderCursor"].split(",")[1])
     check(-64 < fy < 320, "at the terrain, not at a far plane in the air: %s" % s["surfaceUnderCursor"])
     # inside guessed rock: Ctrl pivots on the rock the camera is in, Ctrl+Shift looks past it
-    rx, ry, rz = int(math.floor(sx)), int(math.floor(sy)) - 12, int(math.floor(sz))
+    rx, rz = int(math.floor(sx)), int(math.floor(sz))
+    ry = int(math.floor(sy))
+    # the first solid block a little below the surface (it may be under water)
+    for dy in range(1, 40):
+        if ed("solidAt", rx, ry - dy, rz) == "true" and ed("solidAt", rx, ry - dy - 1, rz) == "true":
+            ry -= dy + 1
+            break
     check(ed("solidAt", rx, ry, rz) == "true", "the guessed rock below the surface is known solid (Voxy data)")
-    cam(rx + 0.5, ry + 0.5, rz + 0.5, 0, 0)
+    # looking up: out of the rock towards the sky
+    cam(rx + 0.5, ry + 0.5, rz + 0.5, 0, -80)
     vp = state()["viewport"]
     c.move(vp[0] + vp[2] / 2, vp[1] + vp[3] / 2)
     time.sleep(0.5)
@@ -1240,7 +1299,7 @@ def test_guessed_terrain():
         return p
     p0 = orbit_pivot(False)
     check(math.dist(p0, (rx + 0.5, ry + 0.5, rz + 0.5)) < 1.5, "Ctrl in guessed rock pivots on that rock: %s" % p0)
-    cam(rx + 0.5, ry + 0.5, rz + 0.5, 0, 0)
+    cam(rx + 0.5, ry + 0.5, rz + 0.5, 0, -80)
     time.sleep(0.3)
     p1 = orbit_pivot(True)
     check(math.dist(p1, (rx + 0.5, ry + 0.5, rz + 0.5)) > 1.5, "Ctrl+Shift looks past it: %s" % p1)

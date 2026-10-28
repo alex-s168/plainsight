@@ -52,7 +52,7 @@ what the tool is doing and closes ImGui popups.
 * **Guessed terrain** (with Voxy, once the world seed is known): terrain generated from the seed wherever
   no real chunks have been seen, so the camera can go anywhere. Guessed chunks get a faint blue tint
   that slowly fades in and out, and they are shown only in the editor; the normal game keeps the normal LOD. The seed comes from
-  SeedcrackerX (as soon as it cracks it) or `/plainsight seed <seed>` (`/plainsight seed world` in
+  SeedcrackerX (as soon as it cracks it or finds it in its database) or `/plainsight seed <seed>` (`/plainsight seed world` in
   singleplayer, `/plainsight seed clear`); a given seed is checked against the server's hashed seed.
   Seeds are hidden on screen by default (for screen sharing): chat lines (SeedcrackerX, `/seed`), titles
   and this mod show them as dots; toggle in the settings or with `/plainsight seed hide <true|false>`.
@@ -61,7 +61,9 @@ what the tool is doing and closes ImGui popups.
   How: a private, headless vanilla server with that seed generates chunks around the editor camera
   (full worldgen: terrain, caves, features, structures; nothing is saved) and hands them to a second
   Voxy LOD world, which the editor renders instead of the normal one. Every real chunk Voxy ingests is
-  copied into that world too and replaces the guess, so places you have been show what you saw there.
+  copied into that world too and replaces the guess, and before generating a chunk the LOD Voxy already
+  has there (from earlier sessions too) is copied over instead, so everywhere you have been shows what
+  you saw (useful where the server's terrain differs from today's generator).
   In the editor Voxy also draws LOD right up to the camera (it normally starts 8 to 16 blocks away and
   drops sections the camera is in; its culling shaders are patched for that), and Ctrl / Ctrl+Shift arcball
   pivots know the solid blocks of LOD and guessed terrain from Voxy's data.

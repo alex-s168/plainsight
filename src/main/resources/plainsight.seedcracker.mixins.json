@@ -1,0 +1,10 @@
+{
+	"required": false,
+	"package": "dev.plainsight.mixin.seedcracker",
+	"plugin": "dev.plainsight.SodiumMixinPlugin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"SeedLogMixin"
+	],
+	"injectors": { "defaultRequire": 1 }
+}

@@ -77,6 +77,7 @@ public final class EditorDebug {
 		o.addProperty("guessReal", guess == null ? 0 : guess.realCount());
 		o.addProperty("guessPending", guess == null ? 0 : guess.pending());
 		o.addProperty("guessFailed", guess == null ? 0 : guess.failed);
+		o.addProperty("guessCopied", guess == null ? 0 : guess.copiedThisSession);
 		o.addProperty("guessShowing", dev.plainsight.guess.VoxyGuess.showing());
 		o.addProperty("guessTintDrawn", dev.plainsight.render.GuessTint.drawn);
 		var surface = dev.plainsight.render.DepthPick.at(Editor.get().mouseX, Editor.get().mouseY);
@@ -214,6 +215,20 @@ public final class EditorDebug {
 		StringBuilder sb = new StringBuilder();
 		for (int i = Math.min(n, all.size()) - 1; i >= 0; i--) sb.append(all.get(i).content().getString()).append('\n');
 		return sb.toString();
+	}
+
+	/** The singleplayer world's seed (tests). */
+	public static String worldSeed() {
+		return Long.toString(net.minecraft.client.Minecraft.getInstance().getSingleplayerServer().overworld().getSeed());
+	}
+
+	/** Degrees between the editor's ray through the cursor and the direction to the surface drawn there (tests). */
+	public static String rayError() {
+		Editor e = Editor.get();
+		var surface = dev.plainsight.render.DepthPick.at(e.mouseX, e.mouseY);
+		if (surface == null) return "none";
+		var toSurface = new org.joml.Vector3d(surface).sub(e.camera.pos).normalize();
+		return Double.toString(Math.toDegrees(e.mouseRay().angle(toSurface)));
 	}
 
 	public static String guessTintOpacity(float opacity) {

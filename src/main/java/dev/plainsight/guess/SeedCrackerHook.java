@@ -7,6 +7,6 @@ import net.minecraft.client.Minecraft;
 public final class SeedCrackerHook implements SeedCrackerAPI {
 	@Override
 	public void pushWorldSeed(long seed) {
-		Minecraft.getInstance().execute(() -> SeedStore.set(seed, "SeedcrackerX"));
+		Minecraft.getInstance().execute(() -> SeedStore.fromSeedCracker(seed));
 	}
 }

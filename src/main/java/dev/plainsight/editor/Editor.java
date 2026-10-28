@@ -400,6 +400,20 @@ public final class Editor {
 		return new BlockHitResult(new Vec3(surface.x, surface.y, surface.z), face, pos, false);
 	}
 
+	/**
+	 * A pivot when nothing drawn is under the cursor (beyond the farthest LOD): where the ray meets sea
+	 * level if it points down, else a point 10 blocks ahead.
+	 */
+	public Vector3d beyondEverything(Vector3dc from, Vector3dc dir) {
+		Minecraft mc = Minecraft.getInstance();
+		double sea = mc.level != null ? mc.level.getSeaLevel() : 63;
+		if (dir.y() < -1e-3 && from.y() > sea) {
+			double t = (sea - from.y()) / dir.y();
+			if (t < 1e6) return new Vector3d(from).fma(t, dir);
+		}
+		return new Vector3d(from).fma(10, dir);
+	}
+
 	public static boolean isLoaded(BlockPos p) {
 		Minecraft mc = Minecraft.getInstance();
 		return mc.level != null && mc.level.getChunkSource().hasChunk(p.getX() >> 4, p.getZ() >> 4);
@@ -451,7 +465,7 @@ public final class Editor {
 			}
 			if (target != null) pivot = centre(target);
 			else if (block != null) pivot = new Vector3d(block.getLocation().x, block.getLocation().y, block.getLocation().z);
-			else pivot = new Vector3d(from).fma(10, dir);
+			else pivot = beyondEverything(from, dir);
 		} else {
 			pivot = centre(target);
 		}

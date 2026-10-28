@@ -119,6 +119,88 @@ final class VoxyGuessImpl {
 		}
 	}
 
+	private static final it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap blockMap = new it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap();
+	private static final it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap biomeMap = new it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap();
+	private static WorldEngine mappedFrom, mappedTo;
+
+	/**
+	 * Copies the normal LOD world's data for the 2x2 chunks around (cx, cz) (one 32-block LOD column) into
+	 * the guessed world, so terrain already seen (in earlier sessions too) shows as it really is. Returns
+	 * whether there was any. Worker thread.
+	 */
+	static synchronized boolean copyReal(int cx, int cz) {
+		WorldEngine g = guessEngine;
+		Minecraft mc = Minecraft.getInstance();
+		var instance = VoxyCommon.getInstance();
+		var level = mc.level;
+		if (g == null || instance == null || level == null || !g.isLive()) return false;
+		WorldIdentifier id = WorldIdentifier.of(level);
+		if (id == null) return false;
+		WorldEngine real = instance.getOrCreate(id);
+		if (real == null || real == g || !real.isLive()) return false;
+		if (mappedFrom != real || mappedTo != g) {
+			blockMap.clear();
+			biomeMap.clear();
+			mappedFrom = real;
+			mappedTo = g;
+		}
+		real.acquireRef();
+		g.acquireRef();
+		try {
+			boolean any = false;
+			int sx = cx >> 1, sz = cz >> 1;
+			for (int sy = level.getMinY() >> 5; sy <= (level.getMaxY() - 1) >> 5; sy++) {
+				var src = real.acquireIfExists(0, sx, sy, sz);
+				if (src == null) continue;
+				long[] data;
+				try {
+					data = src.copyData();
+				} finally {
+					src.release();
+				}
+				any = true;
+				for (int o = 0; o < 8; o++) {
+					int ox = o & 1, oy = (o >> 1) & 1, oz = (o >> 2) & 1;
+					var vs = me.cortex.voxy.common.voxelization.VoxelizedSection.createEmpty().setPosition(sx * 2 + ox, sy * 2 + oy, sz * 2 + oz);
+					int nonAir = 0;
+					for (int y = 0; y < 16; y++)
+						for (int z = 0; z < 16; z++)
+							for (int x = 0; x < 16; x++) {
+								long v = data[me.cortex.voxy.common.world.WorldSection.getIndex(ox * 16 + x, oy * 16 + y, oz * 16 + z)];
+								long out = remap(v, real, g);
+								if (!me.cortex.voxy.common.world.other.Mapper.isAir(out)) nonAir++;
+								vs.section[(y << 8) | (z << 4) | x] = out;
+							}
+					vs.lvl0NonAirCount = nonAir;
+					me.cortex.voxy.common.voxelization.WorldVoxilizedSectionMipper.mipSection(vs, g.getMapper());
+					me.cortex.voxy.common.world.WorldUpdater.insertUpdate(g, vs);
+				}
+			}
+			return any;
+		} finally {
+			g.releaseRef();
+			real.releaseRef();
+		}
+	}
+
+	private static long remap(long v, WorldEngine from, WorldEngine to) {
+		byte light = (byte) me.cortex.voxy.common.world.other.Mapper.getLightId(v);
+		if (me.cortex.voxy.common.world.other.Mapper.isAir(v)) return me.cortex.voxy.common.world.other.Mapper.airWithLight(light & 0xFF);
+		int block = me.cortex.voxy.common.world.other.Mapper.getBlockId(v), biome = me.cortex.voxy.common.world.other.Mapper.getBiomeId(v);
+		int nb = blockMap.computeIfAbsent(block, b -> to.getMapper().getIdForBlockState(from.getMapper().getBlockStateFromBlockId(b)));
+		int nbi = biomeMap.computeIfAbsent(biome, b -> biomeId(from, to, b));
+		return me.cortex.voxy.common.world.other.Mapper.composeMappingId(light, nb, nbi);
+	}
+
+	private static int biomeId(WorldEngine from, WorldEngine to, int id) {
+		var entries = from.getMapper().getBiomeEntries();
+		if (id < 0 || id >= entries.length || entries[id] == null) return 0;
+		var level = Minecraft.getInstance().level;
+		if (level == null) return 0;
+		var key = ResourceKey.create(Registries.BIOME, Identifier.parse(entries[id].biome));
+		return level.registryAccess().lookupOrThrow(Registries.BIOME).get(key).map(h -> to.getMapper().getIdForBiome(h)).orElse(0);
+	}
+
 	static boolean showing() {
 		WorldEngine g = guessEngine;
 		return g != null && renderedWorld() == g;

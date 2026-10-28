@@ -27,6 +27,17 @@ public final class VoxyGuess {
 		if (PRESENT) VoxyGuessImpl.detach();
 	}
 
+	/** Copies the normal LOD world's data around chunk (cx, cz) (2x2 chunks) into the guessed world; whether there was any. */
+	static boolean copyReal(int cx, int cz) {
+		if (!PRESENT) return false;
+		try {
+			return VoxyGuessImpl.copyReal(cx, cz);
+		} catch (RuntimeException | LinkageError e) {
+			Plainsight.LOG.warn("Could not copy LOD at chunk {}, {}", cx, cz, e);
+			return false;
+		}
+	}
+
 	/** Gives a generated chunk to the guessed LOD world (server thread); false if that is not possible. */
 	static boolean ingestGuessed(LevelChunk chunk) {
 		return PRESENT && VoxyGuessImpl.ingestGuessed(chunk);

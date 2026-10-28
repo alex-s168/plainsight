@@ -65,7 +65,8 @@ public final class GuessedTerrain implements Module {
 		switch (w.state()) {
 			case STARTING -> ImGui.textDisabled("Starting the world generator...");
 			case FAILED -> ImGui.textColored(0xFF6060FF, "Generator failed: " + w.error());
-			case READY -> ImGui.textDisabled(w.guessedCount() + " chunks guessed, " + w.realCount() + " real, " + w.pending() + " generating");
+			case READY -> ImGui.textDisabled(w.guessedCount() + " chunks guessed, " + w.realCount() + " real (" + w.copiedThisSession
+					+ " from your LOD this session), " + w.pending() + " pending");
 		}
 		opacity[0] = tintOpacity;
 		ImGui.setNextItemWidth(160);

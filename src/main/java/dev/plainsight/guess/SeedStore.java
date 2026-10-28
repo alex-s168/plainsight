@@ -112,6 +112,14 @@ public final class SeedStore {
 		Plainsight.LOG.info("World seed for {} set ({})", key, source);
 	}
 
+	/** A seed SeedcrackerX found: kept (if new) and announced in chat. Render thread. */
+	public static void fromSeedCracker(long seed) {
+		if (seed().orElse(Long.MIN_VALUE) == seed) return;
+		set(seed, "SeedcrackerX");
+		Minecraft.getInstance().gui.hud.getChat().addClientSystemMessage(net.minecraft.network.chat.Component.literal(
+				"[Plainsight] Seed " + SeedHider.show(seed) + " from SeedcrackerX saved: the editor shows guessed terrain (with Voxy)."));
+	}
+
 	public static synchronized void clear() {
 		load();
 		String key = worldKey();
