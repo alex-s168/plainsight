@@ -370,6 +370,26 @@ public final class Editor {
 		return hit.getType() == HitResult.Type.MISS ? null : hit;
 	}
 
+	/**
+	 * What the cursor is on: a block in the loaded chunks, or else (or when it is clearly nearer) the
+	 * surface drawn there, from the depth buffer, so Voxy's LOD and guessed terrain can be aimed at too.
+	 * {@code dir} must be the ray through the cursor. The block of a surface hit is the one just behind it.
+	 */
+	public @Nullable BlockHitResult raycastUnderCursor(Vector3dc dir) {
+		BlockHitResult block = raycastBlock(dir, false);
+		Vector3d surface = dev.plainsight.render.DepthPick.at(mouseX, mouseY);
+		if (surface == null) return block;
+		double surfaceDistance = surface.distance(camera.pos);
+		if (block != null && block.getLocation().distanceTo(new Vec3(camera.pos.x, camera.pos.y, camera.pos.z)) <= surfaceDistance + 1.5) return block;
+		Vector3d inside = new Vector3d(surface).fma(0.05, dir);
+		BlockPos pos = BlockPos.containing(inside.x, inside.y, inside.z);
+		double ax = Math.abs(dir.x()), ay = Math.abs(dir.y()), az = Math.abs(dir.z());
+		net.minecraft.core.Direction face = ax >= ay && ax >= az ? (dir.x() > 0 ? net.minecraft.core.Direction.WEST : net.minecraft.core.Direction.EAST)
+				: ay >= az ? (dir.y() > 0 ? net.minecraft.core.Direction.DOWN : net.minecraft.core.Direction.UP)
+				: (dir.z() > 0 ? net.minecraft.core.Direction.NORTH : net.minecraft.core.Direction.SOUTH);
+		return new BlockHitResult(new Vec3(surface.x, surface.y, surface.z), face, pos, false);
+	}
+
 	public record EntityHit(Entity entity, double distance) {}
 
 	public @Nullable EntityHit raycastEntity(Vector3dc dir, double maxDistance) {
@@ -399,7 +419,7 @@ public final class Editor {
 			Vector3d dir = rayAt(mouseX, mouseY);
 			// Ctrl+Shift: look past the rock the camera is buried in (e.g. orbit a cave from underground)
 			Vector3d from = shift ? outOfSolid(camera.pos, dir) : new Vector3d(camera.pos);
-			BlockHitResult block = raycastBlock(from, dir, false);
+			BlockHitResult block = shift ? raycastBlock(from, dir, false) : raycastUnderCursor(dir);
 			double max = block != null ? block.getLocation().distanceTo(new Vec3(camera.pos.x, camera.pos.y, camera.pos.z)) : REACH;
 			EntityHit hit = raycastEntity(dir, max);
 			if (hit != null) {
@@ -484,7 +504,7 @@ public final class Editor {
 	/** Point under the cursor (block hit), or a point at {@code fallback} distance along the ray. */
 	public Vector3d pointUnderCursor(double fallback) {
 		Vector3d dir = mouseRay();
-		BlockHitResult hit = raycastBlock(dir, false);
+		BlockHitResult hit = raycastUnderCursor(dir);
 		if (hit != null) {
 			Vec3 l = hit.getLocation();
 			return new Vector3d(l.x, l.y, l.z);
@@ -548,17 +568,20 @@ public final class Editor {
 			return;
 		}
 		Vector3d dir = mouseRay();
-		BlockHitResult hit = raycastBlock(dir, false);
+		BlockHitResult hit = raycastUnderCursor(dir);
 		double dist = hit != null ? hit.getLocation().distanceTo(new Vec3(camera.pos.x, camera.pos.y, camera.pos.z)) : 0;
 		camera.dolly(dy, dir, dist);
 	}
 
 	private void pickBlock() {
-		BlockHitResult hit = raycastBlock(mouseRay(), false);
+		BlockHitResult hit = raycastUnderCursor(mouseRay());
 		Minecraft mc = Minecraft.getInstance();
 		if (hit == null || mc.level == null) return;
 		BlockPos p = hit.getBlockPos();
-		setStatus(mc.level.getBlockState(p).getBlock().getName().getString() + " at " + p.getX() + ", " + p.getY() + ", " + p.getZ());
+		String what = mc.level.getChunkSource().hasChunk(p.getX() >> 4, p.getZ() >> 4) ? mc.level.getBlockState(p).getBlock().getName().getString()
+				: dev.plainsight.guess.GuessWorld.current() != null && dev.plainsight.guess.GuessWorld.current().isGuessed(p.getX() >> 4, p.getZ() >> 4)
+				? "Guessed terrain" : "Distant terrain (LOD)";
+		setStatus(what + " at " + p.getX() + ", " + p.getY() + ", " + p.getZ());
 	}
 
 	/**

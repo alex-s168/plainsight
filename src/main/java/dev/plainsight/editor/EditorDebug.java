@@ -79,6 +79,8 @@ public final class EditorDebug {
 		o.addProperty("guessFailed", guess == null ? 0 : guess.failed);
 		o.addProperty("guessShowing", dev.plainsight.guess.VoxyGuess.showing());
 		o.addProperty("guessTintDrawn", dev.plainsight.render.GuessTint.drawn);
+		var surface = dev.plainsight.render.DepthPick.at(Editor.get().mouseX, Editor.get().mouseY);
+		o.addProperty("surfaceUnderCursor", surface == null ? "" : surface.x + "," + surface.y + "," + surface.z);
 		try {
 			Object r = Class.forName("net.caffeinemc.mods.sodium.client.render.SodiumWorldRenderer").getMethod("instanceNullable").invoke(null);
 			if (r != null) o.addProperty("sodiumChunks", String.valueOf(r.getClass().getMethod("getChunksDebugString").invoke(r)));
@@ -195,6 +197,11 @@ public final class EditorDebug {
 		boolean v = Boolean.parseBoolean(on);
 		for (Module m : e.viewModules) if (m.id().equals(id)) m.setEnabled(v);
 		for (Module m : e.modules) if (m.id().equals(id)) m.setEnabled(v);
+		return "ok";
+	}
+
+	public static String guessTintOpacity(float opacity) {
+		dev.plainsight.module.GuessedTerrain.tintOpacity = opacity;
 		return "ok";
 	}
 

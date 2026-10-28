@@ -1128,6 +1128,25 @@ def wait_for(pred, timeout, step=0.5):
     return state()
 
 
+def test_depth_pick_under_cursor():
+    """The surface under the cursor comes from the depth buffer (so LOD and guessed terrain can be aimed
+    at); on loaded terrain it must agree with the block raycast."""
+    editor_on()
+    fresh_tree()
+    cam(25.5, -40, 25.5, 0, 89)
+    vp = state()["viewport"]
+    cx, cy = vp[0] + vp[2] / 2, vp[1] + vp[3] / 2
+    c.move(cx, cy)
+    s = wait_for(lambda s: s["surfaceUnderCursor"] != "", 3, 0.1)
+    check(s["surfaceUnderCursor"] != "", "the depth pick finds the ground under the cursor")
+    x, y, z = map(float, s["surfaceUnderCursor"].split(","))
+    check(abs(y - (-60)) < 0.15 and abs(x - 25.5) < 1.5 and abs(z - 25.5) < 1.5, "at the ground's top below the camera: %s" % s["surfaceUnderCursor"])
+    c.move(cx + 200, cy)
+    s = wait_for(lambda s: s["surfaceUnderCursor"] != "", 3, 0.1)
+    x2, y2, z2 = map(float, s["surfaceUnderCursor"].split(","))
+    check(abs(y2 - (-60)) < 0.15 and x2 < x - 3, "and follows the cursor (right is -x looking down with yaw 0): %s" % s["surfaceUnderCursor"])
+
+
 def test_guessed_terrain():
     """With a seed (here given by command) and Voxy, the editor shows terrain generated from the seed far
     from the player, tinted; Voxy shows the normal LOD again outside the editor."""
@@ -1149,7 +1168,25 @@ def test_guessed_terrain():
     tint = s["guessTintDrawn"]
     time.sleep(1)
     check(state()["guessTintDrawn"] > tint, "guessed chunks are tinted")
+    ed("guessTintOpacity", "0.15")
+    time.sleep(0.3)
     shot("guessed-terrain")
+    ed("guessTintOpacity", "0.3")
+    # aim at guessed terrain: the arcball pivots on it (depth pick), not on a point in the air
+    vp = state()["viewport"]
+    cx, cy = vp[0] + vp[2] / 2, vp[1] + vp[3] * 0.7
+    c.move(cx, cy)
+    s = wait_for(lambda s: s["surfaceUnderCursor"] != "", 5, 0.1)
+    check(s["surfaceUnderCursor"] != "", "the guessed terrain under the cursor is found")
+    sx, sy, sz = map(float, s["surfaceUnderCursor"].split(","))
+    check(-64 < sy < 320, "on the terrain: %s" % s["surfaceUnderCursor"])
+    c.key(K["LCTRL"], "press")
+    c.button(1, "press")
+    time.sleep(0.15)
+    piv = state()["camera"]["pivot"]
+    c.button(1, "release")
+    c.key(K["LCTRL"], "release")
+    check(math.dist(piv, (sx, sy, sz)) < 3, "Ctrl+drag orbits around the guessed terrain under the cursor: %s vs %s" % (piv, (sx, sy, sz)))
     ed("setModule", "guessed_terrain", "false")
     check(not wait_for(lambda s: not s["guessShowing"], 3)["guessShowing"], "switching it off shows the normal LOD")
     ed("setModule", "guessed_terrain", "true")

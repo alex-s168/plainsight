@@ -35,6 +35,8 @@ Right-click an entity in the tree → *Follow with camera*: the camera keeps its
 and the arcball orbits it (the viewport shows a *Following …* chip; click it to stop). Shift while
 dragging a gizmo means "free move", not "fly down". Holding Ctrl switches the status bar to the Ctrl
 controls; *Help* lists everything.
+"Under the cursor" means whatever is drawn there, read from the depth buffer: Voxy's LOD and guessed
+terrain work as arcball pivot, pan and zoom target, for box selection and MMB too, not only loaded blocks.
 Chat (<kbd>T</kbd>, <kbd>/</kbd>), F-keys and the pause menu still work; <kbd>Esc</kbd> first cancels
 what the tool is doing and closes ImGui popups.
 
@@ -51,7 +53,7 @@ what the tool is doing and closes ImGui popups.
   chunk borders, and shown only in the editor; the normal game keeps the normal LOD. The seed comes from
   SeedcrackerX (as soon as it cracks it) or `/plainsight seed <seed>` (`/plainsight seed world` in
   singleplayer, `/plainsight seed clear`); a given seed is checked against the server's hashed seed.
-  Settings: radius around the camera (default 32 chunks, also `/plainsight guess radius <n>`).
+  Settings: tint opacity, radius around the camera (default 32 chunks, also `/plainsight guess radius <n>`).
 
   How: a private, headless vanilla server with that seed generates chunks around the editor camera
   (full worldgen: terrain, caves, features, structures; nothing is saved) and hands them to a second

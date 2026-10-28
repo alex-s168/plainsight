@@ -94,7 +94,7 @@ public final class GuessTint {
 			Std140Builder.intoBuffer(view.data())
 					.putMat4f(inv)
 					.putVec4(new Vector4f((float) (cam.x - maskOriginX * 16.0), (float) cam.y, (float) (cam.z - maskOriginZ * 16.0), 0))
-					.putVec4(new Vector4f(SIZE, 0.45f, zeroToOne() ? 1 : 0, (now % 100000) / 1000f));
+					.putVec4(new Vector4f(SIZE, dev.plainsight.module.GuessedTerrain.tintOpacity, zeroToOne() ? 1 : 0, (now % 100000) / 1000f));
 		}
 		Minecraft mc = Minecraft.getInstance();
 		RenderTarget target = mc.gameRenderer.mainRenderTarget();

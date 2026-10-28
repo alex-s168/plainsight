@@ -173,7 +173,7 @@ public final class BoxSelectTool implements Tool {
 		Vector3d dir = editor.mouseRay();
 		Vector3d o = editor.camera.pos;
 		if (creating) {
-			BlockHitResult hit = editor.raycastBlock(dir, false);
+			BlockHitResult hit = editor.raycastUnderCursor(dir);
 			if (hit != null) createEnd = hit.getBlockPos();
 			return;
 		}
@@ -213,7 +213,7 @@ public final class BoxSelectTool implements Tool {
 
 	@Override
 	public void rightPressed() {
-		BlockHitResult hit = editor.raycastBlock(editor.mouseRay(), false);
+		BlockHitResult hit = editor.raycastUnderCursor(editor.mouseRay());
 		if (hit == null) return;
 		creating = true;
 		createStart = hit.getBlockPos();

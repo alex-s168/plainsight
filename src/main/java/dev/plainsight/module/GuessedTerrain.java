@@ -12,6 +12,9 @@ import imgui.ImGui;
 public final class GuessedTerrain implements Module {
 	private boolean enabled = true;
 	private final int[] radius = {GuessWorld.radius};
+	/** Strength of the blue marking (0 = only the stripes and chunk borders faintly, 1 = solid). */
+	public static volatile float tintOpacity = 0.3f;
+	private final float[] opacity = {tintOpacity};
 
 	@Override
 	public String id() {
@@ -58,6 +61,9 @@ public final class GuessedTerrain implements Module {
 			case FAILED -> ImGui.textColored(0xFF6060FF, "Generator failed: " + w.error());
 			case READY -> ImGui.textDisabled(w.guessedCount() + " chunks guessed, " + w.realCount() + " real, " + w.pending() + " generating");
 		}
+		opacity[0] = tintOpacity;
+		ImGui.setNextItemWidth(160);
+		if (ImGui.sliderFloat("Tint opacity", opacity, 0.05f, 1f, "%.2f")) tintOpacity = opacity[0];
 		radius[0] = GuessWorld.radius;
 		ImGui.setNextItemWidth(160);
 		if (ImGui.sliderInt("Radius (chunks)", radius, 4, 128)) GuessWorld.radius = radius[0];
