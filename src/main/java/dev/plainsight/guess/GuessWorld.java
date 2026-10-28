@@ -74,8 +74,9 @@ public final class GuessWorld {
 		this.seed = seed;
 		Path root = Minecraft.getInstance().gameDirectory.toPath().resolve("plainsight/guess");
 		this.stateDir = root.resolve("state").resolve(sanitize(worldKey)).resolve(sanitize(dimension.identifier().toString()) + "-" + Long.toHexString(seed));
-		load(guessed, stateDir.resolve("guessed.bin"));
-		load(real, stateDir.resolve("real.bin"));
+		// v2: real chunks are only those with real data copied or mirrored as a whole (no partial ones)
+		load(guessed, stateDir.resolve("guessed-v2.bin"));
+		load(real, stateDir.resolve("real-v2.bin"));
 		this.worldDir = root.resolve("worlds").resolve(Long.toHexString(seed));
 		Thread starter = new Thread(() -> {
 			try {
@@ -124,7 +125,7 @@ public final class GuessWorld {
 	public static void reconcile() {
 		Minecraft mc = Minecraft.getInstance();
 		OptionalLong seed = mc.level == null ? OptionalLong.empty() : SeedStore.seed();
-		String key = seed.isEmpty() || !supported() ? null
+		String key = seed.isEmpty() || !supported() || !VoxyGuess.running() ? null
 				: SeedStore.worldKey() + "|" + mc.level.dimension().identifier() + "|" + seed.getAsLong();
 		if (java.util.Objects.equals(key, currentKey)) return;
 		if (current != null) current.close();
@@ -190,8 +191,8 @@ public final class GuessWorld {
 						int cx = c.x() + dx, cz = c.z() + dz;
 						long k = ChunkPos.pack(cx, cz);
 						long column = ChunkPos.pack(cx >> 1, cz >> 1);
-						// done: real, or guessed with the normal LOD world already looked at for it
-						if (real.contains(k) || (guessed.contains(k) && lodChecked.contains(column))) continue;
+						// done: generated (filled in around any real LOD), with the normal LOD world looked at for it
+						if (guessed.contains(k) && lodChecked.contains(column)) continue;
 						if (!inFlight.contains(k)) request(cx, cz, k);
 						ringDone = false;
 					}
@@ -203,46 +204,59 @@ public final class GuessWorld {
 		if (System.currentTimeMillis() - lastSave > 30_000) save();
 	}
 
-	/** Real LOD first (the normal LOD world), generation only where there is none. */
+	/**
+	 * Works per 2x2-chunk column (one 32-block LOD column): first the real LOD Voxy has there is copied,
+	 * then the chunks are generated and fill in only the sections without real data. A column with any
+	 * real data shows untinted.
+	 */
 	private void request(int cx, int cz, long key) {
+		int x0 = cx & ~1, z0 = cz & ~1;
 		long column = ChunkPos.pack(cx >> 1, cz >> 1);
-		if (!lodChecked.contains(column)) {
-			lodChecked.add(column);
-			// the whole 2x2 column is in flight until the lookup is done
-			for (int i = 0; i < 4; i++) inFlight.add(ChunkPos.pack((cx & ~1) + (i & 1), (cz & ~1) + (i >> 1)));
-			lodCopier.execute(() -> {
-				boolean copied = VoxyGuess.copyReal(cx, cz);
+		long[] keys = new long[4];
+		for (int i = 0; i < 4; i++) {
+			keys[i] = ChunkPos.pack(x0 + (i & 1), z0 + (i >> 1));
+			if (inFlight.contains(keys[i])) return;
+		}
+		for (long k : keys) inFlight.add(k);
+		boolean check = lodChecked.add(column);
+		lodCopier.execute(() -> {
+			long realSections = check ? VoxyGuess.copyReal(cx, cz) : 0;
+			for (int i = 0; i < 4; i++) {
+				long k = keys[i];
+				boolean skip;
 				synchronized (this) {
-					for (int i = 0; i < 4; i++) {
-						long k = ChunkPos.pack((cx & ~1) + (i & 1), (cz & ~1) + (i >> 1));
-						inFlight.remove(k);
-						if (copied && real.add(k)) {
-							version++;
-							copiedThisSession++;
-						}
+					// generated before: nothing to fill in (real data copied now replaces what it covers)
+					skip = guessed.contains(k);
+					if (realSections != 0 && real.add(k)) {
+						version++;
+						copiedThisSession++;
 					}
 				}
-			});
-			return;
-		}
-		if (guessed.contains(key)) return;
-		generate(cx, cz, key);
+				if (skip) {
+					synchronized (this) {
+						inFlight.remove(k);
+					}
+				} else {
+					generate(x0 + (i & 1), z0 + (i >> 1), k, realSections);
+				}
+			}
+		});
 	}
 
-	private void generate(int cx, int cz, long key) {
+	private void generate(int cx, int cz, long key, long realSections) {
 		GuessServer s = server;
-		if (s == null) return;
-		inFlight.add(key);
+		if (s == null) {
+			synchronized (this) {
+				inFlight.remove(key);
+			}
+			return;
+		}
 		s.execute(() -> {
 			ServerLevel level = s.getLevel(dimension);
-			CompletableFuture<?> f = level.getChunkSource().getChunkFuture(cx, cz, ChunkStatus.FULL, true).whenCompleteAsync((result, err) -> {
+			level.getChunkSource().getChunkFuture(cx, cz, ChunkStatus.FULL, true).whenCompleteAsync((result, err) -> {
 				boolean ok = false;
 				if (err == null && result.orElse(null) instanceof LevelChunk chunk) {
-					boolean isReal;
-					synchronized (this) {
-						isReal = real.contains(key);
-					}
-					if (!isReal && !VoxyGuess.ingestGuessed(chunk)) failed++;
+					if (!VoxyGuess.ingestGuessed(chunk, realSections)) failed++;
 					// done either way: a chunk Voxy refused is not asked for again
 					ok = true;
 				} else if (err != null) {
@@ -268,6 +282,12 @@ public final class GuessWorld {
 		}
 		save();
 		lodCopier.shutdownNow();
+		try {
+			// a copy in progress holds references to Voxy's worlds
+			lodCopier.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+		}
 		VoxyGuess.detach();
 		if (s != null) stop(s);
 	}
@@ -296,8 +316,8 @@ public final class GuessWorld {
 		lastSave = System.currentTimeMillis();
 		try {
 			Files.createDirectories(stateDir);
-			write(guessed, stateDir.resolve("guessed.bin"));
-			write(real, stateDir.resolve("real.bin"));
+			write(guessed, stateDir.resolve("guessed-v2.bin"));
+			write(real, stateDir.resolve("real-v2.bin"));
 		} catch (IOException e) {
 			Plainsight.LOG.warn("Could not save guessed-terrain state to {}", stateDir, e);
 		}

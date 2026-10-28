@@ -231,6 +231,12 @@ public final class EditorDebug {
 		return Double.toString(Math.toDegrees(e.mouseRay().angle(toSurface)));
 	}
 
+	/** Leaves the world like the pause menu's button (tests). */
+	public static String leaveWorld() {
+		net.minecraft.client.Minecraft.getInstance().disconnectFromWorld(net.minecraft.client.multiplayer.ClientLevel.DEFAULT_QUIT_MESSAGE);
+		return "ok";
+	}
+
 	public static String guessTintOpacity(float opacity) {
 		dev.plainsight.module.GuessedTerrain.tintOpacity = opacity;
 		return "ok";

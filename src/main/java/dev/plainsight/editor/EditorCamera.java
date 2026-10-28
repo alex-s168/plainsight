@@ -27,6 +27,10 @@ public final class EditorCamera {
 	public boolean forward, back, left, right, up, down, fast;
 
 	private final Vector3d velocity = new Vector3d();
+	/** Scroll movement still to be made (applied smoothly over a fraction of a second). */
+	private final Vector3d pendingZoom = new Vector3d();
+	/** Rate of the smooth zoom (1/s): about 95% of a step in 0.15 s. */
+	public static final double ZOOM_RATE = 20;
 	private Drag drag = Drag.NONE;
 	/** While true the view turns towards the orbit pivot until it is in the centre. */
 	private boolean centering;
@@ -49,6 +53,21 @@ public final class EditorCamera {
 		this.yaw = yaw;
 		this.pitch = clampPitch(pitch);
 		velocity.zero();
+		pendingZoom.zero();
+		// a jump ends arcball mode: later scrolling must not zoom towards an old (maybe far) pivot
+		pivotActive = false;
+		centering = false;
+	}
+
+	/** Finishes a zoom in progress at once. */
+	public void settle() {
+		pos.add(pendingZoom);
+		pendingZoom.zero();
+	}
+
+	/** Where the camera ends up once the pending zoom is done. */
+	public Vector3d target(Vector3d dest) {
+		return dest.set(pos).add(pendingZoom);
 	}
 
 	public Vector3d pivot() {
@@ -96,6 +115,8 @@ public final class EditorCamera {
 	public void stopMovement() {
 		forward = back = left = right = up = down = fast = false;
 		velocity.zero();
+		pos.add(pendingZoom);
+		pendingZoom.zero();
 	}
 
 	/** Integrates keyboard flight; {@code dt} in seconds. */
@@ -118,6 +139,12 @@ public final class EditorCamera {
 		velocity.lerp(wish, k);
 		if (velocity.lengthSquared() < 1e-6 && wish.lengthSquared() == 0) velocity.zero();
 		pos.fma(dt, velocity);
+		if (pendingZoom.lengthSquared() > 0) {
+			double z = 1 - Math.exp(-dt * ZOOM_RATE);
+			if (pendingZoom.lengthSquared() < 1e-6) z = 1;
+			pos.fma(z, pendingZoom);
+			pendingZoom.mul(1 - z);
+		}
 		if (velocity.lengthSquared() > 1e-4) pivotActive = false;
 	}
 
@@ -130,19 +157,23 @@ public final class EditorCamera {
 	 * block), never closer than {@code minDistance}, so the target stays at the centre of the view.
 	 */
 	public void zoomTowards(double notches, Vector3dc target, double minDistance) {
-		Vector3d d = new Vector3d(target).sub(pos);
+		Vector3d from = target(new Vector3d());
+		Vector3d d = new Vector3d(target).sub(from);
 		double dist = d.length();
 		if (dist < 1e-6) return;
 		d.div(dist);
 		double step = Math.max(1.0, dist * 0.2) * notches * Math.max(0.25, speed);
 		if (notches > 0) step = Math.min(step, Math.max(0, dist - minDistance));
-		pos.fma(step, d);
+		pendingZoom.fma(step, d);
 	}
 
 	// -- mouse drags ----------------------------------------------------------------------------------------
 
 	/** @param pivotPoint point under the cursor (for orbit and pan); may be null for look */
 	public void beginDrag(Drag mode, Vector3dc pivotPoint) {
+		// finish a zoom still in progress first: drags work from where the camera is
+		pos.add(pendingZoom);
+		pendingZoom.zero();
 		drag = mode;
 		centering = mode == Drag.ORBIT;
 		pivotActive = mode == Drag.ORBIT;
@@ -235,9 +266,10 @@ public final class EditorCamera {
 	 * the cursor. Moves 20% of the distance per notch but at least one block; never passes the target.
 	 */
 	public void dolly(double notches, Vector3dc dir, double targetDistance) {
-		double dist = Math.max(0, targetDistance);
+		// the distance still to go after the pending part of earlier steps
+		double dist = Math.max(0, targetDistance - pendingZoom.dot(dir));
 		double step = Math.max(1.0, dist * 0.2) * notches * Math.max(0.25, speed);
 		if (notches > 0 && dist > 0) step = Math.min(step, Math.max(0, dist - 1.0));
-		pos.fma(step, dir);
+		pendingZoom.fma(step, dir);
 	}
 }

@@ -14,6 +14,16 @@ public final class VoxyGuess {
 	private VoxyGuess() {
 	}
 
+	/** Whether Voxy is up (not between worlds or shutting down). */
+	static boolean running() {
+		if (!PRESENT) return false;
+		try {
+			return VoxyGuessImpl.running();
+		} catch (RuntimeException | LinkageError e) {
+			return false;
+		}
+	}
+
 	static void attach(GuessWorld world) {
 		if (!PRESENT) return;
 		try {
@@ -27,20 +37,20 @@ public final class VoxyGuess {
 		if (PRESENT) VoxyGuessImpl.detach();
 	}
 
-	/** Copies the normal LOD world's data around chunk (cx, cz) (2x2 chunks) into the guessed world; whether there was any. */
-	static boolean copyReal(int cx, int cz) {
-		if (!PRESENT) return false;
+	/** Copies the normal LOD world's data around chunk (cx, cz) (2x2 chunks) into the guessed world; which 32-block sections had any. */
+	static long copyReal(int cx, int cz) {
+		if (!PRESENT) return 0;
 		try {
 			return VoxyGuessImpl.copyReal(cx, cz);
 		} catch (RuntimeException | LinkageError e) {
 			Plainsight.LOG.warn("Could not copy LOD at chunk {}, {}", cx, cz, e);
-			return false;
+			return 0;
 		}
 	}
 
 	/** Gives a generated chunk to the guessed LOD world (server thread); false if that is not possible. */
-	static boolean ingestGuessed(LevelChunk chunk) {
-		return PRESENT && VoxyGuessImpl.ingestGuessed(chunk);
+	static boolean ingestGuessed(LevelChunk chunk, long realSections) {
+		return PRESENT && VoxyGuessImpl.ingestGuessed(chunk, realSections);
 	}
 
 	/** Shows the guessed LOD world (editor) or the normal one; call every frame from the render thread. */

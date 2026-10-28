@@ -98,13 +98,35 @@ class CameraViewportTest {
 	}
 
 	@Test
+	void scrollZoomIsSmooth() {
+		EditorCamera cam = new EditorCamera();
+		cam.set(new Vector3d(0, 0, 0), 0, 0);
+		Vector3d dir = new Vector3d(0, 0, 1);
+		cam.dolly(1, dir, 100);
+		assertEquals(0, cam.pos.z, 1e-9, "a scroll step does not jump");
+		cam.update(0.05);
+		assertTrue(cam.pos.z > 5 && cam.pos.z < 20, "it glides: " + cam.pos.z);
+		for (int i = 0; i < 20; i++) cam.update(0.05);
+		assertEquals(20, cam.pos.z, 0.01, "and ends 20% of the way to the target");
+		// a second step before the first is done counts from where the first one ends
+		cam.dolly(1, dir, 100 - cam.pos.z);
+		cam.dolly(1, dir, 100 - cam.pos.z);
+		cam.settle();
+		assertEquals(20 + 16 + 12.8, cam.pos.z, 0.01);
+	}
+
+	@Test
 	void dollyStopsBeforeTheTarget() {
 		EditorCamera cam = new EditorCamera();
 		cam.set(new Vector3d(0, 70, 0), 0, 0);
 		Vector3d dir = new Vector3d(0, 0, 1);
-		for (int i = 0; i < 50; i++) cam.dolly(1, dir, 10 - cam.pos.z);
+		for (int i = 0; i < 50; i++) {
+			cam.dolly(1, dir, 10 - cam.pos.z);
+			cam.settle();
+		}
 		assertTrue(cam.pos.z <= 9.0 + 1e-9 && cam.pos.z > 8, "approaches but never passes: " + cam.pos.z);
 		cam.dolly(-1, dir, 10 - cam.pos.z);
+		cam.settle();
 		assertTrue(cam.pos.z < 9);
 	}
 
@@ -166,9 +188,11 @@ class CameraViewportTest {
 		assertTrue(cam.hasActivePivot());
 		Vector3d f = cam.forward(new Vector3d());
 		for (int i = 0; i < 5; i++) cam.zoomTowards(-1, pivot, 1);
+		cam.settle();
 		assertTrue(cam.pos.distance(pivot) > 20, "zoomed out");
 		assertTrue(new Vector3d(pivot).sub(cam.pos).normalize().distance(f) < 1e-9, "pivot still straight ahead");
 		for (int i = 0; i < 50; i++) cam.zoomTowards(1, pivot, 1);
+		cam.settle();
 		assertEquals(1, cam.pos.distance(pivot), 1e-9, "zoom in stops before the pivot");
 		cam.beginDrag(EditorCamera.Drag.LOOK, null);
 		assertFalse(cam.hasActivePivot(), "looking around leaves arcball mode");

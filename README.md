@@ -26,7 +26,7 @@ a projection centred on the viewport between the panels.
 | Ctrl + LMB drag | arcball around the block or entity under the cursor (marked while orbiting; an entity pivot moves with the entity); the horizon stays level. |
 | Ctrl + Shift + LMB drag | arcball as above, but the pivot search first leaves the solid blocks the camera is in (underground: orbit the cave you look at, not the rock around the camera) |
 | Ctrl + RMB drag | pan; the grabbed point stays under the cursor |
-| Scroll | move towards / away from the point under the cursor (never past it); after an arcball orbit (or while following an entity) towards / away from the pivot, keeping the view centred |
+| Scroll | move towards / away from the point under the cursor (never past it), gliding over a fraction of a second; after an arcball orbit (or while following an entity) towards / away from the pivot, keeping the view centred |
 | W A S D, Space, Shift | fly (horizontal like creative flight), Ctrl = 3× faster; scaled by *Speed* |
 | MMB | pick block (shown in the status bar) |
 | RMB | use the active tool |
@@ -63,7 +63,8 @@ what the tool is doing and closes ImGui popups.
   Voxy LOD world, which the editor renders instead of the normal one. Every real chunk Voxy ingests is
   copied into that world too and replaces the guess, and before generating a chunk the LOD Voxy already
   has there (from earlier sessions too) is copied over instead, so everywhere you have been shows what
-  you saw (useful where the server's terrain differs from today's generator).
+  you saw (useful where the server's terrain differs from today's generator). This works per 32-block
+  section: sections Voxy has real data for keep it, the rest of a chunk is filled in from generation.
   In the editor Voxy also draws LOD right up to the camera (it normally starts 8 to 16 blocks away and
   drops sections the camera is in; its culling shaders are patched for that), and Ctrl / Ctrl+Shift arcball
   pivots know the solid blocks of LOD and guessed terrain from Voxy's data.

@@ -35,6 +35,11 @@ final class VoxyGuessImpl {
 	private VoxyGuessImpl() {
 	}
 
+	static boolean running() {
+		var instance = VoxyCommon.getInstance();
+		return instance != null && instance.isRunning();
+	}
+
 	static void attach(GuessWorld w) {
 		Minecraft mc = Minecraft.getInstance();
 		var instance = VoxyCommon.getInstance();
@@ -67,13 +72,32 @@ final class VoxyGuessImpl {
 		if (e != null) e.releaseRef();
 	}
 
-	static boolean ingestGuessed(LevelChunk chunk) {
+	/**
+	 * Gives a generated chunk to the guessed world, except the 16-block sections inside 32-block LOD
+	 * sections that real data was copied for ({@code realSections}, bit i = LOD section y minY/32 + i).
+	 * Server thread (the light comes from the worldgen server's light engine).
+	 */
+	static boolean ingestGuessed(LevelChunk chunk, long realSections) {
 		WorldEngine e = guessEngine;
 		var instance = VoxyCommon.getInstance();
 		if (e == null || instance == null || !e.isLive()) return false;
 		MIRRORING.set(true);
 		try {
-			return instance.getIngestService().enqueueIngest(e, chunk);
+			if (realSections == 0) return instance.getIngestService().enqueueIngest(e, chunk);
+			var light = chunk.getLevel().getLightEngine();
+			var blockLayer = light.getLayerListener(net.minecraft.world.level.LightLayer.BLOCK);
+			var skyLayer = light.getLayerListener(net.minecraft.world.level.LightLayer.SKY);
+			int lodBase = chunk.getMinY() >> 5;
+			int sy = chunk.getMinSectionY() - 1;
+			for (LevelChunkSection section : chunk.getSections()) {
+				sy++;
+				int bit = (sy >> 1) - lodBase;
+				if (bit >= 0 && bit < 64 && (realSections & (1L << bit)) != 0) continue;
+				var pos = net.minecraft.core.SectionPos.of(chunk.getPos(), sy);
+				DataLayer bl = blockLayer.getDataLayerData(pos), sl = skyLayer.getDataLayerData(pos);
+				VoxelIngestService.rawIngest(e, section, chunk.getPos().x(), sy, chunk.getPos().z(), bl == null ? null : bl.copy(), sl == null ? null : sl.copy());
+			}
+			return true;
 		} finally {
 			MIRRORING.set(false);
 		}
@@ -99,7 +123,8 @@ final class VoxyGuessImpl {
 		if (g == null || w == null || engine == g || MIRRORING.get() || !g.isLive()) return;
 		MIRRORING.set(true);
 		try {
-			if (VoxelIngestService.rawIngest(g, section, x, y, z, blockLight, skyLight)) w.markReal(x, z);
+			// one section is not the chunk: it stays to be generated (and keeps this real section)
+			VoxelIngestService.rawIngest(g, section, x, y, z, blockLight, skyLight);
 		} finally {
 			MIRRORING.set(false);
 		}
@@ -126,18 +151,18 @@ final class VoxyGuessImpl {
 	/**
 	 * Copies the normal LOD world's data for the 2x2 chunks around (cx, cz) (one 32-block LOD column) into
 	 * the guessed world, so terrain already seen (in earlier sessions too) shows as it really is. Returns
-	 * whether there was any. Worker thread.
+	 * which of the column's 32-block sections had data (bit i: section minY/32 + i). Worker thread.
 	 */
-	static synchronized boolean copyReal(int cx, int cz) {
+	static synchronized long copyReal(int cx, int cz) {
 		WorldEngine g = guessEngine;
 		Minecraft mc = Minecraft.getInstance();
 		var instance = VoxyCommon.getInstance();
 		var level = mc.level;
-		if (g == null || instance == null || level == null || !g.isLive()) return false;
+		if (g == null || instance == null || level == null || !g.isLive()) return 0;
 		WorldIdentifier id = WorldIdentifier.of(level);
-		if (id == null) return false;
+		if (id == null) return 0;
 		WorldEngine real = instance.getOrCreate(id);
-		if (real == null || real == g || !real.isLive()) return false;
+		if (real == null || real == g || !real.isLive()) return 0;
 		if (mappedFrom != real || mappedTo != g) {
 			blockMap.clear();
 			biomeMap.clear();
@@ -147,9 +172,9 @@ final class VoxyGuessImpl {
 		real.acquireRef();
 		g.acquireRef();
 		try {
-			boolean any = false;
-			int sx = cx >> 1, sz = cz >> 1;
-			for (int sy = level.getMinY() >> 5; sy <= (level.getMaxY() - 1) >> 5; sy++) {
+			long found = 0;
+			int sx = cx >> 1, sz = cz >> 1, base = level.getMinY() >> 5;
+			for (int sy = base; sy <= (level.getMaxY() - 1) >> 5; sy++) {
 				var src = real.acquireIfExists(0, sx, sy, sz);
 				if (src == null) continue;
 				long[] data;
@@ -158,7 +183,7 @@ final class VoxyGuessImpl {
 				} finally {
 					src.release();
 				}
-				any = true;
+				found |= 1L << (sy - base);
 				for (int o = 0; o < 8; o++) {
 					int ox = o & 1, oy = (o >> 1) & 1, oz = (o >> 2) & 1;
 					var vs = me.cortex.voxy.common.voxelization.VoxelizedSection.createEmpty().setPosition(sx * 2 + ox, sy * 2 + oy, sz * 2 + oz);
@@ -176,7 +201,7 @@ final class VoxyGuessImpl {
 					me.cortex.voxy.common.world.WorldUpdater.insertUpdate(g, vs);
 				}
 			}
-			return any;
+			return found;
 		} finally {
 			g.releaseRef();
 			real.releaseRef();

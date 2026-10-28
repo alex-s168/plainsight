@@ -1220,6 +1220,31 @@ def test_guess_prefers_real_lod():
     c.command("plainsight seed clear")
 
 
+def test_zz_leave_world_with_guessed_terrain():
+    """Leaving a world while guessed terrain is shown (editor open) returns to the title screen; Voxy used
+    to abort the game finding the guessed LOD world still in use. Runs last: it leaves the world."""
+    if not state()["lodMod"] or not state()["sodium"]:
+        print("      (needs Voxy, skipped)")
+        return
+    c.command("plainsight seed 12345")
+    wait_for(lambda s: s["guessState"] == "READY", 60)
+    editor_on()
+    ed("setCamera", 5000.5, 200, 5000.5, 0, 45)
+    wait_for(lambda s: s["guessShowing"], 20)
+    ed("leaveWorld")
+    deadline = time.time() + 40
+    while time.time() < deadline and "world=none" not in c.status():
+        time.sleep(1)
+    st = c.status()
+    check("world=none" in st, "back out of the world: %s" % st.splitlines()[:2])
+    time.sleep(3)
+    check(not c.status().startswith("bridge not reachable"), "and the game is still running")
+    c.world("plainsight-test")
+    c.wait_world()
+    time.sleep(3)
+    c.command("plainsight seed clear")
+
+
 def test_guessed_terrain():
     """With a seed (here given by command) and Voxy, the editor shows terrain generated from the seed far
     from the player, tinted; Voxy shows the normal LOD again outside the editor."""

@@ -408,8 +408,9 @@ public final class Editor {
 		Minecraft mc = Minecraft.getInstance();
 		double sea = mc.level != null ? mc.level.getSeaLevel() : 63;
 		if (dir.y() < -1e-3 && from.y() > sea) {
-			double t = (sea - from.y()) / dir.y();
-			if (t < 1e6) return new Vector3d(from).fma(t, dir);
+			// near the horizon the sea is very far away: no further than 8192 blocks
+			double t = Math.min((sea - from.y()) / dir.y(), 8192);
+			return new Vector3d(from).fma(t, dir);
 		}
 		return new Vector3d(from).fma(10, dir);
 	}
