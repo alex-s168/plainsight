@@ -73,8 +73,8 @@ final class VoxyGuessImpl {
 	}
 
 	/**
-	 * Gives a generated chunk to the guessed world, except the 16-block sections inside 32-block LOD
-	 * sections that real data was copied for ({@code realSections}, bit i = LOD section y minY/32 + i).
+	 * Gives a generated chunk to the guessed world, except its 16-block sections that real data was
+	 * copied for ({@code realSections}, bit i = section minSectionY + i).
 	 * Server thread (the light comes from the worldgen server's light engine).
 	 */
 	static boolean ingestGuessed(LevelChunk chunk, long realSections) {
@@ -87,11 +87,10 @@ final class VoxyGuessImpl {
 			var light = chunk.getLevel().getLightEngine();
 			var blockLayer = light.getLayerListener(net.minecraft.world.level.LightLayer.BLOCK);
 			var skyLayer = light.getLayerListener(net.minecraft.world.level.LightLayer.SKY);
-			int lodBase = chunk.getMinY() >> 5;
 			int sy = chunk.getMinSectionY() - 1;
 			for (LevelChunkSection section : chunk.getSections()) {
 				sy++;
-				int bit = (sy >> 1) - lodBase;
+				int bit = sy - chunk.getMinSectionY();
 				if (bit >= 0 && bit < 64 && (realSections & (1L << bit)) != 0) continue;
 				var pos = net.minecraft.core.SectionPos.of(chunk.getPos(), sy);
 				DataLayer bl = blockLayer.getDataLayerData(pos), sl = skyLayer.getDataLayerData(pos);
@@ -150,19 +149,22 @@ final class VoxyGuessImpl {
 
 	/**
 	 * Copies the normal LOD world's data for the 2x2 chunks around (cx, cz) (one 32-block LOD column) into
-	 * the guessed world, so terrain already seen (in earlier sessions too) shows as it really is. Returns
-	 * which of the column's 32-block sections had data (bit i: section minY/32 + i). Worker thread.
+	 * the guessed world, so terrain already seen (in earlier sessions too) shows as it really is. Returns,
+	 * per chunk (index x + 2z within the column), which of its 16-block sections were copied (bit i:
+	 * section minSectionY + i). Decided per chunk: a LOD section often holds real data for only some of
+	 * its four chunks (the edge of where the player was), the others are empty in it. Worker thread.
 	 */
-	static synchronized long copyReal(int cx, int cz) {
+	static synchronized long[] copyReal(int cx, int cz) {
+		long[] found = new long[4];
 		WorldEngine g = guessEngine;
 		Minecraft mc = Minecraft.getInstance();
 		var instance = VoxyCommon.getInstance();
 		var level = mc.level;
-		if (g == null || instance == null || level == null || !g.isLive()) return 0;
+		if (g == null || instance == null || level == null || !g.isLive()) return found;
 		WorldIdentifier id = WorldIdentifier.of(level);
-		if (id == null) return 0;
+		if (id == null) return found;
 		WorldEngine real = instance.getOrCreate(id);
-		if (real == null || real == g || !real.isLive()) return 0;
+		if (real == null || real == g || !real.isLive()) return found;
 		if (mappedFrom != real || mappedTo != g) {
 			blockMap.clear();
 			biomeMap.clear();
@@ -172,11 +174,9 @@ final class VoxyGuessImpl {
 		real.acquireRef();
 		g.acquireRef();
 		try {
-			long found = 0;
 			int sx = cx >> 1, sz = cz >> 1, base = level.getMinY() >> 5, top = (level.getMaxY() - 1) >> 5;
 			int n = top - base + 1;
 			long[][] sections = new long[n][];
-			boolean[] hasData = new boolean[n];
 			for (int i = 0; i < n; i++) {
 				var src = real.acquireIfExists(0, sx, base + i, sz);
 				if (src == null) continue;
@@ -185,36 +185,39 @@ final class VoxyGuessImpl {
 				} finally {
 					src.release();
 				}
-				for (long v : sections[i]) {
-					if (!me.cortex.voxy.common.world.other.Mapper.isAir(v) || me.cortex.voxy.common.world.other.Mapper.getLightId(v) != 0) {
-						hasData[i] = true;
-						break;
-					}
+			}
+			// per chunk: its column of 16-block parts (sub s = part oy = s & 1 of LOD section s >> 1)
+			int subs = n * 2, firstSub = base * 2 - level.getMinSectionY();
+			for (int q = 0; q < 4; q++) {
+				int ox = q & 1, oz = q >> 1;
+				boolean[] hasData = new boolean[subs];
+				boolean anyBlocks = false;
+				for (int s = 0; s < subs; s++) {
+					long[] data = sections[s >> 1];
+					if (data == null) continue;
+					hasData[s] = partHasData(data, ox, s & 1, oz, true);
+					anyBlocks |= hasData[s] && partHasData(data, ox, s & 1, oz, false);
 				}
-			}
-			// Voxy keeps real sky as all-zero sections, but also stores all-zero sections for chunks it
-			// never had lit data for. A zero section is unknown (left to generation) where terrain runs
-			// into it, and so is every zero section stacked on top of (or below) an unknown one.
-			boolean anyData = false;
-			for (boolean b : hasData) anyData |= b;
-			boolean[] unknown = new boolean[n];
-			for (int i = 0; i < n; i++) {
-				if (sections[i] == null || hasData[i]) continue;
-				unknown[i] = !anyData || (i > 0 && (unknown[i - 1] || (hasData[i - 1] && !layerAir(sections[i - 1], 31))));
-			}
-			for (int i = n - 1; i >= 0; i--) {
-				if (sections[i] == null || hasData[i]) continue;
-				unknown[i] |= i + 1 < n && ((unknown[i + 1] && sections[i + 1] != null && !hasData[i + 1])
-						|| (hasData[i + 1] && !layerAir(sections[i + 1], 0)));
-			}
-			for (int i = 0; i < n; i++) {
-				long[] data = sections[i];
-				if (data == null || unknown[i]) continue;
-				int sy = base + i;
-				found |= 1L << i;
-				for (int o = 0; o < 8; o++) {
-					int ox = o & 1, oy = (o >> 1) & 1, oz = (o >> 2) & 1;
-					var vs = me.cortex.voxy.common.voxelization.VoxelizedSection.createEmpty().setPosition(sx * 2 + ox, sy * 2 + oy, sz * 2 + oz);
+				// A chunk the player has seen has blocks somewhere (bedrock at least); where Voxy has none,
+				// it never had that chunk, only others of its LOD section (whose rest it keeps as air, lit
+				// or not): all unknown, left to generation. Voxy also keeps real sky as all-zero data, but
+				// leaves it all-zero where it never had lit data: a zero part is unknown where terrain runs
+				// into it, and so is every zero part stacked on top of (or below) an unknown one.
+				boolean[] unknown = new boolean[subs];
+				for (int s = 0; s < subs; s++) {
+					if (sections[s >> 1] == null || (hasData[s] && anyBlocks)) continue;
+					unknown[s] = !anyBlocks || (s > 0 && (unknown[s - 1] || (hasData[s - 1] && !layerAir(sections[(s - 1) >> 1], ox, ((s - 1) & 1) * 16 + 15, oz))));
+				}
+				for (int s = subs - 1; s >= 0; s--) {
+					if (sections[s >> 1] == null || hasData[s]) continue;
+					unknown[s] |= s + 1 < subs && (unknown[s + 1] || (hasData[s + 1] && !layerAir(sections[(s + 1) >> 1], ox, ((s + 1) & 1) * 16, oz)));
+				}
+				for (int s = 0; s < subs; s++) {
+					long[] data = sections[s >> 1];
+					if (data == null || unknown[s]) continue;
+					int oy = s & 1, bit = firstSub + s;
+					if (bit >= 0 && bit < 64) found[q] |= 1L << bit;
+					var vs = me.cortex.voxy.common.voxelization.VoxelizedSection.createEmpty().setPosition(sx * 2 + ox, (base + (s >> 1)) * 2 + oy, sz * 2 + oz);
 					int nonAir = 0;
 					for (int y = 0; y < 16; y++)
 						for (int z = 0; z < 16; z++)
@@ -234,6 +237,17 @@ final class VoxyGuessImpl {
 			g.releaseRef();
 			real.releaseRef();
 		}
+	}
+
+	/** Whether the 16-block part (ox, oy, oz) of a 32-block LOD section has a block (or, with {@code light}, lit air) anywhere. */
+	private static boolean partHasData(long[] data, int ox, int oy, int oz, boolean light) {
+		for (int y = 0; y < 16; y++)
+			for (int z = 0; z < 16; z++)
+				for (int x = 0; x < 16; x++) {
+					long v = data[me.cortex.voxy.common.world.WorldSection.getIndex(ox * 16 + x, oy * 16 + y, oz * 16 + z)];
+					if (!me.cortex.voxy.common.world.other.Mapper.isAir(v) || (light && me.cortex.voxy.common.world.other.Mapper.getLightId(v) != 0)) return true;
+				}
+		return false;
 	}
 
 	/** Per 32-block section of the normal LOD world's column at chunk (cx, cz): non-air and lit voxel counts (debugging). */
@@ -282,11 +296,11 @@ final class VoxyGuessImpl {
 		}
 	}
 
-	/** Whether layer y (0..31) of a 32-block LOD section is all air. */
-	private static boolean layerAir(long[] data, int y) {
-		for (int z = 0; z < 32; z++)
-			for (int x = 0; x < 32; x++)
-				if (!me.cortex.voxy.common.world.other.Mapper.isAir(data[me.cortex.voxy.common.world.WorldSection.getIndex(x, y, z)])) return false;
+	/** Whether layer y (0..31) of a 32-block LOD section is all air within chunk quarter (ox, oz). */
+	private static boolean layerAir(long[] data, int ox, int y, int oz) {
+		for (int z = 0; z < 16; z++)
+			for (int x = 0; x < 16; x++)
+				if (!me.cortex.voxy.common.world.other.Mapper.isAir(data[me.cortex.voxy.common.world.WorldSection.getIndex(ox * 16 + x, y, oz * 16 + z)])) return false;
 		return true;
 	}
 

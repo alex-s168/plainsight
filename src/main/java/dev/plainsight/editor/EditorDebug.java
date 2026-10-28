@@ -244,6 +244,26 @@ public final class EditorDebug {
 		return g == null ? "none" : String.valueOf(g.isReal(cx, cz));
 	}
 
+	/** Chunks within r of (cx, cz) whose LOD column (at the chunk centre) is air all the way down in the rendered LOD world, as "count x,z;x,z...". */
+	public static String guessHoles(int cx, int cz, int r) {
+		var level = net.minecraft.client.Minecraft.getInstance().level;
+		StringBuilder at = new StringBuilder();
+		int holes = 0;
+		for (int x = cx - r; x <= cx + r; x++)
+			for (int z = cz - r; z <= cz + r; z++) {
+				boolean empty = true;
+				for (int y = level.getMinY(); y < level.getMaxY() && empty; y++) {
+					var b = dev.plainsight.guess.VoxyGuess.lodBlock(x * 16 + 8, y, z * 16 + 8);
+					empty = b == null || b.isAir();
+				}
+				if (empty) {
+					holes++;
+					if (holes <= 20) at.append(at.isEmpty() ? "" : ";").append(x).append(',').append(z);
+				}
+			}
+		return holes + " " + at;
+	}
+
 	public static String guessTintOpacity(float opacity) {
 		dev.plainsight.module.GuessedTerrain.tintOpacity = opacity;
 		return "ok";

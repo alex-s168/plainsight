@@ -1220,6 +1220,15 @@ def test_guess_prefers_real_lod():
     y = float(s["surfaceUnderCursor"].split(",")[1]) if s["surfaceUnderCursor"] else 999
     check(abs(y - (-60)) < 1, "and shown: the flat ground, not generated terrain (%s)" % s["surfaceUnderCursor"])
     shot("guess-real-lod")
+    # at the edge of the far area Voxy has some of a LOD column's 2x2 chunks only: the others are generated,
+    # not left empty (they were copied as air when realness was decided per whole LOD section)
+    def settled(s):
+        settled.history.append(s["guessed"])
+        return s["guessPending"] == 0 and len(settled.history) > 8 and settled.history[-8] == s["guessed"]
+    settled.history = []
+    wait_for(settled, 120, 0.5)
+    holes = ed("guessHoles", far >> 4, far >> 4, 24)
+    check(holes.split(" ")[0] == "0", "no empty chunks between the copied and the generated LOD: %s" % holes)
     editor_off()
     c.command("plainsight seed clear")
 

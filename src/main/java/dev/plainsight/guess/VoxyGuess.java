@@ -37,14 +37,14 @@ public final class VoxyGuess {
 		if (PRESENT) VoxyGuessImpl.detach();
 	}
 
-	/** Copies the normal LOD world's data around chunk (cx, cz) (2x2 chunks) into the guessed world; which 32-block sections had any. */
-	static long copyReal(int cx, int cz) {
-		if (!PRESENT) return 0;
+	/** Copies the normal LOD world's data around chunk (cx, cz) (2x2 chunks) into the guessed world; per chunk, which 16-block sections it covered. */
+	static long[] copyReal(int cx, int cz) {
+		if (!PRESENT) return new long[4];
 		try {
 			return VoxyGuessImpl.copyReal(cx, cz);
 		} catch (RuntimeException | LinkageError e) {
 			Plainsight.LOG.warn("Could not copy LOD at chunk {}, {}", cx, cz, e);
-			return 0;
+			return new long[4];
 		}
 	}
 
