@@ -35,11 +35,23 @@ public abstract class CameraMixin {
 
 	@Inject(method = "extractRenderState", at = @At("TAIL"))
 	private void plainsight$editorRenderState(CameraRenderState cameraState, DeltaTracker deltaTracker, CallbackInfo ci) {
-		if (!Editor.isActive()) return;
+		if (!Editor.isActive()) {
+			Editor.disableCaveCulling = false;
+			Editor.cameraToPlayer = 0;
+			return;
+		}
+		var player = net.minecraft.client.Minecraft.getInstance().player;
+		if (player != null) {
+			Editor.cameraToPlayer = (float) Math.hypot(cameraState.pos.x - player.getX(), cameraState.pos.z - player.getZ());
+		}
 		Editor.get().viewport.adjust(cameraState.projectionMatrix);
 		// like spectator mode: inside solid blocks, render every section (no cave culling), so cave systems
 		// are visible from within the rock
+		// the same when the camera is outside the loaded chunks, or the loaded terrain may not be found
 		var level = net.minecraft.client.Minecraft.getInstance().level;
-		if (Editor.spectatorCulling && level != null && level.getBlockState(cameraState.blockPos).isSolidRender()) cameraState.smartCull = false;
+		boolean noCulling = Editor.spectatorCulling && level != null && (level.getBlockState(cameraState.blockPos).isSolidRender()
+				|| !level.hasChunk(cameraState.blockPos.getX() >> 4, cameraState.blockPos.getZ() >> 4));
+		Editor.disableCaveCulling = noCulling;
+		if (noCulling) cameraState.smartCull = false;
 	}
 }

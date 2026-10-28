@@ -53,6 +53,17 @@ public final class Editor {
 
 	/** Camera inside solid blocks renders without cave culling, like spectator mode (switchable for tests). */
 	public static volatile boolean spectatorCulling = true;
+	/**
+	 * Set every frame: the editor camera is inside solid blocks or outside the loaded chunks, so cave
+	 * (occlusion) culling must be off (vanilla and Sodium).
+	 */
+	public static volatile boolean disableCaveCulling;
+	/**
+	 * Horizontal distance from the editor camera to the player (0 outside the editor): renderers that
+	 * only draw sections within render distance of the camera must look this much further, or the
+	 * chunks loaded around the player are not drawn while the camera is away.
+	 */
+	public static volatile float cameraToPlayer;
 
 	public static boolean isActive() {
 		return INSTANCE.active;

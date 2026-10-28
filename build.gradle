@@ -92,6 +92,8 @@ dependencies {
 	}
 
 	axiomMods "maven.modrinth:axiom:${project.axiom_version}"
+	// optional compatibility mixins (src/main/java/dev/plainsight/mixin/sodium), applied only with Sodium
+	compileOnly "maven.modrinth:sodium:${project.sodium_version}"
 
 	// visible dev client extras: distant terrain (Voxy needs this exact Sodium) and seed cracking
 	devMods "maven.modrinth:voxy:${project.voxy_version}"

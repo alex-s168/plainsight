@@ -1073,6 +1073,42 @@ def test_rename_long_then_short():
     check(state()["tree"] == [{"middle size": []}], "renamed again: %s" % state()["tree"])
 
 
+def test_lod_warning():
+    editor_on()
+    ed("resetLodWarning")
+    time.sleep(0.3)
+    s = state()
+    if s["lodMod"]:
+        check("view_lod_warning" not in s["widgets"], "no LOD hint when Voxy or Distant Horizons is installed")
+        return
+    check("view_lod_warning" in s["widgets"], "the editor hints that no LOD mod is installed")
+    c.click(*widget("view_lod_warning"), b=1)
+    time.sleep(0.4)
+    shot("lod-warning")
+    c.click(*widget("lod_dismiss"), b=1)
+    time.sleep(0.4)
+    check("view_lod_warning" not in state()["widgets"], "Don't show again hides it")
+    check(os.path.exists(os.path.join(c.run_dir, "config", "plainsight", "lod-warning-dismissed")), "and remembers it")
+    ed("resetLodWarning")
+
+
+def test_far_camera_draws_loaded_chunks():
+    """The render-distance fog (and Sodium's section culling) is measured from the camera: an editor
+    camera far from the player must still show the chunks loaded around the player."""
+    editor_on()
+    px, py, pz = state()["player"]
+    ed("setCamera", px, py + 60, pz - 130, 0, 50)
+    time.sleep(3)
+    s = state()
+    check(abs(s["cameraToPlayer"] - 130) < 1, "the editor knows how far the camera is from the player")
+    if s["sodium"]:
+        visible = int(s["sodiumChunks"].split()[1].split("/")[0])
+        check(visible > 100, "Sodium draws the loaded sections from far away (%s)" % s["sodiumChunks"])
+    shot("far-camera")
+    ed("setCamera", px, py + 10, pz - 10, 0, 30)
+    time.sleep(0.5)
+
+
 def test_selection_persists():
     editor_on()
     if not state()["tree"]:

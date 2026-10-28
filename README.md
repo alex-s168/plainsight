@@ -129,9 +129,16 @@ buttons (pixel checks), lit block overlay (day vs night), path overlay, Escape/c
 
 ### Notes
 
-* With Sodium installed, the see-through and transparent-fluid options have no effect (Sodium replaces
-  the vanilla chunk mesher they hook into), and when the editor camera is far outside the loaded chunks
-  Sodium's occlusion culling can leave holes in the terrain near the player (Voxy works otherwise).
+* Sodium is supported through optional mixins (`plainsight.sodium.mixins.json`, applied only when
+  Sodium's classes are present): see-through hides the cut blocks in Sodium's chunk meshes (lit like
+  the open sky), transparent fluids work for water (lava stays opaque; at opacity 0 fluids are not
+  meshed), cave culling is off while the camera is inside rock or outside the loaded chunks, and
+  Sodium's render distance reaches the player's chunks while the camera is away.
+* The render-distance fog is pushed out by the camera-to-player distance in the editor, so the loaded
+  chunks stay visible from a distant camera. Seen from outside, the edge of the loaded area shows its
+  cut face (cave interiors); vanilla draws nothing at all once the camera is about a render distance
+  away from the player. Hence the "No LOD mod" hint in the editor: Voxy or Distant Horizons (detected
+  by class, not mod id) fills in the terrain beyond.
 
 * MC 26.3 renders through *renderpearl* (OpenGL or Vulkan) and uses SDL for windowing. ImGui is drawn
   through the game's GPU abstraction (`ImGuiRenderer`), so it works on both backends; input comes from

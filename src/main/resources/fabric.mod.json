@@ -9,7 +9,7 @@
 	"entrypoints": {
 		"client": ["dev.plainsight.Plainsight"]
 	},
-	"mixins": ["plainsight.mixins.json"],
+	"mixins": ["plainsight.mixins.json", "plainsight.sodium.mixins.json"],
 	"depends": {
 		"fabricloader": ">=0.20.0",
 		"fabric-api": "*",

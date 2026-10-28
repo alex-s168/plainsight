@@ -45,6 +45,7 @@ public final class FluidTransparency implements Module {
 	public void setEnabled(boolean enabled) {
 		if (active == enabled) return;
 		active = enabled;
+		dev.plainsight.render.AlphaOverride.fluidActive = enabled;
 		rebuild();
 	}
 

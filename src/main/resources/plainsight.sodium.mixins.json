@@ -1,0 +1,14 @@
+{
+	"required": false,
+	"package": "dev.plainsight.mixin.sodium",
+	"plugin": "dev.plainsight.SodiumMixinPlugin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"LevelSliceMixin",
+		"MeshBufferMixin",
+		"MeshingTaskMixin",
+		"OcclusionCullerMixin",
+		"RenderSectionManagerMixin"
+	],
+	"injectors": { "defaultRequire": 1 }
+}

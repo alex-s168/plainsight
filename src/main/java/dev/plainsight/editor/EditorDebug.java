@@ -65,6 +65,15 @@ public final class EditorDebug {
 		o.addProperty("cutawayRebuilds", e.seeThrough.rebuilds());
 		o.addProperty("overlayBlocksSubmitted", BlockOverlayRenderer.submitted);
 		o.addProperty("lightOverlayFaces", e.lightOverlay.markedFaces());
+		o.addProperty("lodMod", dev.plainsight.LodSupport.present());
+		o.addProperty("cameraToPlayer", Editor.cameraToPlayer);
+		o.addProperty("disableCaveCulling", Editor.disableCaveCulling);
+		try {
+			Object r = Class.forName("net.caffeinemc.mods.sodium.client.render.SodiumWorldRenderer").getMethod("instanceNullable").invoke(null);
+			if (r != null) o.addProperty("sodiumChunks", String.valueOf(r.getClass().getMethod("getChunksDebugString").invoke(r)));
+		} catch (ReflectiveOperationException ignored) {
+		}
+		o.addProperty("sodium", Editor.class.getClassLoader().getResource("net/caffeinemc/mods/sodium/client/world/LevelSlice.class") != null);
 		JsonObject ov = new JsonObject();
 		for (Overlay.Layer l : Overlay.Layer.values()) ov.addProperty(l.name(), e.overlay.lineCount(l) + " lines, " + e.overlay.triangleCount(l) + " tris");
 		o.add("overlay", ov);
@@ -259,6 +268,11 @@ public final class EditorDebug {
 	public static String brightnessLevel(float editorLevel, float ingameLevel) {
 		Editor.get().editorBrightness.level = editorLevel;
 		Editor.get().ingameBrightness.level = ingameLevel;
+		return "ok";
+	}
+
+	public static String resetLodWarning() {
+		dev.plainsight.LodSupport.undismiss();
 		return "ok";
 	}
 
