@@ -32,7 +32,8 @@ import java.util.Optional;
 
 /**
  * Screen-space marker for guessed terrain: a full-screen pass that rebuilds each pixel's world position
- * from the depth buffer and tints it when it lies in a guessed chunk (see guess_tint.fsh). Works for
+ * from the depth buffer and tints it, slowly fading in and out, when it lies in a guessed chunk (see
+ * guess_tint.fsh). Works for
  * whatever drew the terrain (Voxy's LOD included), after the level is rendered.
  */
 public final class GuessTint {
@@ -94,7 +95,7 @@ public final class GuessTint {
 			Std140Builder.intoBuffer(view.data())
 					.putMat4f(inv)
 					.putVec4(new Vector4f((float) (cam.x - maskOriginX * 16.0), (float) cam.y, (float) (cam.z - maskOriginZ * 16.0), 0))
-					.putVec4(new Vector4f(SIZE, dev.plainsight.module.GuessedTerrain.tintOpacity, zeroToOne() ? 1 : 0, (now % 100000) / 1000f));
+					.putVec4(new Vector4f(SIZE, strength(now), zeroToOne() ? 1 : 0, 0));
 		}
 		Minecraft mc = Minecraft.getInstance();
 		RenderTarget target = mc.gameRenderer.mainRenderTarget();
@@ -109,6 +110,14 @@ public final class GuessTint {
 		}
 		ubo.rotate();
 		drawn++;
+	}
+
+	/** The tint now: a slow fade between a quarter of the set strength and all of it. */
+	static float strength(long now) {
+		float period = Math.max(0.5f, dev.plainsight.module.GuessedTerrain.pulseSeconds) * 1000f;
+		double phase = (now % (long) period) / period;
+		float wave = (float) (0.5 - 0.5 * Math.cos(phase * 2 * Math.PI));
+		return dev.plainsight.module.GuessedTerrain.tintOpacity * (0.25f + 0.75f * wave);
 	}
 
 	/** Whether clip-space depth runs 0..1 (otherwise -1..1); overridable for testing. */

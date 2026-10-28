@@ -39,12 +39,14 @@ public final class GuessWorld {
 	private static final int IN_FLIGHT = 24;
 
 	private static GuessWorld current;
+	/** Servers still shutting down, by world folder: a new one on the same folder waits for them. */
+	private static final java.util.Map<Path, Thread> STOPPING = new java.util.concurrent.ConcurrentHashMap<>();
 	private static String currentKey;
 
 	final String worldKey;
 	final ResourceKey<Level> dimension;
 	final long seed;
-	private final Path stateDir;
+	private final Path stateDir, worldDir;
 	private volatile State state = State.STARTING;
 	private volatile String error;
 	private volatile GuessServer server;
@@ -55,6 +57,7 @@ public final class GuessWorld {
 	private ChunkPos searchCentre;
 	private int searchRing;
 	public volatile int generatedThisSession, failed;
+	private volatile boolean closed;
 
 	private GuessWorld(String worldKey, ResourceKey<Level> dimension, long seed) {
 		this.worldKey = worldKey;
@@ -64,21 +67,31 @@ public final class GuessWorld {
 		this.stateDir = root.resolve("state").resolve(sanitize(worldKey)).resolve(sanitize(dimension.identifier().toString()) + "-" + Long.toHexString(seed));
 		load(guessed, stateDir.resolve("guessed.bin"));
 		load(real, stateDir.resolve("real.bin"));
-		Path worldDir = root.resolve("worlds").resolve(Long.toHexString(seed));
+		this.worldDir = root.resolve("worlds").resolve(Long.toHexString(seed));
 		Thread starter = new Thread(() -> {
 			try {
+				Thread previous = STOPPING.get(worldDir);
+				if (previous != null) previous.join(60_000);
 				GuessServer s = GuessServer.start(worldDir, seed);
 				long deadline = System.currentTimeMillis() + 120_000;
 				while (!s.isReady() && System.currentTimeMillis() < deadline) Thread.sleep(50);
 				if (!s.isReady()) throw new IllegalStateException("worldgen server did not start");
 				if (s.getLevel(dimension) == null) throw new IllegalStateException("no vanilla generator for " + dimension.identifier());
-				server = s;
-				state = State.READY;
-				Plainsight.LOG.info("Worldgen server for seed {} ready ({})", seed, worldDir);
+				synchronized (this) {
+					if (!closed) {
+						server = s;
+						state = State.READY;
+					}
+				}
+				if (closed) {
+					stop(s);
+					return;
+				}
+				Plainsight.LOG.info("Worldgen server for seed {} ready", SeedHider.show(seed));
 			} catch (Exception | LinkageError e) {
 				error = e.toString();
 				state = State.FAILED;
-				Plainsight.LOG.error("Could not start the worldgen server for seed {}", seed, e);
+				Plainsight.LOG.error("Could not start the worldgen server for seed {}", SeedHider.show(seed), e);
 			}
 		}, "Plainsight worldgen startup");
 		starter.setDaemon(true);
@@ -179,8 +192,9 @@ public final class GuessWorld {
 	}
 
 	private void request(int cx, int cz, long key) {
-		inFlight.add(key);
 		GuessServer s = server;
+		if (s == null) return;
+		inFlight.add(key);
 		s.execute(() -> {
 			ServerLevel level = s.getLevel(dimension);
 			CompletableFuture<?> f = level.getChunkSource().getChunkFuture(cx, cz, ChunkStatus.FULL, true).whenCompleteAsync((result, err) -> {
@@ -208,15 +222,28 @@ public final class GuessWorld {
 	}
 
 	private void close() {
+		GuessServer s;
+		synchronized (this) {
+			closed = true;
+			s = server;
+			server = null;
+		}
 		save();
 		VoxyGuess.detach();
-		GuessServer s = server;
-		if (s != null) {
-			Thread stopper = new Thread(() -> s.halt(true), "Plainsight worldgen shutdown");
-			stopper.setDaemon(true);
-			stopper.start();
-		}
-		server = null;
+		if (s != null) stop(s);
+	}
+
+	private void stop(GuessServer s) {
+		Thread stopper = new Thread(() -> {
+			try {
+				s.halt(true);
+			} finally {
+				STOPPING.remove(worldDir, Thread.currentThread());
+			}
+		}, "Plainsight worldgen shutdown");
+		stopper.setDaemon(true);
+		STOPPING.put(worldDir, stopper);
+		stopper.start();
 	}
 
 	/** Stops everything (leaving a world, quitting). */

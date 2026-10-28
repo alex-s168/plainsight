@@ -37,6 +37,16 @@ public final class VoxyGuess {
 		if (PRESENT) VoxyGuessImpl.show(guessed);
 	}
 
+	/** The block Voxy's rendered LOD world has at (x, y, z), or null when it has none (or no Voxy). Render thread. */
+	public static net.minecraft.world.level.block.state.BlockState lodBlock(int x, int y, int z) {
+		if (!PRESENT) return null;
+		try {
+			return VoxyGuessImpl.lodBlock(x, y, z);
+		} catch (RuntimeException | LinkageError e) {
+			return null;
+		}
+	}
+
 	/** Whether Voxy currently renders the guessed LOD world. */
 	public static boolean showing() {
 		return PRESENT && VoxyGuessImpl.showing();

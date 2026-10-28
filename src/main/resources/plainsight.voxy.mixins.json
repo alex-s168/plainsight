@@ -5,7 +5,9 @@
 	"compatibilityLevel": "JAVA_25",
 	"client": [
 		"IngestMirrorMixin",
-		"RenderPipelineMixin"
+		"RenderPipelineMixin",
+		"RenderSystemNearMixin",
+		"ShaderPatchMixin"
 	],
 	"injectors": { "defaultRequire": 1 }
 }

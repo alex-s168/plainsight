@@ -6,6 +6,7 @@
 	"client": [
 		"BufferBuilderMixin",
 		"CameraMixin",
+		"ChatComponentMixin",
 		"CloudRendererMixin",
 		"EntityRendererMixin",
 		"FogRendererMixin",

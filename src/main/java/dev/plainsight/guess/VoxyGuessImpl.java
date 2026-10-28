@@ -105,6 +105,20 @@ final class VoxyGuessImpl {
 		}
 	}
 
+	static net.minecraft.world.level.block.state.BlockState lodBlock(int x, int y, int z) {
+		WorldEngine engine = renderedWorld();
+		if (engine == null || !engine.isLive()) return null;
+		var section = engine.acquireIfExists(0, x >> 5, y >> 5, z >> 5);
+		if (section == null) return null;
+		try {
+			long v = section._unsafeGetRawDataArray()[me.cortex.voxy.common.world.WorldSection.getIndex(x & 31, y & 31, z & 31)];
+			if (me.cortex.voxy.common.world.other.Mapper.isAir(v)) return net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
+			return engine.getMapper().getBlockStateFromBlockId(me.cortex.voxy.common.world.other.Mapper.getBlockId(v));
+		} finally {
+			section.release();
+		}
+	}
+
 	static boolean showing() {
 		WorldEngine g = guessEngine;
 		return g != null && renderedWorld() == g;

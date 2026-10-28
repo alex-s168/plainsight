@@ -200,6 +200,22 @@ public final class EditorDebug {
 		return "ok";
 	}
 
+	public static String solidAt(int x, int y, int z) {
+		return String.valueOf(Editor.solidAt(new net.minecraft.core.BlockPos(x, y, z)));
+	}
+
+	/** The last {@code n} lines in the chat window (as shown, after the seed hider). */
+	public static String chatShown(int n) throws ReflectiveOperationException {
+		var chat = net.minecraft.client.Minecraft.getInstance().gui.hud.getChat();
+		var f = chat.getClass().getDeclaredField("allMessages");
+		f.setAccessible(true);
+		@SuppressWarnings("unchecked")
+		var all = (java.util.List<net.minecraft.client.multiplayer.chat.GuiMessage>) f.get(chat);
+		StringBuilder sb = new StringBuilder();
+		for (int i = Math.min(n, all.size()) - 1; i >= 0; i--) sb.append(all.get(i).content().getString()).append('\n');
+		return sb.toString();
+	}
+
 	public static String guessTintOpacity(float opacity) {
 		dev.plainsight.module.GuessedTerrain.tintOpacity = opacity;
 		return "ok";

@@ -376,9 +376,19 @@ public final class Editor {
 	 * {@code dir} must be the ray through the cursor. The block of a surface hit is the one just behind it.
 	 */
 	public @Nullable BlockHitResult raycastUnderCursor(Vector3dc dir) {
-		BlockHitResult block = raycastBlock(dir, false);
+		return raycastUnderCursor(camera.pos, dir);
+	}
+
+	/** As {@link #raycastUnderCursor(Vector3dc)}, from {@code from} on the cursor ray (surfaces before it are skipped). */
+	public @Nullable BlockHitResult raycastUnderCursor(Vector3dc from, Vector3dc dir) {
+		BlockPos start = BlockPos.containing(from.x(), from.y(), from.z());
+		// in the solid blocks of distant (LOD or guessed) terrain: they are not drawn from inside, so the
+		// depth buffer would look straight through them; hit them here like loaded rock
+		if (!isLoaded(start) && solidAt(start)) return new BlockHitResult(new Vec3(from.x(), from.y(), from.z()), net.minecraft.core.Direction.UP, start, true);
+		BlockHitResult block = raycastBlock(from, dir, false);
 		Vector3d surface = dev.plainsight.render.DepthPick.at(mouseX, mouseY);
-		if (surface == null) return block;
+		double skip = new Vector3d(from).distance(camera.pos);
+		if (surface == null || surface.distance(camera.pos) < skip - 0.5) return block;
 		double surfaceDistance = surface.distance(camera.pos);
 		if (block != null && block.getLocation().distanceTo(new Vec3(camera.pos.x, camera.pos.y, camera.pos.z)) <= surfaceDistance + 1.5) return block;
 		Vector3d inside = new Vector3d(surface).fma(0.05, dir);
@@ -388,6 +398,20 @@ public final class Editor {
 				: ay >= az ? (dir.y() > 0 ? net.minecraft.core.Direction.DOWN : net.minecraft.core.Direction.UP)
 				: (dir.z() > 0 ? net.minecraft.core.Direction.NORTH : net.minecraft.core.Direction.SOUTH);
 		return new BlockHitResult(new Vec3(surface.x, surface.y, surface.z), face, pos, false);
+	}
+
+	public static boolean isLoaded(BlockPos p) {
+		Minecraft mc = Minecraft.getInstance();
+		return mc.level != null && mc.level.getChunkSource().hasChunk(p.getX() >> 4, p.getZ() >> 4);
+	}
+
+	/** Whether the block at {@code p} is solid: from the world where it is loaded, else from Voxy's LOD data. */
+	public static boolean solidAt(BlockPos p) {
+		Minecraft mc = Minecraft.getInstance();
+		if (mc.level == null) return false;
+		if (isLoaded(p)) return !mc.level.getBlockState(p).getCollisionShape(mc.level, p).isEmpty();
+		var state = dev.plainsight.guess.VoxyGuess.lodBlock(p.getX(), p.getY(), p.getZ());
+		return state != null && state.isSolid();
 	}
 
 	public record EntityHit(Entity entity, double distance) {}
@@ -419,7 +443,7 @@ public final class Editor {
 			Vector3d dir = rayAt(mouseX, mouseY);
 			// Ctrl+Shift: look past the rock the camera is buried in (e.g. orbit a cave from underground)
 			Vector3d from = shift ? outOfSolid(camera.pos, dir) : new Vector3d(camera.pos);
-			BlockHitResult block = shift ? raycastBlock(from, dir, false) : raycastUnderCursor(dir);
+			BlockHitResult block = raycastUnderCursor(from, dir);
 			double max = block != null ? block.getLocation().distanceTo(new Vec3(camera.pos.x, camera.pos.y, camera.pos.z)) : REACH;
 			EntityHit hit = raycastEntity(dir, max);
 			if (hit != null) {
@@ -450,7 +474,7 @@ public final class Editor {
 		for (double t = 0; t < 256; t += 0.1) {
 			p.set(from).fma(t, dir);
 			bp.set(p.x, p.y, p.z);
-			if (mc.level.getBlockState(bp).getCollisionShape(mc.level, bp).isEmpty()) return p;
+			if (!solidAt(bp)) return p;
 		}
 		return new Vector3d(from);
 	}

@@ -71,6 +71,18 @@ public final class SeedStore {
 		return server != null ? "server:" + server.ip.toLowerCase(java.util.Locale.ROOT) : "unknown";
 	}
 
+	/** All seeds this store knows (any world), for {@link SeedHider}. */
+	public static synchronized long[] knownSeeds() {
+		load();
+		return SEEDS.values().stream().mapToLong(v -> {
+			try {
+				return Long.parseLong((String) v);
+			} catch (NumberFormatException e) {
+				return Long.MIN_VALUE;
+			}
+		}).filter(v -> v != Long.MIN_VALUE).toArray();
+	}
+
 	public static synchronized OptionalLong seed() {
 		load();
 		String key = worldKey();
@@ -97,7 +109,7 @@ public final class SeedStore {
 		SEEDS.setProperty(key, Long.toString(seed));
 		SOURCES.setProperty(key, source);
 		save();
-		Plainsight.LOG.info("World seed for {} set to {} ({})", key, seed, source);
+		Plainsight.LOG.info("World seed for {} set ({})", key, source);
 	}
 
 	public static synchronized void clear() {

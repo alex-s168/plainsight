@@ -1147,6 +1147,27 @@ def test_depth_pick_under_cursor():
     check(abs(y2 - (-60)) < 0.15 and x2 < x - 3, "and follows the cursor (right is -x looking down with yaw 0): %s" % s["surfaceUnderCursor"])
 
 
+
+def test_seed_hider():
+    """With the seed hider on, seeds never show on screen: not in this mod's messages, not in /seed's,
+    not in any chat line with a long number (SeedcrackerX's)."""
+    c.command("plainsight seed hide true")
+    c.command("plainsight seed 4242424242")
+    c.command("seed")
+    c.command("tellraw @s \"Found world seed 98765432101 (structure seed 1234567890123)\"")
+    time.sleep(0.5)
+    shown = ed("chatShown", 6)
+    check("4242424242" not in shown and "98765432101" not in shown and "1234567890123" not in shown,
+          "no seed in the chat window:\n%s" % shown)
+    check("\u2022" in shown, "they show as dots:\n%s" % shown)
+    c.command("plainsight seed hide false")
+    c.command("plainsight seed")
+    time.sleep(0.3)
+    check("4242424242" in ed("chatShown", 2), "with the hider off the seed is shown")
+    c.command("plainsight seed hide true")
+    c.command("plainsight seed clear")
+
+
 def test_guessed_terrain():
     """With a seed (here given by command) and Voxy, the editor shows terrain generated from the seed far
     from the player, tinted; Voxy shows the normal LOD again outside the editor."""
@@ -1160,7 +1181,10 @@ def test_guessed_terrain():
     editor_on()
     check("view_guessed_terrain" in state()["widgets"], "a seed adds the Guessed terrain view button")
     px, py, pz = state()["player"]
-    ed("setCamera", px + 3000, 220, pz + 3000, 135, 35)
+    # somewhere not generated in earlier runs
+    import random
+    gx, gz = px + 3000 + random.randrange(0, 200) * 640, pz + 3000 + random.randrange(0, 200) * 640
+    ed("setCamera", gx, 220, gz, 135, 35)
     before = state()["guessed"]
     s = wait_for(lambda s: s["guessed"] > before + 100 and s["guessShowing"], 60)
     check(s["guessed"] > before + 100, "chunks are generated around the camera (%d -> %d)" % (before, s["guessed"]))
@@ -1168,10 +1192,7 @@ def test_guessed_terrain():
     tint = s["guessTintDrawn"]
     time.sleep(1)
     check(state()["guessTintDrawn"] > tint, "guessed chunks are tinted")
-    ed("guessTintOpacity", "0.15")
-    time.sleep(0.3)
     shot("guessed-terrain")
-    ed("guessTintOpacity", "0.3")
     # aim at guessed terrain: the arcball pivots on it (depth pick), not on a point in the air
     vp = state()["viewport"]
     cx, cy = vp[0] + vp[2] / 2, vp[1] + vp[3] * 0.7
@@ -1187,6 +1208,42 @@ def test_guessed_terrain():
     c.button(1, "release")
     c.key(K["LCTRL"], "release")
     check(math.dist(piv, (sx, sy, sz)) < 3, "Ctrl+drag orbits around the guessed terrain under the cursor: %s vs %s" % (piv, (sx, sy, sz)))
+    # far above: the terrain is beyond the normal far plane (render distance x 4); the editor's reaches it
+    cam(sx, sy + 1100, sz, 0, 89)
+    vp = state()["viewport"]
+    c.move(vp[0] + vp[2] / 2, vp[1] + vp[3] / 2)
+    time.sleep(2)
+    s = wait_for(lambda s: s["surfaceUnderCursor"] != "", 5, 0.1)
+    check(s["surfaceUnderCursor"] != "", "the guessed terrain is found from 1100 blocks above")
+    fy = float(s["surfaceUnderCursor"].split(",")[1])
+    check(-64 < fy < 320, "at the terrain, not at a far plane in the air: %s" % s["surfaceUnderCursor"])
+    # inside guessed rock: Ctrl pivots on the rock the camera is in, Ctrl+Shift looks past it
+    rx, ry, rz = int(math.floor(sx)), int(math.floor(sy)) - 12, int(math.floor(sz))
+    check(ed("solidAt", rx, ry, rz) == "true", "the guessed rock below the surface is known solid (Voxy data)")
+    cam(rx + 0.5, ry + 0.5, rz + 0.5, 0, 0)
+    vp = state()["viewport"]
+    c.move(vp[0] + vp[2] / 2, vp[1] + vp[3] / 2)
+    time.sleep(0.5)
+
+    def orbit_pivot(shift):
+        c.key(K["LCTRL"], "press")
+        if shift:
+            c.key(K["LSHIFT"], "press", mc.MOD_SHIFT)
+        c.button(1, "press")
+        time.sleep(0.15)
+        p = state()["camera"]["pivot"]
+        c.button(1, "release")
+        if shift:
+            c.key(K["LSHIFT"], "release")
+        c.key(K["LCTRL"], "release")
+        time.sleep(0.2)
+        return p
+    p0 = orbit_pivot(False)
+    check(math.dist(p0, (rx + 0.5, ry + 0.5, rz + 0.5)) < 1.5, "Ctrl in guessed rock pivots on that rock: %s" % p0)
+    cam(rx + 0.5, ry + 0.5, rz + 0.5, 0, 0)
+    time.sleep(0.3)
+    p1 = orbit_pivot(True)
+    check(math.dist(p1, (rx + 0.5, ry + 0.5, rz + 0.5)) > 1.5, "Ctrl+Shift looks past it: %s" % p1)
     ed("setModule", "guessed_terrain", "false")
     check(not wait_for(lambda s: not s["guessShowing"], 3)["guessShowing"], "switching it off shows the normal LOD")
     ed("setModule", "guessed_terrain", "true")

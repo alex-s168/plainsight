@@ -7,14 +7,17 @@ import imgui.ImGui;
 
 /**
  * Shows terrain generated from the world seed wherever no real chunks have been seen (editor only, with
- * Voxy), tinted blue and striped so guesses are never mistaken for the real world.
+ * Voxy), with a faint blue tint that slowly fades in and out so guesses are never mistaken for the real
+ * world.
  */
 public final class GuessedTerrain implements Module {
 	private boolean enabled = true;
 	private final int[] radius = {GuessWorld.radius};
-	/** Strength of the blue marking (0 = only the stripes and chunk borders faintly, 1 = solid). */
-	public static volatile float tintOpacity = 0.3f;
-	private final float[] opacity = {tintOpacity};
+	/** Strongest blue tint of guessed chunks (it fades down to a quarter of this and back). */
+	public static volatile float tintOpacity = 0.12f;
+	/** Seconds for one fade cycle. */
+	public static volatile float pulseSeconds = 6f;
+	private final float[] opacity = {tintOpacity}, pulse = {pulseSeconds};
 
 	@Override
 	public String id() {
@@ -28,7 +31,7 @@ public final class GuessedTerrain implements Module {
 
 	@Override
 	public String description() {
-		return "Terrain generated from the world seed where you have not been, tinted blue. Right-click for details.";
+		return "Terrain generated from the world seed where you have not been, with a slowly fading blue tint. Right-click for settings.";
 	}
 
 	@Override
@@ -51,7 +54,10 @@ public final class GuessedTerrain implements Module {
 	public void options() {
 		GuessWorld w = GuessWorld.current();
 		var seed = SeedStore.seed();
-		ImGui.text(seed.isPresent() ? "Seed " + seed.getAsLong() + " (" + SeedStore.source() + ")" : "No seed known");
+		ImGui.text(seed.isPresent() ? "Seed " + dev.plainsight.guess.SeedHider.show(seed.getAsLong()) + " (" + SeedStore.source() + ")" : "No seed known");
+		if (ImGui.checkbox("Hide seeds on screen", dev.plainsight.guess.SeedHider.enabled()))
+			dev.plainsight.guess.SeedHider.setEnabled(!dev.plainsight.guess.SeedHider.enabled());
+		if (ImGui.isItemHovered()) ImGui.setTooltip("For screen sharing: seeds in chat (SeedcrackerX, /seed), titles and here show as dots.");
 		if (w == null) {
 			ImGui.textDisabled(GuessWorld.supported() ? "SeedcrackerX finds it, or /plainsight seed <seed>" : "Needs Voxy to show guessed terrain");
 			return;
@@ -63,7 +69,10 @@ public final class GuessedTerrain implements Module {
 		}
 		opacity[0] = tintOpacity;
 		ImGui.setNextItemWidth(160);
-		if (ImGui.sliderFloat("Tint opacity", opacity, 0.05f, 1f, "%.2f")) tintOpacity = opacity[0];
+		if (ImGui.sliderFloat("Tint", opacity, 0.02f, 0.4f, "%.2f")) tintOpacity = opacity[0];
+		pulse[0] = pulseSeconds;
+		ImGui.setNextItemWidth(160);
+		if (ImGui.sliderFloat("Fade cycle", pulse, 2f, 30f, "%.0f s")) pulseSeconds = pulse[0];
 		radius[0] = GuessWorld.radius;
 		ImGui.setNextItemWidth(160);
 		if (ImGui.sliderInt("Radius (chunks)", radius, 4, 128)) GuessWorld.radius = radius[0];

@@ -15,7 +15,7 @@ import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.argument;
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.literal;
 
 /**
- * {@code /plainsight seed [<seed>|clear|world]} and {@code /plainsight guess radius <chunks>}: client-side
+ * {@code /plainsight seed [<seed>|clear|world|hide <true|false>]} and {@code /plainsight guess radius <chunks>}: client-side
  * commands for the editor's guessed terrain.
  */
 public final class GuessCommands {
@@ -32,6 +32,12 @@ public final class GuessCommands {
 							return 1;
 						}))
 						.then(literal("world").executes(GuessCommands::fromWorld))
+						.then(literal("hide").then(argument("on", com.mojang.brigadier.arguments.BoolArgumentType.bool()).executes(c -> {
+							boolean on = com.mojang.brigadier.arguments.BoolArgumentType.getBool(c, "on");
+							SeedHider.setEnabled(on);
+							c.getSource().sendFeedback(Component.literal(on ? "Seeds are hidden on screen." : "Seeds are shown on screen."));
+							return 1;
+						})))
 						.then(argument("seed", StringArgumentType.greedyString()).executes(c -> {
 							OptionalLong seed = WorldOptions.parseSeed(StringArgumentType.getString(c, "seed"));
 							if (seed.isEmpty()) {
@@ -54,7 +60,7 @@ public final class GuessCommands {
 			return 0;
 		}
 		GuessWorld w = GuessWorld.current();
-		c.getSource().sendFeedback(Component.literal("Seed " + seed.getAsLong() + " (" + SeedStore.source() + ")"
+		c.getSource().sendFeedback(Component.literal("Seed " + SeedHider.show(seed.getAsLong()) + " (" + SeedStore.source() + ")"
 				+ (w == null ? "" : ", guessed terrain: " + w.state().name().toLowerCase(java.util.Locale.ROOT) + ", " + w.guessedCount() + " chunks")));
 		return 1;
 	}
@@ -71,7 +77,7 @@ public final class GuessCommands {
 	private static int set(CommandContext<FabricClientCommandSource> c, long seed, String source) {
 		SeedStore.set(seed, source);
 		String check = SeedStore.matchesServer(seed).map(m -> m ? " It matches the server's hashed seed." : " Warning: it does not match the server's hashed seed.").orElse("");
-		c.getSource().sendFeedback(Component.literal("Seed set to " + seed + "." + check + " The editor now shows guessed terrain (needs Voxy)."));
+		c.getSource().sendFeedback(Component.literal("Seed set to " + SeedHider.show(seed) + "." + check + " The editor now shows guessed terrain (needs Voxy)."));
 		return 1;
 	}
 }
