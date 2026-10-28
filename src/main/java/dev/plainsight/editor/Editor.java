@@ -96,7 +96,8 @@ public final class Editor {
 	public final dev.plainsight.module.LightOverlay lightOverlay = new dev.plainsight.module.LightOverlay();
 	public final List<Module> modules = List.of(lightOverlay, editorBrightness, ingameBrightness);
 	/** The viewport's buttons: view options and overlay demos. */
-	public final List<Module> viewModules = List.of(fluids, seeThrough, blockOverlayDemo, pathDemo);
+	public final dev.plainsight.module.GuessedTerrain guessedTerrain = new dev.plainsight.module.GuessedTerrain();
+	public final List<Module> viewModules = List.of(fluids, seeThrough, blockOverlayDemo, pathDemo, guessedTerrain);
 
 	/** Mouse position in window coordinates (ImGui's coordinate space). */
 	public double mouseX, mouseY;
@@ -305,6 +306,7 @@ public final class Editor {
 	/** Called when leaving a world: forget which file the tree belongs to. */
 	public void onDisconnect() {
 		if (active) disable();
+		dev.plainsight.guess.GuessWorld.shutdown();
 		saveSelections();
 		storeFile = null;
 		tree.clear();

@@ -34,8 +34,23 @@ public final class Plainsight implements ClientModInitializer {
 		overlaysInGame = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.plainsight.overlays_in_game", InputConstants.KEY_J, CATEGORY));
 		ClientTickEvents.END_CLIENT_TICK.register(mc -> {
 			while (overlaysInGame.consumeClick()) Editor.get().toggleOverlaysInGame();
+			guessedTerrainTick();
 		});
+		net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback.EVENT.register(
+				(dispatcher, context) -> dev.plainsight.guess.GuessCommands.register(dispatcher));
+		net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents.CLIENT_STOPPING.register(
+				client -> dev.plainsight.guess.GuessWorld.shutdown());
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> Editor.get().onDisconnect()));
 		LOG.info("Plainsight loaded");
+	}
+
+	/** Guessed terrain follows the world, the seed and the editor camera; Voxy shows it only in the editor. */
+	private static void guessedTerrainTick() {
+		dev.plainsight.guess.GuessWorld.reconcile();
+		var world = dev.plainsight.guess.GuessWorld.current();
+		Editor editor = Editor.get();
+		boolean show = Editor.isActive() && editor.guessedTerrain.active();
+		if (show) world.tick(editor.camera.pos.x, editor.camera.pos.z);
+		dev.plainsight.guess.VoxyGuess.show(show);
 	}
 }

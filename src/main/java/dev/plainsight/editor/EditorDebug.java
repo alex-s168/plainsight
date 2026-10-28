@@ -69,6 +69,16 @@ public final class EditorDebug {
 		o.addProperty("cameraToPlayer", Editor.cameraToPlayer);
 		o.addProperty("disableCaveCulling", Editor.disableCaveCulling);
 		o.addProperty("cameraOutsideLoaded", Editor.cameraOutsideLoaded);
+		var guess = dev.plainsight.guess.GuessWorld.current();
+		var seed = dev.plainsight.guess.SeedStore.seed();
+		o.addProperty("seed", seed.isPresent() ? Long.toString(seed.getAsLong()) : "");
+		o.addProperty("guessState", guess == null ? "" : guess.state().name() + (guess.error() != null ? ": " + guess.error() : ""));
+		o.addProperty("guessed", guess == null ? 0 : guess.guessedCount());
+		o.addProperty("guessReal", guess == null ? 0 : guess.realCount());
+		o.addProperty("guessPending", guess == null ? 0 : guess.pending());
+		o.addProperty("guessFailed", guess == null ? 0 : guess.failed);
+		o.addProperty("guessShowing", dev.plainsight.guess.VoxyGuess.showing());
+		o.addProperty("guessTintDrawn", dev.plainsight.render.GuessTint.drawn);
 		try {
 			Object r = Class.forName("net.caffeinemc.mods.sodium.client.render.SodiumWorldRenderer").getMethod("instanceNullable").invoke(null);
 			if (r != null) o.addProperty("sodiumChunks", String.valueOf(r.getClass().getMethod("getChunksDebugString").invoke(r)));

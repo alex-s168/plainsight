@@ -309,6 +309,11 @@ public final class EditorUI {
 					if (i > 0) ImGui.sameLine(0, 6);
 					labeledToggle("view_" + m.id(), labels[i], m);
 				}
+				// only once a seed is known (and Voxy can show it)
+				if (dev.plainsight.guess.GuessWorld.current() != null) {
+					ImGui.sameLine(0, 6);
+					labeledToggle("view_" + editor.guessedTerrain.id(), "Guessed terrain", editor.guessedTerrain);
+				}
 				if (editor.followed() != null) {
 					ImGui.sameLine(0, 14);
 					if (ImGui.button("Following " + editor.followName() + "  x", 0, 30)) editor.follow(null);

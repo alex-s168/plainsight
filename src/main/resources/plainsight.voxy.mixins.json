@@ -4,6 +4,7 @@
 	"plugin": "dev.plainsight.SodiumMixinPlugin",
 	"compatibilityLevel": "JAVA_25",
 	"client": [
+		"IngestMirrorMixin",
 		"RenderPipelineMixin"
 	],
 	"injectors": { "defaultRequire": 1 }

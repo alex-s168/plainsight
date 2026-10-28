@@ -1118,6 +1118,49 @@ def test_far_camera_draws_loaded_chunks():
     time.sleep(0.5)
 
 
+def wait_for(pred, timeout, step=0.5):
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        s = state()
+        if pred(s):
+            return s
+        time.sleep(step)
+    return state()
+
+
+def test_guessed_terrain():
+    """With a seed (here given by command) and Voxy, the editor shows terrain generated from the seed far
+    from the player, tinted; Voxy shows the normal LOD again outside the editor."""
+    if not state()["lodMod"] or not state()["sodium"]:
+        print("      (needs Voxy, skipped)")
+        return
+    editor_off()
+    c.command("plainsight seed 12345")
+    s = wait_for(lambda s: s["guessState"] not in ("", "STARTING"), 60)
+    check(s["seed"] == "12345" and s["guessState"] == "READY", "the worldgen server starts for the seed: %s" % s["guessState"])
+    editor_on()
+    check("view_guessed_terrain" in state()["widgets"], "a seed adds the Guessed terrain view button")
+    px, py, pz = state()["player"]
+    ed("setCamera", px + 3000, 220, pz + 3000, 135, 35)
+    before = state()["guessed"]
+    s = wait_for(lambda s: s["guessed"] > before + 100 and s["guessShowing"], 60)
+    check(s["guessed"] > before + 100, "chunks are generated around the camera (%d -> %d)" % (before, s["guessed"]))
+    check(s["guessShowing"], "Voxy shows the guessed LOD world in the editor")
+    tint = s["guessTintDrawn"]
+    time.sleep(1)
+    check(state()["guessTintDrawn"] > tint, "guessed chunks are tinted")
+    shot("guessed-terrain")
+    ed("setModule", "guessed_terrain", "false")
+    check(not wait_for(lambda s: not s["guessShowing"], 3)["guessShowing"], "switching it off shows the normal LOD")
+    ed("setModule", "guessed_terrain", "true")
+    check(wait_for(lambda s: s["guessShowing"], 3)["guessShowing"], "and on again")
+    editor_off()
+    check(not wait_for(lambda s: not s["guessShowing"], 3)["guessShowing"], "outside the editor Voxy shows the normal LOD")
+    c.command("plainsight seed clear")
+    s = wait_for(lambda s: s["guessState"] == "", 5)
+    check(s["seed"] == "" and s["guessState"] == "", "clearing the seed stops guessing")
+
+
 def test_selection_persists():
     editor_on()
     if not state()["tree"]:

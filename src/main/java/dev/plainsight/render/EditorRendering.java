@@ -25,6 +25,9 @@ public final class EditorRendering {
 		double t = System.nanoTime() / 1e9;
 		if (show) for (PathOverlay p : PathOverlay.visible()) p.draw(editor.overlay, t);
 		OVERLAY.render(editor.overlay, renderer.gameRenderState().levelRenderState.cameraRenderState);
+		var guess = dev.plainsight.guess.GuessWorld.current();
+		if (Editor.isActive() && guess != null && editor.guessedTerrain.active() && dev.plainsight.guess.VoxyGuess.showing())
+			GuessTint.render(renderer.gameRenderState().levelRenderState.cameraRenderState, guess);
 	}
 
 	public static void ui(GameRenderer renderer) {
