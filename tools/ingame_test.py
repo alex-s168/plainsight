@@ -1205,10 +1205,14 @@ def test_guess_prefers_real_lod():
     c.command("plainsight seed %d" % random.randrange(1, 1 << 40))
     s = wait_for(lambda s: s["guessState"] not in ("", "STARTING"), 60)
     check(s["guessState"] == "READY", "worldgen server ready: %s" % s["guessState"])
+    # all of Voxy's LOD is copied in the background, without the camera going there
+    s = wait_for(lambda s: s["guessImportTotal"] > 0 and s["guessImported"] >= s["guessImportTotal"], 90, 1)
+    check(s["guessImportTotal"] > 0 and s["guessImported"] >= s["guessImportTotal"],
+          "the whole LOD is copied: %d / %d" % (s["guessImported"], s["guessImportTotal"]))
+    check(ed("guessChunkIsReal", far >> 4, far >> 4) == "true", "including the far area, before the camera is there")
     editor_on()
     ed("setCamera", far + 0.5, 40, far + 0.5, 0, 89)
-    s = wait_for(lambda s: s["guessCopied"] > 20 and s["guessShowing"], 40)
-    check(s["guessCopied"] > 20, "real LOD is copied around the camera: %d" % s["guessCopied"])
+    s = wait_for(lambda s: s["guessShowing"], 40)
     vp = s["viewport"]
     c.move(vp[0] + vp[2] / 2, vp[1] + vp[3] / 2)
     time.sleep(3)

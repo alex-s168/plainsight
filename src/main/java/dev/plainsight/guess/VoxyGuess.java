@@ -48,6 +48,20 @@ public final class VoxyGuess {
 		}
 	}
 
+	public static String describeReal(int cx, int cz) {
+		return PRESENT ? VoxyGuessImpl.describeReal(cx, cz) : "no voxy";
+	}
+
+	/** Lists the 32-block LOD columns the normal LOD world has data in (packed like a ChunkPos). */
+	static void realColumns(java.util.function.LongConsumer out) {
+		if (!PRESENT) return;
+		try {
+			VoxyGuessImpl.realColumns(out);
+		} catch (RuntimeException | LinkageError e) {
+			Plainsight.LOG.warn("Could not list Voxy's LOD", e);
+		}
+	}
+
 	/** Gives a generated chunk to the guessed LOD world (server thread); false if that is not possible. */
 	static boolean ingestGuessed(LevelChunk chunk, long realSections) {
 		return PRESENT && VoxyGuessImpl.ingestGuessed(chunk, realSections);

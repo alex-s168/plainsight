@@ -78,6 +78,8 @@ public final class EditorDebug {
 		o.addProperty("guessPending", guess == null ? 0 : guess.pending());
 		o.addProperty("guessFailed", guess == null ? 0 : guess.failed);
 		o.addProperty("guessCopied", guess == null ? 0 : guess.copiedThisSession);
+		o.addProperty("guessImported", guess == null ? 0 : guess.imported);
+		o.addProperty("guessImportTotal", guess == null ? 0 : guess.importTotal);
 		o.addProperty("guessShowing", dev.plainsight.guess.VoxyGuess.showing());
 		o.addProperty("guessTintDrawn", dev.plainsight.render.GuessTint.drawn);
 		var surface = dev.plainsight.render.DepthPick.at(Editor.get().mouseX, Editor.get().mouseY);
@@ -235,6 +237,11 @@ public final class EditorDebug {
 	public static String leaveWorld() {
 		net.minecraft.client.Minecraft.getInstance().disconnectFromWorld(net.minecraft.client.multiplayer.ClientLevel.DEFAULT_QUIT_MESSAGE);
 		return "ok";
+	}
+
+	public static String guessChunkIsReal(int cx, int cz) {
+		var g = dev.plainsight.guess.GuessWorld.current();
+		return g == null ? "none" : String.valueOf(g.isReal(cx, cz));
 	}
 
 	public static String guessTintOpacity(float opacity) {

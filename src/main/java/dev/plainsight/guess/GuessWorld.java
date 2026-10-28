@@ -52,8 +52,12 @@ public final class GuessWorld {
 	private volatile GuessServer server;
 	/** Chunks that show guessed terrain, and chunks the client has really seen (which never show guesses). */
 	private final LongOpenHashSet guessed = new LongOpenHashSet(), real = new LongOpenHashSet(), inFlight = new LongOpenHashSet();
-	/** 2x2-chunk LOD columns already looked up in the normal LOD world this session. */
-	private final LongOpenHashSet lodChecked = new LongOpenHashSet();
+	/**
+	 * 2x2-chunk LOD columns already looked up in the normal LOD world, with which of their 32-block
+	 * sections real data was copied for (generation leaves those alone). Kept between sessions.
+	 */
+	private final it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap columns = new it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap();
+	public volatile int importTotal, imported;
 	/** Copies real LOD in the background (one column at a time; reads Voxy storage). */
 	private final java.util.concurrent.ExecutorService lodCopier = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
 		Thread t = new Thread(r, "Plainsight LOD copy");
@@ -74,9 +78,11 @@ public final class GuessWorld {
 		this.seed = seed;
 		Path root = Minecraft.getInstance().gameDirectory.toPath().resolve("plainsight/guess");
 		this.stateDir = root.resolve("state").resolve(sanitize(worldKey)).resolve(sanitize(dimension.identifier().toString()) + "-" + Long.toHexString(seed));
-		// v2: real chunks are only those with real data copied or mirrored as a whole (no partial ones)
-		load(guessed, stateDir.resolve("guessed-v2.bin"));
-		load(real, stateDir.resolve("real-v2.bin"));
+		// v3: real chunks are only those with real blocks copied or mirrored as a whole; columns know which
+		// of their sections are real
+		load(guessed, stateDir.resolve("guessed-v3.bin"));
+		load(real, stateDir.resolve("real-v3.bin"));
+		loadMap(columns, stateDir.resolve("columns-v3.bin"));
 		this.worldDir = root.resolve("worlds").resolve(Long.toHexString(seed));
 		Thread starter = new Thread(() -> {
 			try {
@@ -98,6 +104,8 @@ public final class GuessWorld {
 					return;
 				}
 				Plainsight.LOG.info("Worldgen server for seed {} ready", SeedHider.show(seed));
+				var player = Minecraft.getInstance().player;
+				importAll(player != null ? player.getX() : 0, player != null ? player.getZ() : 0);
 			} catch (Exception | LinkageError e) {
 				error = e.toString();
 				state = State.FAILED;
@@ -166,6 +174,10 @@ public final class GuessWorld {
 		return guessed.contains(k) && !real.contains(k);
 	}
 
+	public synchronized boolean isReal(int cx, int cz) {
+		return real.contains(ChunkPos.pack(cx, cz));
+	}
+
 	/** A real chunk reached the LOD world: it never shows guesses again. Any thread. */
 	synchronized void markReal(int cx, int cz) {
 		if (real.add(ChunkPos.pack(cx, cz))) version++;
@@ -192,7 +204,7 @@ public final class GuessWorld {
 						long k = ChunkPos.pack(cx, cz);
 						long column = ChunkPos.pack(cx >> 1, cz >> 1);
 						// done: generated (filled in around any real LOD), with the normal LOD world looked at for it
-						if (guessed.contains(k) && lodChecked.contains(column)) continue;
+						if (guessed.contains(k) && columns.containsKey(column)) continue;
 						if (!inFlight.contains(k)) request(cx, cz, k);
 						ringDone = false;
 					}
@@ -218,16 +230,18 @@ public final class GuessWorld {
 			if (inFlight.contains(keys[i])) return;
 		}
 		for (long k : keys) inFlight.add(k);
-		boolean check = lodChecked.add(column);
+		boolean check = !columns.containsKey(column);
+		long known = columns.get(column);
+		if (check) columns.put(column, 0L);
 		lodCopier.execute(() -> {
-			long realSections = check ? VoxyGuess.copyReal(cx, cz) : 0;
+			long realSections = check ? copyColumn(cx >> 1, cz >> 1) : known;
 			for (int i = 0; i < 4; i++) {
 				long k = keys[i];
 				boolean skip;
 				synchronized (this) {
 					// generated before: nothing to fill in (real data copied now replaces what it covers)
 					skip = guessed.contains(k);
-					if (realSections != 0 && real.add(k)) {
+					if (check && realSections != 0 && real.add(k)) {
 						version++;
 						copiedThisSession++;
 					}
@@ -241,6 +255,60 @@ public final class GuessWorld {
 				}
 			}
 		});
+	}
+
+	/** Copies one column's real LOD (if any) and remembers which sections it covered. Worker threads. */
+	private long copyColumn(int colX, int colZ) {
+		long mask = VoxyGuess.copyReal(colX << 1, colZ << 1);
+		synchronized (this) {
+			columns.put(ChunkPos.pack(colX, colZ), mask);
+		}
+		return mask;
+	}
+
+	/**
+	 * Copies all of the normal LOD world (all LOD Voxy ever gathered here) into the guessed one in the
+	 * background, nearest to (x, z) first; columns done in earlier sessions are skipped.
+	 */
+	private void importAll(double x, double z) {
+		Thread t = new Thread(() -> {
+			LongOpenHashSet found = new LongOpenHashSet();
+			VoxyGuess.realColumns(found::add);
+			long[] todo;
+			synchronized (this) {
+				todo = found.longStream().filter(c -> !columns.containsKey(c)).toArray();
+			}
+			int ox = (int) Math.floor(x) >> 5, oz = (int) Math.floor(z) >> 5;
+			todo = java.util.Arrays.stream(todo).boxed()
+					.sorted(java.util.Comparator.comparingLong(c -> {
+						long dx = ChunkPos.getX(c) - ox, dz = ChunkPos.getZ(c) - oz;
+						return dx * dx + dz * dz;
+					})).mapToLong(Long::longValue).toArray();
+			importTotal = todo.length;
+			for (long c : todo) {
+				if (closed) return;
+				synchronized (this) {
+					if (columns.containsKey(c)) {
+						imported++;
+						continue;
+					}
+				}
+				int colX = ChunkPos.getX(c), colZ = ChunkPos.getZ(c);
+				long mask = copyColumn(colX, colZ);
+				if (mask != 0) {
+					synchronized (this) {
+						for (int i = 0; i < 4; i++) if (real.add(ChunkPos.pack(colX * 2 + (i & 1), colZ * 2 + (i >> 1)))) version++;
+						copiedThisSession++;
+					}
+				}
+				imported++;
+			}
+			Plainsight.LOG.info("Copied {} LOD columns into the guessed world", imported);
+			save();
+		}, "Plainsight LOD import");
+		t.setDaemon(true);
+		t.setPriority(Thread.MIN_PRIORITY);
+		t.start();
 	}
 
 	private void generate(int cx, int cz, long key, long realSections) {
@@ -316,8 +384,9 @@ public final class GuessWorld {
 		lastSave = System.currentTimeMillis();
 		try {
 			Files.createDirectories(stateDir);
-			write(guessed, stateDir.resolve("guessed-v2.bin"));
-			write(real, stateDir.resolve("real-v2.bin"));
+			write(guessed, stateDir.resolve("guessed-v3.bin"));
+			write(real, stateDir.resolve("real-v3.bin"));
+			writeMap(columns, stateDir.resolve("columns-v3.bin"));
 		} catch (IOException e) {
 			Plainsight.LOG.warn("Could not save guessed-terrain state to {}", stateDir, e);
 		}
@@ -330,6 +399,28 @@ public final class GuessWorld {
 			for (LongIterator it = set.iterator(); it.hasNext(); ) out.writeLong(it.nextLong());
 		}
 		Files.move(tmp, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+	}
+
+	private static void writeMap(it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap map, Path file) throws IOException {
+		Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
+		try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(tmp)))) {
+			out.writeInt(map.size());
+			for (var e : map.long2LongEntrySet()) {
+				out.writeLong(e.getLongKey());
+				out.writeLong(e.getLongValue());
+			}
+		}
+		Files.move(tmp, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+	}
+
+	private static void loadMap(it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap map, Path file) {
+		if (!Files.exists(file)) return;
+		try (DataInputStream in = new DataInputStream(new BufferedInputStream(Files.newInputStream(file)))) {
+			int n = in.readInt();
+			for (int i = 0; i < n; i++) map.put(in.readLong(), in.readLong());
+		} catch (IOException e) {
+			Plainsight.LOG.warn("Could not read {}", file, e);
+		}
 	}
 
 	private static void load(LongOpenHashSet set, Path file) {
