@@ -952,6 +952,10 @@ def test_brightness_toggles():
     c.click(*widget("module_editor_brightness"), b=1)
     time.sleep(0.6)
     check(state()["modules"]["editor_brightness"], "toolbar button enables editor brightness")
+    dim = wall()
+    check(sum(dim) > sum(dark) + 9, "the default level (0.2) brightens a little: %s -> %s" % (dark, dim))
+    ed("brightnessLevel", 1.0, 1.0)
+    time.sleep(0.6)
     bright = wall()
     print("      cave wall normal / fullbright:", dark, bright)
     check(sum(bright) > sum(dark) + 90, "fullbright lights the cave")
@@ -968,6 +972,9 @@ def test_brightness_toggles():
     shot("brightness-settings")
     c.key(K["ESC"])
     time.sleep(0.2)
+    # back to the defaults: editor brightness on at 0.2
+    ed("brightnessLevel", 0.2, 1.0)
+    ed("setModule", "editor_brightness", "true")
 
 
 def test_light_overlay():

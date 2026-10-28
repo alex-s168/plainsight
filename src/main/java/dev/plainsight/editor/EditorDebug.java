@@ -246,6 +246,22 @@ public final class EditorDebug {
 		return "ok";
 	}
 
+	public static String renderDistance(int chunks) {
+		Minecraft.getInstance().options.renderDistance().set(chunks);
+		return "ok";
+	}
+
+	public static String clouds(String on) {
+		Minecraft.getInstance().options.cloudStatus().set(Boolean.parseBoolean(on) ? net.minecraft.client.CloudStatus.FANCY : net.minecraft.client.CloudStatus.OFF);
+		return "ok";
+	}
+
+	public static String brightnessLevel(float editorLevel, float ingameLevel) {
+		Editor.get().editorBrightness.level = editorLevel;
+		Editor.get().ingameBrightness.level = ingameLevel;
+		return "ok";
+	}
+
 	public static String unfollow() {
 		Editor.get().follow(null);
 		return "ok";

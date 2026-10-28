@@ -7,6 +7,18 @@ repositories {
 		forRepository { maven { name = 'Modrinth'; url = 'https://api.modrinth.com/maven' } }
 		filter { includeGroup 'maven.modrinth' }
 	}
+	// SeedcrackerX is only released on GitHub: 19MisterX98:SeedcrackerX:<tag>:<version>
+	exclusiveContent {
+		forRepository {
+			ivy {
+				name = 'GitHub releases'
+				url = 'https://github.com/'
+				patternLayout { artifact '[organisation]/[module]/releases/download/[revision]/seedcrackerX-[classifier].[ext]' }
+				metadataSources { artifact() }
+			}
+		}
+		filter { includeGroup '19MisterX98' }
+	}
 	mavenCentral()
 }
 
@@ -63,6 +75,8 @@ loom {
 configurations {
 	// mods loaded from run-axiom/mods like a normal installation
 	axiomMods { transitive = false }
+	// other mods for the visible dev client (run/mods), installed like a normal installation
+	devMods { transitive = false }
 }
 
 dependencies {
@@ -78,6 +92,12 @@ dependencies {
 	}
 
 	axiomMods "maven.modrinth:axiom:${project.axiom_version}"
+
+	// visible dev client extras: distant terrain (Voxy needs this exact Sodium) and seed cracking
+	devMods "maven.modrinth:voxy:${project.voxy_version}"
+	devMods "maven.modrinth:sodium:${project.sodium_version}"
+	devMods "maven.modrinth:cloth-config:${project.cloth_config_version}"
+	devMods "19MisterX98:SeedcrackerX:${project.seedcracker_tag}:${project.seedcracker_version}@jar"
 
 	testImplementation platform("org.junit:junit-bom:${project.junit_version}")
 	testImplementation "org.junit.jupiter:junit-jupiter"
@@ -112,6 +132,15 @@ java {
 	sourceCompatibility = JavaVersion.VERSION_25
 	targetCompatibility = JavaVersion.VERSION_25
 }
+
+// the visible client (runClient) gets the dev mods; the hidden test client stays plain so its tests
+// exercise vanilla rendering
+tasks.register('installDevMods', Sync) {
+	from configurations.devMods
+	into file('run/mods')
+	preserve { exclude '*.jar' }
+}
+tasks.matching { it.name == 'runClient' }.configureEach { dependsOn 'installDevMods' }
 
 tasks.register('installAxiom', Copy) {
 	from configurations.axiomMods

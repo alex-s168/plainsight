@@ -141,12 +141,14 @@ class Client:
         return self.call("/imgui/click", x=x, y=y, button=b)
 
     # -- lifecycle -------------------------------------------------------------------------------------
-    def start(self, timeout=400):
+    def start(self, timeout=400, gl=False):
         os.makedirs(os.path.join(ROOT, "build"), exist_ok=True)
         log = open(os.path.join(ROOT, "build", "hidden-launch-%s.log" % self.target), "w")
         env = dict(os.environ)
         if self.target == "axiom":
             env["TASK"] = "runAxiomClient"
+        if gl:
+            env["GL"] = "1"
         subprocess.Popen([os.path.join(ROOT, "tools", "hidden-client.sh")], cwd=ROOT, stdout=log,
                          stderr=subprocess.STDOUT, start_new_session=True, env=env)
         return self.wait(timeout)
@@ -219,7 +221,7 @@ def main(argv):
         "uikey": lambda: c.call("/imgui/key", k=r[0]),
         "uiscroll": lambda: c.call("/imgui/scroll", x=r[0], y=r[1], dy=f(2, -1)),
         "hotswap": hotswap,
-        "start": lambda: c.start(),
+        "start": lambda: c.start(gl=f(0) == "gl"),
         "stop": lambda: c.stop(),
         "wait": lambda: c.wait(),
     }.get(op)

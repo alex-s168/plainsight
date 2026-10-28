@@ -5,6 +5,8 @@
 #   tools/hidden-client.sh                         plainsight test client in run-hidden/ (bridge port 25612)
 #   TASK=runAxiomClient tools/hidden-client.sh     vanilla + Axiom in run-axiom/ (bridge port 25611)
 #   GPU=/dev/dri/renderD128 tools/hidden-client.sh  use another GPU (default: integrated GPU)
+#   GL=1 tools/hidden-client.sh                    OpenGL instead of Vulkan (SDL's Wayland driver; the
+#                                                  XWayland fallback has no working OpenGL here), e.g. for Voxy
 set -eu
 cd "$(dirname "$0")/.."
 [ -n "${IN_NIX_SHELL:-}" ] || exec ./dev "$0" "$@"
@@ -30,6 +32,7 @@ for kv in narrator:0 onboardAccessibility:false pauseOnLostFocus:false soundCate
 	mv "$OPTS.tmp" "$OPTS"
 done
 export ALSOFT_DRIVERS=null
+[ -n "${GL:-}" ] && export SDL_VIDEO_DRIVER=wayland
 export PLAINSIGHT_BRIDGE_PORT=$PORT
 
 cat > "$STATE/sway.conf" <<CONF

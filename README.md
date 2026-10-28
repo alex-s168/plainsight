@@ -100,7 +100,8 @@ enhanced hot-swap, headless sway, Mesa, ImageMagick).
 
 ```sh
 ./dev ./gradlew build              # mod jar (bundles imgui-java + natives) and unit tests
-./dev ./gradlew runClient          # visible dev client (run/, bridge :25610)
+./dev ./gradlew runClient          # visible dev client (run/, bridge :25610) with Voxy, Sodium, SeedcrackerX
+tools/build.sh [tasks]             # Gradle build that returns as soon as Gradle is done
 tools/mc.py start                  # test client in a hidden headless compositor (run-hidden/, bridge :25612)
 tools/mc.py world                  # create/open a flat test world
 tools/mc.py key 229                # press Right Shift (SDL scancodes, see tools/mc.py)
@@ -110,6 +111,11 @@ tools/mc.py hotswap                # compile and hot-swap changed classes (not m
 tools/ingame_test.py [filter...]   # end-to-end tests in the hidden client (screenshots in build/test-shots)
 tools/mc.py --axiom start          # vanilla + Axiom in run-axiom/ (bridge :25611), plainsight disabled
 ```
+
+The visible dev client gets extra mods in `run/mods` (`installDevMods`, versions in `gradle.properties`):
+Voxy 0.2.20-beta with the Sodium 0.9.2 it requires, and SeedcrackerX 2.16.2 with Cloth Config. The hidden
+test client stays vanilla so the tests exercise vanilla rendering. Voxy only supports OpenGL; the hidden
+client uses Vulkan unless started with `GL=1` (`tools/mc.py start gl`).
 
 The dev bridge (`src/devbridge`, never part of the release jar) offers localhost HTTP control: commands,
 chat log, keyboard/mouse input through Minecraft's own handlers, screenshots, static method calls, and
@@ -122,6 +128,10 @@ tree view (rename, drag & drop, multi-select, group, reorder, delete), persisten
 buttons (pixel checks), lit block overlay (day vs night), path overlay, Escape/chat/pause handling.
 
 ### Notes
+
+* With Sodium installed, the see-through and transparent-fluid options have no effect (Sodium replaces
+  the vanilla chunk mesher they hook into), and when the editor camera is far outside the loaded chunks
+  Sodium's occlusion culling can leave holes in the terrain near the player (Voxy works otherwise).
 
 * MC 26.3 renders through *renderpearl* (OpenGL or Vulkan) and uses SDL for windowing. ImGui is drawn
   through the game's GPU abstraction (`ImGuiRenderer`), so it works on both backends; input comes from
