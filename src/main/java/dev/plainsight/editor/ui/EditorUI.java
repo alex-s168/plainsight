@@ -202,6 +202,45 @@ public final class EditorUI {
 		return clicked;
 	}
 
+	/** A small, clickable hint when no level-of-detail mod is installed (Voxy or Distant Horizons). */
+	private void lodWarning() {
+		if (!dev.plainsight.LodSupport.showWarning()) return;
+		ImGui.sameLine(0, 14);
+		ImGui.pushStyleColor(ImGuiCol.Button, 0xFF1F4A6B);
+		ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0xFF2A6390);
+		ImGui.pushStyleColor(ImGuiCol.Text, 0xFF66D9FF);
+		boolean open = ImGui.button("! No LOD mod", 0, 30);
+		ImGui.popStyleColor(3);
+		rect("view_lod_warning");
+		if (ImGui.isItemHovered()) tooltip("No LOD mod installed", "The camera only sees the chunks around the player. Click for details.");
+		if (open) ImGui.openPopup("##lod_warning");
+		if (ImGui.beginPopup("##lod_warning")) {
+			try {
+				ImGui.text("No level-of-detail mod found");
+				ImGui.separator();
+				ImGui.pushTextWrapPos(ImGui.getCursorPosX() + 340);
+				ImGui.textWrapped("Minecraft only has the chunks around your player, so the editor camera shows nothing beyond "
+						+ "your render distance when you fly away from it. That is a limit of the game, not something the editor "
+						+ "can work around.");
+				ImGui.spacing();
+				ImGui.textWrapped("A level-of-detail mod draws the far terrain: install Voxy (needs Sodium) or Distant Horizons.");
+				ImGui.popTextWrapPos();
+				ImGui.spacing();
+				if (ImGui.smallButton("Voxy on Modrinth")) com.mojang.blaze3d.Blaze3D.openUri(java.net.URI.create("https://modrinth.com/mod/voxy"));
+				ImGui.sameLine();
+				if (ImGui.smallButton("Distant Horizons on Modrinth")) com.mojang.blaze3d.Blaze3D.openUri(java.net.URI.create("https://modrinth.com/mod/distanthorizons"));
+				ImGui.spacing();
+				if (ImGui.smallButton("Don't show again")) {
+					dev.plainsight.LodSupport.dismiss();
+					ImGui.closeCurrentPopup();
+				}
+				rect("lod_dismiss");
+			} finally {
+				ImGui.endPopup();
+			}
+		}
+	}
+
 	/** Viewport toggle: icon plus a label, highlighted while on; right-click opens its settings. */
 	private void labeledToggle(String id, String label, Module m) {
 		float h = 30, w = h + ImGui.calcTextSizeX(label) + 12;
@@ -281,6 +320,7 @@ public final class EditorUI {
 					if (ImGui.button("Done (Enter)", 0, 30)) editor.boxTool.stopEditing();
 					rect("view_done");
 				}
+				lodWarning();
 				modulePopup();
 			});
 		} finally {
