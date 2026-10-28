@@ -69,7 +69,15 @@ public final class VoxyGuess {
 
 	/** Shows the guessed LOD world (editor) or the normal one; call every frame from the render thread. */
 	public static void show(boolean guessed) {
-		if (PRESENT) VoxyGuessImpl.show(guessed);
+		if (!PRESENT) return;
+		VoxyGuessImpl.show(guessed);
+		GuessWorld w = GuessWorld.current();
+		if (w == null) return;
+		w.showing = VoxyGuessImpl.showing();
+		if (w.reloadView && w.showing) {
+			w.reloadView = false;
+			VoxyGuessImpl.reload();
+		}
 	}
 
 	/** The block Voxy's rendered LOD world has at (x, y, z), or null when it has none (or no Voxy). Render thread. */

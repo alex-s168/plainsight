@@ -58,6 +58,10 @@ public final class GuessWorld {
 	 */
 	private final it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap columns = new it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap();
 	public volatile int importTotal, imported;
+	/** Whether Voxy renders this world now (set from the render thread). */
+	volatile boolean showing;
+	/** Set when Voxy should rebuild its view of this world from storage (render thread does it). */
+	public volatile boolean reloadView;
 	/** Copies real LOD in the background (one column at a time; reads Voxy storage). */
 	private final java.util.concurrent.ExecutorService lodCopier = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
 		Thread t = new Thread(r, "Plainsight LOD copy");
@@ -293,6 +297,15 @@ public final class GuessWorld {
 						continue;
 					}
 				}
+				// while Voxy renders the guessed world it must keep up with every change (it drops updates
+				// it gets too fast, leaving holes): slowly then, at full speed while it shows the normal one
+				if (showing) {
+					try {
+						Thread.sleep(25);
+					} catch (InterruptedException e) {
+						return;
+					}
+				}
 				int colX = ChunkPos.getX(c), colZ = ChunkPos.getZ(c);
 				long mask = copyColumn(colX, colZ);
 				if (mask != 0) {
@@ -305,6 +318,8 @@ public final class GuessWorld {
 			}
 			Plainsight.LOG.info("Copied {} LOD columns into the guessed world", imported);
 			save();
+			// whatever Voxy missed meanwhile: it re-reads the world once
+			if (todo.length > 0) reloadView = true;
 		}, "Plainsight LOD import");
 		t.setDaemon(true);
 		t.setPriority(Thread.MIN_PRIORITY);

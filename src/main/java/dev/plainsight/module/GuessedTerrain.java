@@ -68,7 +68,10 @@ public final class GuessedTerrain implements Module {
 			case READY -> {
 				ImGui.textDisabled(w.guessedCount() + " chunks generated, " + w.realCount() + " real, " + w.pending() + " pending");
 				if (w.importTotal > 0 && w.imported < w.importTotal)
-					ImGui.textDisabled("Copying your Voxy LOD: " + w.imported + " / " + w.importTotal + " columns");
+					ImGui.textDisabled("Copying your Voxy LOD: " + w.imported + " / " + w.importTotal + " columns"
+							+ (dev.plainsight.guess.VoxyGuess.showing() ? " (slowly while shown)" : ""));
+				if (ImGui.button("Reload view")) w.reloadView = true;
+				if (ImGui.isItemHovered()) ImGui.setTooltip("Has Voxy rebuild the guessed terrain from what is stored (fixes leftover holes).");
 			}
 		}
 		opacity[0] = tintOpacity;

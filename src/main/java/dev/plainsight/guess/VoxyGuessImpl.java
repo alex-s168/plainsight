@@ -335,6 +335,19 @@ final class VoxyGuessImpl {
 		}
 	}
 
+	/** Rebuilds Voxy's renderer on the guessed world, so it reads everything from storage again. */
+	static void reload() {
+		Minecraft mc = Minecraft.getInstance();
+		WorldEngine g = guessEngine;
+		if (g == null || !(mc.levelRenderer instanceof IVoxyRenderSystemHolder holder) || renderedWorld() != g) return;
+		try {
+			holder.voxy$shutdownRenderer();
+			createEngineDirect().invoke(mc.levelRenderer, g);
+		} catch (ReflectiveOperationException | RuntimeException e) {
+			Plainsight.LOG.error("Could not reload Voxy's renderer", e);
+		}
+	}
+
 	private static WorldEngine renderedWorld() {
 		Minecraft mc = Minecraft.getInstance();
 		if (!(mc.levelRenderer instanceof IVoxyRenderSystemHolder holder)) return null;
