@@ -64,7 +64,10 @@ public final class GuessedTerrain implements Module {
 		}
 		switch (w.state()) {
 			case STARTING -> ImGui.textDisabled("Starting the world generator...");
-			case FAILED -> ImGui.textColored(0xFF6060FF, "Generator failed: " + w.error());
+			case FAILED -> {
+				ImGui.textColored(0xFF6060FF, "Generator failed: " + w.error());
+				if (ImGui.button("Retry")) GuessWorld.retry();
+			}
 			case READY -> {
 				ImGui.textDisabled(w.guessedCount() + " chunks generated, " + w.realCount() + " real, " + w.pending() + " pending");
 				if (w.importTotal > 0 && w.imported < w.importTotal)

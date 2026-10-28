@@ -92,7 +92,7 @@ public final class GuessWorld {
 			try {
 				Thread previous = STOPPING.get(worldDir);
 				if (previous != null) previous.join(60_000);
-				GuessServer s = GuessServer.start(worldDir, seed);
+				GuessServer s = startWithRetries();
 				long deadline = System.currentTimeMillis() + 120_000;
 				while (!s.isReady() && System.currentTimeMillis() < deadline) Thread.sleep(50);
 				if (!s.isReady()) throw new IllegalStateException("worldgen server did not start");
@@ -118,6 +118,33 @@ public final class GuessWorld {
 		}, "Plainsight worldgen startup");
 		starter.setDaemon(true);
 		starter.start();
+	}
+
+	/**
+	 * Starts the worldgen server, retrying a few times: its data pack load can collide with the game's own
+	 * (when joining a world), and some mods' tag hooks fail when both run at once.
+	 */
+	private GuessServer startWithRetries() throws Exception {
+		Exception last = null;
+		for (int attempt = 0; attempt < 5 && !closed; attempt++) {
+			if (attempt > 0) Thread.sleep(3000L * attempt);
+			try {
+				return GuessServer.start(worldDir, seed);
+			} catch (Exception e) {
+				last = e;
+				Plainsight.LOG.warn("Worldgen server start failed (attempt {}), retrying: {}", attempt + 1, e.toString());
+			}
+		}
+		throw last != null ? last : new IllegalStateException("closed while starting");
+	}
+
+	/** Starts over after a failed start (settings button). Render thread. */
+	public static void retry() {
+		if (current != null && current.state == State.FAILED) {
+			current.close();
+			current = null;
+			currentKey = null;
+		}
 	}
 
 	private static String sanitize(String s) {
