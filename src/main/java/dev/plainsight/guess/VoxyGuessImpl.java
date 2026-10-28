@@ -190,28 +190,16 @@ final class VoxyGuessImpl {
 			int subs = n * 2, firstSub = base * 2 - level.getMinSectionY();
 			for (int q = 0; q < 4; q++) {
 				int ox = q & 1, oz = q >> 1;
-				boolean[] hasData = new boolean[subs];
-				boolean anyBlocks = false;
+				boolean[] present = new boolean[subs], hasBlocks = new boolean[subs], topBlocks = new boolean[subs], bottomBlocks = new boolean[subs];
 				for (int s = 0; s < subs; s++) {
 					long[] data = sections[s >> 1];
 					if (data == null) continue;
-					hasData[s] = partHasData(data, ox, s & 1, oz, true);
-					anyBlocks |= hasData[s] && partHasData(data, ox, s & 1, oz, false);
+					present[s] = true;
+					hasBlocks[s] = partHasBlocks(data, ox, s & 1, oz);
+					topBlocks[s] = hasBlocks[s] && !layerAir(data, ox, (s & 1) * 16 + 15, oz);
+					bottomBlocks[s] = hasBlocks[s] && !layerAir(data, ox, (s & 1) * 16, oz);
 				}
-				// A chunk the player has seen has blocks somewhere (bedrock at least); where Voxy has none,
-				// it never had that chunk, only others of its LOD section (whose rest it keeps as air, lit
-				// or not): all unknown, left to generation. Voxy also keeps real sky as all-zero data, but
-				// leaves it all-zero where it never had lit data: a zero part is unknown where terrain runs
-				// into it, and so is every zero part stacked on top of (or below) an unknown one.
-				boolean[] unknown = new boolean[subs];
-				for (int s = 0; s < subs; s++) {
-					if (sections[s >> 1] == null || (hasData[s] && anyBlocks)) continue;
-					unknown[s] = !anyBlocks || (s > 0 && (unknown[s - 1] || (hasData[s - 1] && !layerAir(sections[(s - 1) >> 1], ox, ((s - 1) & 1) * 16 + 15, oz))));
-				}
-				for (int s = subs - 1; s >= 0; s--) {
-					if (sections[s >> 1] == null || hasData[s]) continue;
-					unknown[s] |= s + 1 < subs && (unknown[s + 1] || (hasData[s + 1] && !layerAir(sections[(s + 1) >> 1], ox, ((s + 1) & 1) * 16, oz)));
-				}
+				boolean[] unknown = LodParts.unknown(present, hasBlocks, topBlocks, bottomBlocks);
 				for (int s = 0; s < subs; s++) {
 					long[] data = sections[s >> 1];
 					if (data == null || unknown[s]) continue;
@@ -239,13 +227,13 @@ final class VoxyGuessImpl {
 		}
 	}
 
-	/** Whether the 16-block part (ox, oy, oz) of a 32-block LOD section has a block (or, with {@code light}, lit air) anywhere. */
-	private static boolean partHasData(long[] data, int ox, int oy, int oz, boolean light) {
+	/** Whether the 16-block part (ox, oy, oz) of a 32-block LOD section has a block anywhere. */
+	private static boolean partHasBlocks(long[] data, int ox, int oy, int oz) {
 		for (int y = 0; y < 16; y++)
 			for (int z = 0; z < 16; z++)
 				for (int x = 0; x < 16; x++) {
 					long v = data[me.cortex.voxy.common.world.WorldSection.getIndex(ox * 16 + x, oy * 16 + y, oz * 16 + z)];
-					if (!me.cortex.voxy.common.world.other.Mapper.isAir(v) || (light && me.cortex.voxy.common.world.other.Mapper.getLightId(v) != 0)) return true;
+					if (!me.cortex.voxy.common.world.other.Mapper.isAir(v)) return true;
 				}
 		return false;
 	}
@@ -276,6 +264,47 @@ final class VoxyGuessImpl {
 			sb.append(sy).append(':').append(blocks).append('/').append(lit).append(' ');
 		}
 		return sb.toString();
+	}
+
+	/**
+	 * Chunks within r of (cx, cz) whose surface (highest block at the chunk centre) in the guessed world is
+	 * more than 4 blocks below the normal LOD world's, as "count x,z:real/guess;..." (debugging).
+	 */
+	static String compareReal(int cx, int cz, int r) {
+		var instance = VoxyCommon.getInstance();
+		var level = Minecraft.getInstance().level;
+		WorldEngine g = guessEngine;
+		if (instance == null || level == null || g == null) return "none";
+		WorldEngine real = instance.getOrCreate(WorldIdentifier.of(level));
+		StringBuilder at = new StringBuilder();
+		int bad = 0, compared = 0;
+		for (int x = cx - r; x <= cx + r; x++)
+			for (int z = cz - r; z <= cz + r; z++) {
+				int rt = topBlock(real, level, x * 16 + 8, z * 16 + 8);
+				if (rt == Integer.MIN_VALUE) continue;
+				compared++;
+				int gt = topBlock(g, level, x * 16 + 8, z * 16 + 8);
+				if (gt < rt - 4) {
+					bad++;
+					if (bad <= 20) at.append(at.isEmpty() ? "" : ";").append(x).append(',').append(z).append(':').append(rt).append('/').append(gt == Integer.MIN_VALUE ? "-" : gt);
+				}
+			}
+		return bad + " of " + compared + " " + at;
+	}
+
+	private static int topBlock(WorldEngine engine, net.minecraft.world.level.Level level, int x, int z) {
+		for (int sy = (level.getMaxY() - 1) >> 5; sy >= level.getMinY() >> 5; sy--) {
+			var section = engine.acquireIfExists(0, x >> 5, sy, z >> 5);
+			if (section == null) continue;
+			try {
+				long[] d = section._unsafeGetRawDataArray();
+				for (int y = 31; y >= 0; y--)
+					if (!me.cortex.voxy.common.world.other.Mapper.isAir(d[me.cortex.voxy.common.world.WorldSection.getIndex(x & 31, y, z & 31)])) return sy * 32 + y;
+			} finally {
+				section.release();
+			}
+		}
+		return Integer.MIN_VALUE;
 	}
 
 	/** Every 32-block LOD column (packed like a ChunkPos) the normal LOD world has data in. Worker thread. */

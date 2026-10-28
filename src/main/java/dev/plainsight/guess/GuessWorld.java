@@ -81,12 +81,13 @@ public final class GuessWorld {
 		this.seed = seed;
 		Path root = Minecraft.getInstance().gameDirectory.toPath().resolve("plainsight/guess");
 		this.stateDir = root.resolve("state").resolve(sanitize(worldKey)).resolve(sanitize(dimension.identifier().toString()) + "-" + Long.toHexString(seed));
-		// v4: which sections are real is known per chunk and 16-block section (v3 had it per 32-block LOD
-		// section, which left holes where only part of one was real)
-		load(guessed, stateDir.resolve("guessed-v4.bin"));
-		load(real, stateDir.resolve("real-v4.bin"));
-		load(columns, stateDir.resolve("columns-v4.bin"));
-		loadMap(realSections, stateDir.resolve("sections-v4.bin"));
+		// v5: which sections are real is known per chunk and 16-block section (v3 had it per 32-block LOD
+		// section, which left holes where only part of one was real; v4 copied air Voxy had no data for on
+		// top of terrain)
+		load(guessed, stateDir.resolve("guessed-v5.bin"));
+		load(real, stateDir.resolve("real-v5.bin"));
+		load(columns, stateDir.resolve("columns-v5.bin"));
+		loadMap(realSections, stateDir.resolve("sections-v5.bin"));
 		this.worldDir = root.resolve("worlds").resolve(Long.toHexString(seed));
 		Thread starter = new Thread(() -> {
 			try {
@@ -434,10 +435,10 @@ public final class GuessWorld {
 		lastSave = System.currentTimeMillis();
 		try {
 			Files.createDirectories(stateDir);
-			write(guessed, stateDir.resolve("guessed-v4.bin"));
-			write(real, stateDir.resolve("real-v4.bin"));
-			write(columns, stateDir.resolve("columns-v4.bin"));
-			writeMap(realSections, stateDir.resolve("sections-v4.bin"));
+			write(guessed, stateDir.resolve("guessed-v5.bin"));
+			write(real, stateDir.resolve("real-v5.bin"));
+			write(columns, stateDir.resolve("columns-v5.bin"));
+			writeMap(realSections, stateDir.resolve("sections-v5.bin"));
 		} catch (IOException e) {
 			Plainsight.LOG.warn("Could not save guessed-terrain state to {}", stateDir, e);
 		}

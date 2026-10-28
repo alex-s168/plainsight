@@ -67,8 +67,8 @@ what the tool is doing and closes ImGui popups.
   gathered in that world is also copied in the background (nearest first, once), so the editor shows
   it everywhere, at any distance. This works per chunk and 16-block section: sections Voxy has real data
   for keep it, the rest of a chunk is filled in from generation (chunks without any block in Voxy's LOD
-  were never seen, only their LOD section's neighbours; all-air sections Voxy stored without data count
-  as unknown where terrain runs into them).
+  were never seen, only their LOD section's neighbours; sections without blocks count as unknown where
+  terrain runs into them, since Voxy keeps sections it never got data for as air).
   In the editor Voxy also draws LOD right up to the camera (it normally starts 8 to 16 blocks away and
   drops sections the camera is in; its culling shaders are patched for that), and Ctrl / Ctrl+Shift arcball
   pivots know the solid blocks of LOD and guessed terrain from Voxy's data.

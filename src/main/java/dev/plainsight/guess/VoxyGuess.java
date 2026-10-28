@@ -52,6 +52,11 @@ public final class VoxyGuess {
 		return PRESENT ? VoxyGuessImpl.describeReal(cx, cz) : "no voxy";
 	}
 
+	/** Chunks around (cx, cz) whose surface the guessed world lacks compared with the normal LOD world (debugging). */
+	public static String compareReal(int cx, int cz, int r) {
+		return PRESENT ? VoxyGuessImpl.compareReal(cx, cz, r) : "no voxy";
+	}
+
 	/** Lists the 32-block LOD columns the normal LOD world has data in (packed like a ChunkPos). */
 	static void realColumns(java.util.function.LongConsumer out) {
 		if (!PRESENT) return;
