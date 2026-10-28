@@ -1,0 +1,10 @@
+{
+	"required": false,
+	"package": "dev.plainsight.mixin.voxy",
+	"plugin": "dev.plainsight.SodiumMixinPlugin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"RenderPipelineMixin"
+	],
+	"injectors": { "defaultRequire": 1 }
+}

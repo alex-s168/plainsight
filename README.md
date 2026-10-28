@@ -135,10 +135,13 @@ buttons (pixel checks), lit block overlay (day vs night), path overlay, Escape/c
   meshed), cave culling is off while the camera is inside rock or outside the loaded chunks, and
   Sodium's render distance reaches the player's chunks while the camera is away.
 * The render-distance fog is pushed out by the camera-to-player distance in the editor, so the loaded
-  chunks stay visible from a distant camera. Seen from outside, the edge of the loaded area shows its
-  cut face (cave interiors); vanilla draws nothing at all once the camera is about a render distance
-  away from the player. Hence the "No LOD mod" hint in the editor: Voxy or Distant Horizons (detected
-  by class, not mod id) fills in the terrain beyond.
+  chunks stay visible from a distant camera. Vanilla draws nothing at all once the camera is about a
+  render distance away from the player, hence the "No LOD mod" hint in the editor: Voxy or Distant
+  Horizons (detected by class, not mod id) fills in the terrain beyond.
+* Voxy draws its LOD only where Minecraft drew nothing, which assumes the camera is inside the loaded
+  chunks. With the editor camera outside them (`plainsight.voxy.mixins.json`) Voxy depth-tests its LOD
+  against the terrain instead, so the LOD in front of the loaded area no longer leaves a hole there.
+  Without an LOD mod the side of the loaded area shows its cut face (cave interiors) from outside.
 
 * MC 26.3 renders through *renderpearl* (OpenGL or Vulkan) and uses SDL for windowing. ImGui is drawn
   through the game's GPU abstraction (`ImGuiRenderer`), so it works on both backends; input comes from

@@ -7,10 +7,11 @@ import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 import java.util.List;
 import java.util.Set;
 
-/** Applies the Sodium compatibility mixins only when Sodium is installed (and plainsight is enabled). */
+/**
+ * Applies the compatibility mixins for other mods (Sodium, Voxy) only when their target class is present
+ * (and plainsight is enabled).
+ */
 public final class SodiumMixinPlugin implements IMixinConfigPlugin {
-	private static final boolean SODIUM = SodiumMixinPlugin.class.getClassLoader()
-			.getResource("net/caffeinemc/mods/sodium/client/world/LevelSlice.class") != null;
 
 	@Override
 	public void onLoad(String mixinPackage) {
@@ -23,7 +24,8 @@ public final class SodiumMixinPlugin implements IMixinConfigPlugin {
 
 	@Override
 	public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
-		return SODIUM && !Boolean.getBoolean("plainsight.disabled");
+		return !Boolean.getBoolean("plainsight.disabled")
+				&& SodiumMixinPlugin.class.getClassLoader().getResource(targetClassName.replace('.', '/') + ".class") != null;
 	}
 
 	@Override

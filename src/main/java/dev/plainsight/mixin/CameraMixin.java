@@ -38,6 +38,7 @@ public abstract class CameraMixin {
 		if (!Editor.isActive()) {
 			Editor.disableCaveCulling = false;
 			Editor.cameraToPlayer = 0;
+			Editor.cameraOutsideLoaded = false;
 			return;
 		}
 		var player = net.minecraft.client.Minecraft.getInstance().player;
@@ -49,8 +50,10 @@ public abstract class CameraMixin {
 		// are visible from within the rock
 		// the same when the camera is outside the loaded chunks, or the loaded terrain may not be found
 		var level = net.minecraft.client.Minecraft.getInstance().level;
-		boolean noCulling = Editor.spectatorCulling && level != null && (level.getBlockState(cameraState.blockPos).isSolidRender()
-				|| !level.hasChunk(cameraState.blockPos.getX() >> 4, cameraState.blockPos.getZ() >> 4));
+		// (the client level's hasChunk is always true; its chunk cache knows)
+		boolean outside = level != null && !level.getChunkSource().hasChunk(cameraState.blockPos.getX() >> 4, cameraState.blockPos.getZ() >> 4);
+		Editor.cameraOutsideLoaded = outside;
+		boolean noCulling = Editor.spectatorCulling && level != null && (outside || level.getBlockState(cameraState.blockPos).isSolidRender());
 		Editor.disableCaveCulling = noCulling;
 		if (noCulling) cameraState.smartCull = false;
 	}

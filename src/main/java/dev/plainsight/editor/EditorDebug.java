@@ -68,6 +68,7 @@ public final class EditorDebug {
 		o.addProperty("lodMod", dev.plainsight.LodSupport.present());
 		o.addProperty("cameraToPlayer", Editor.cameraToPlayer);
 		o.addProperty("disableCaveCulling", Editor.disableCaveCulling);
+		o.addProperty("cameraOutsideLoaded", Editor.cameraOutsideLoaded);
 		try {
 			Object r = Class.forName("net.caffeinemc.mods.sodium.client.render.SodiumWorldRenderer").getMethod("instanceNullable").invoke(null);
 			if (r != null) o.addProperty("sodiumChunks", String.valueOf(r.getClass().getMethod("getChunksDebugString").invoke(r)));

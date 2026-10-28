@@ -1097,13 +1097,22 @@ def test_far_camera_draws_loaded_chunks():
     camera far from the player must still show the chunks loaded around the player."""
     editor_on()
     px, py, pz = state()["player"]
-    ed("setCamera", px, py + 60, pz - 130, 0, 50)
+
+    def drawn():
+        return int(state()["sodiumChunks"].split()[1].split("/")[0])
+
+    ed("setCamera", px, py + 120, pz, 0, 90)
+    time.sleep(3)
+    near = drawn() if state()["sodium"] else 0
+    # beyond the loaded chunks even at render distance 16
+    ed("setCamera", px, py + 120, pz - 400, 0, 20)
     time.sleep(3)
     s = state()
-    check(abs(s["cameraToPlayer"] - 130) < 1, "the editor knows how far the camera is from the player")
+    check(abs(s["cameraToPlayer"] - 400) < 1, "the editor knows how far the camera is from the player")
+    check(s["cameraOutsideLoaded"], "and that it is outside the loaded chunks")
     if s["sodium"]:
-        visible = int(s["sodiumChunks"].split()[1].split("/")[0])
-        check(visible > 100, "Sodium draws the loaded sections from far away (%s)" % s["sodiumChunks"])
+        far = drawn()
+        check(far >= 0.8 * near, "Sodium draws the loaded sections from far away too (%d vs %d from above)" % (far, near))
     shot("far-camera")
     ed("setCamera", px, py + 10, pz - 10, 0, 30)
     time.sleep(0.5)

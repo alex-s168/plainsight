@@ -64,6 +64,8 @@ public final class Editor {
 	 * chunks loaded around the player are not drawn while the camera is away.
 	 */
 	public static volatile float cameraToPlayer;
+	/** Whether the editor camera is outside the loaded chunks (false outside the editor). */
+	public static volatile boolean cameraOutsideLoaded;
 
 	public static boolean isActive() {
 		return INSTANCE.active;
