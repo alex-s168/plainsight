@@ -14,10 +14,13 @@ public final class Brightness implements Module {
 	private final boolean forEditor;
 	private boolean enabled;
 	/** 0 = normal, 1 = fullbright. */
-	public float level = 1f;
+	public float level;
 
+	/** The editor starts slightly brightened (on, 0.2); in-game brightness starts off at fullbright. */
 	public Brightness(boolean forEditor) {
 		this.forEditor = forEditor;
+		this.enabled = forEditor;
+		this.level = forEditor ? 0.2f : 1f;
 		if (forEditor) editor = this;
 		else ingame = this;
 	}

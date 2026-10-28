@@ -155,8 +155,9 @@ def test_toggle_keeps_player_still():
     editor_off()
     before = state()["player"]
     if state()["frames"] == 0:
-        # a fresh client (editor never opened yet): the editor starts without a tool
+        # a fresh client (editor never opened yet): the editor starts without a tool, slightly brightened
         check(state()["tool"] == "none", "no tool is selected by default: %s" % state()["tool"])
+        check(state()["modules"]["editor_brightness"] and not state()["modules"]["ingame_brightness"], "editor brightness on by default")
     c.key(K["RSHIFT"])
     time.sleep(0.6)
     s = state()
@@ -191,6 +192,16 @@ def test_overlays_in_game_keybind():
     check("screen=none" in c.status(), "the key opens no game screen: %s" % c.status().splitlines()[0])
     on, lines, _ = ed("overlaysInGame").split()
     check(on == "true" and int(lines) >= 12, "J shows the selection boxes in game: %s" % on)
+    # the block overlay demo follows the same switch
+    ed("setModule", "block_overlay_demo", "true")
+    time.sleep(0.4)
+    check(state()["overlayBlocksSubmitted"] > 100, "J shows the block overlay in game")
+    c.key(13)
+    time.sleep(0.4)
+    check(state()["overlayBlocksSubmitted"] == 0, "without J the block overlay is not shown in game")
+    c.key(13)
+    time.sleep(0.4)
+    ed("setModule", "block_overlay_demo", "false")
     shot("overlays-in-game")
     c.key(13)
     time.sleep(0.4)
@@ -1028,6 +1039,31 @@ def test_see_through_only_in_editor():
     ed("setModule", "see_through", "false")
     cmd("tp @s 0.5 -60 0.5 0 0")
     time.sleep(0.5)
+
+
+def test_rename_long_then_short():
+    editor_on()
+    fresh_tree()
+    c.click(*widget("tree_new_group"), b=1)
+    time.sleep(0.3)
+    def rename(old, new):
+        pos, _ = find_node(old)
+        c.move(*pos)
+        time.sleep(0.1)
+        c.button(1)
+        time.sleep(0.05)
+        c.button(1)
+        time.sleep(0.3)
+        c.key(K["BACKSPACE"])
+        c.type(new)
+        c.key(K["ENTER"])
+        time.sleep(0.3)
+    rename("group 1", "a much longer group name")
+    check(state()["tree"] == [{"a much longer group name": []}], "renamed long: %s" % state()["tree"])
+    rename("a much longer group name", "ab")
+    check(state()["tree"] == [{"ab": []}], "renamed short, nothing of the old name left: %s" % state()["tree"])
+    rename("ab", "middle size")
+    check(state()["tree"] == [{"middle size": []}], "renamed again: %s" % state()["tree"])
 
 
 def test_selection_persists():

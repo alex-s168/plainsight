@@ -17,10 +17,13 @@ public final class EditorRendering {
 
 	public static void afterLevel(GameRenderer renderer) {
 		Editor editor = Editor.get();
-		BlockOverlayRenderer.render(renderer.gameRenderState().levelRenderState.cameraRenderState);
+		// block and path overlays: always in the editor, in the normal game while its overlays are shown (J)
+		boolean show = Editor.isActive() || editor.overlaysInGame();
+		if (show) BlockOverlayRenderer.render(renderer.gameRenderState().levelRenderState.cameraRenderState);
+		else BlockOverlayRenderer.submitted = 0;
 		editor.buildOverlay();
 		double t = System.nanoTime() / 1e9;
-		for (PathOverlay p : PathOverlay.visible()) p.draw(editor.overlay, t);
+		if (show) for (PathOverlay p : PathOverlay.visible()) p.draw(editor.overlay, t);
 		OVERLAY.render(editor.overlay, renderer.gameRenderState().levelRenderState.cameraRenderState);
 	}
 

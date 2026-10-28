@@ -541,7 +541,7 @@ public final class EditorUI {
 		rect("rename");
 		// Enter or clicking elsewhere commits, Escape cancels
 		if (done || (!starting && !ImGui.isItemActive())) {
-			if (!ImGui.isKeyPressed(ImGuiKey.Escape)) editor.tree.rename(n, renameField.get());
+			if (!ImGui.isKeyPressed(ImGuiKey.Escape)) editor.tree.rename(n, dev.plainsight.imgui.ImText.of(renameField));
 			renaming = null;
 		}
 	}

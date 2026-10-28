@@ -381,7 +381,7 @@ public final class BoxSelectTool implements Tool {
 				nameFieldFor = editing;
 			}
 			ImGui.setNextItemWidth(-70);
-			if (ImGui.inputTextWithHint("Name", editing.name(), nameField)) editor.tree.rename(editing, nameField.get());
+			if (ImGui.inputTextWithHint("Name", editing.name(), nameField)) editor.tree.rename(editing, dev.plainsight.imgui.ImText.of(nameField));
 			dev.plainsight.editor.ui.EditorUI.track("box_name");
 			OrientedBox b = editing.box();
 			float[] c = {(float) b.center.x, (float) b.center.y, (float) b.center.z};

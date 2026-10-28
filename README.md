@@ -10,8 +10,9 @@ any SMP, with every automatic-playing feature switchable off. **This first miles
 editor in **any game mode**. It is purely client-side: the camera is a detached free camera, nothing
 is sent to the server, and the player stands still where they were (and is drawn, third person).
 
-<kbd>J</kbd> (*Show Editor Overlays In Game*, rebindable) draws the selection tree's boxes and entity
-outlines in the normal game as well; block and path overlays are shown whenever they are enabled.
+<kbd>J</kbd> (*Show Editor Overlays In Game*, rebindable) draws the editor's overlays in the normal game
+as well: the selection tree's boxes and entity outlines, the light overlay, and enabled block and path
+overlays (which otherwise only show in the editor).
 
 Layout: menu bar, tool bar with *Tool Options* on the left, *Selections* tree and *Properties* on the
 right, status bar with hints and the camera **Speed** slider at the bottom. The world is rendered with
@@ -53,6 +54,7 @@ what the tool is doing and closes ImGui popups.
   (at night). Threshold (default 0) and radius in the settings; with <kbd>J</kbd> also in the normal game.
 * **Editor Brightness** / **In-game Brightness**: brighter lighting while the editor is open / in the
   normal game, up to fullbright (slider). Purely visual: it raises the lightmap like gamma and night vision.
+  The editor starts with its brightness on at 0.2.
 
 ### Selections
 
