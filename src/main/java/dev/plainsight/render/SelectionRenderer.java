@@ -48,7 +48,7 @@ public final class SelectionRenderer {
 			case EntityNode e -> {
 				Entity entity = entities.get(e.entity());
 				if (entity == null) return;
-				AABB a = entity.getBoundingBox().inflate(0.05);
+				AABB a = Editor.renderBox(entity).inflate(0.05);
 				int c = sel ? ENTITY_SELECTED : ENTITY;
 				o.aabbEdges(Overlay.Layer.WORLD, a.minX, a.minY, a.minZ, a.maxX, a.maxY, a.maxZ, c, sel ? 2.5f : 1.75f);
 				o.aabbEdges(Overlay.Layer.XRAY, a.minX, a.minY, a.minZ, a.maxX, a.maxY, a.maxZ, Overlay.withAlpha(c, 110), 1.25f);
@@ -71,7 +71,7 @@ public final class SelectionRenderer {
 			double[] b = null;
 			if (leaf instanceof BoxNode box) b = box.box().bounds();
 			else if (leaf instanceof EntityNode en && entities.get(en.entity()) != null) {
-				AABB a = entities.get(en.entity()).getBoundingBox();
+				AABB a = Editor.renderBox(entities.get(en.entity()));
 				b = new double[]{a.minX, a.minY, a.minZ, a.maxX, a.maxY, a.maxZ};
 			}
 			if (b == null) continue;

@@ -322,6 +322,34 @@ def test_camera_arcball_around_entity_and_follow():
     cmd("tp @e[type=armor_stand] 4.5 -60 2.5")
 
 
+def test_follow_is_smooth():
+    """Following an entity that moves (not teleported), the camera keeps its offset to where the entity is
+    drawn in every frame, not only once per game tick (that made the view judder)."""
+    editor_on()
+    fresh_tree()
+    cmd("kill @e[type=item,name=Mover]")
+    cmd('summon item 4.5 -58 2.5 {Item:{id:"minecraft:stone",count:1},CustomName:"Mover",NoGravity:1b,PickupDelay:32767,Age:-32768}')
+    time.sleep(0.5)
+    check(ed("follow", "Mover") == "ok", "follows the moving item")
+    cam(4.5, -57, -6, 0, 20)
+    time.sleep(0.3)
+    offsets, xs = [], []
+    t0 = time.time()
+    while time.time() - t0 < 3:
+        if len(offsets) % 8 == 0:
+            cmd("data merge entity @e[type=item,name=Mover,limit=1] {Motion:[0.4d,0d,0d]}")
+        o = ed("followOffset")
+        if o != "none":
+            offsets.append(tuple(map(float, o.split(","))))
+            xs.append(state()["camera"]["pos"][0])
+        time.sleep(0.02)
+    ed("unfollow")
+    cmd("kill @e[type=item,name=Mover]")
+    check(len(offsets) > 30 and xs[-1] - xs[0] > 3, "the item moved and the camera with it: %d samples, x %.1f -> %.1f" % (len(offsets), xs[0], xs[-1]))
+    spread = max(o[0] for o in offsets) - min(o[0] for o in offsets)
+    check(spread < 0.02, "the camera's offset to the drawn entity stays the same in every frame: varies by %.3f" % spread)
+
+
 def test_camera_arcball_centring_is_smooth():
     editor_on()
     fresh_tree()
@@ -1166,6 +1194,17 @@ def test_seed_hider():
     check("4242424242" in ed("chatShown", 2), "with the hider off the seed is shown")
     c.command("plainsight seed hide true")
     c.command("plainsight seed clear")
+
+
+def test_seed_hider_in_tools_menu():
+    editor_on()
+    c.command("plainsight seed hide true")
+    for want in ("false", "true"):
+        c.click(*widget("menu_tools"), b=1)
+        time.sleep(0.3)
+        c.click(*widget("menu_hide_seeds"), b=1)
+        time.sleep(0.3)
+        check(c.static("dev.plainsight.guess.SeedHider", "enabled") == want, "Tools > Hide seeds on screen switches it to %s" % want)
 
 
 def test_seedcracker_seed_is_taken():

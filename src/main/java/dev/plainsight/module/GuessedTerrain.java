@@ -55,9 +55,6 @@ public final class GuessedTerrain implements Module {
 		GuessWorld w = GuessWorld.current();
 		var seed = SeedStore.seed();
 		ImGui.text(seed.isPresent() ? "Seed " + dev.plainsight.guess.SeedHider.show(seed.getAsLong()) + " (" + SeedStore.source() + ")" : "No seed known");
-		if (ImGui.checkbox("Hide seeds on screen", dev.plainsight.guess.SeedHider.enabled()))
-			dev.plainsight.guess.SeedHider.setEnabled(!dev.plainsight.guess.SeedHider.enabled());
-		if (ImGui.isItemHovered()) ImGui.setTooltip("For screen sharing: seeds in chat (SeedcrackerX, /seed), titles and here show as dots.");
 		if (w == null) {
 			ImGui.textDisabled(GuessWorld.supported() ? "SeedcrackerX finds it, or /plainsight seed <seed>" : "Needs Voxy to show guessed terrain");
 			return;

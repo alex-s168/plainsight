@@ -110,6 +110,10 @@ public final class Editor {
 	private double lastDragX, lastDragY;
 	public boolean ctrl, shift, alt;
 	private long lastFrameNanos;
+	/** This frame's position between the last two game ticks (0..1), for drawing moving entities smoothly. */
+	private static float partialTick = 1;
+	/** The camera's offset from where the followed entity is drawn, as of the last frame (tests). */
+	public final Vector3d lastFollowOffset = new Vector3d(Double.NaN, 0, 0);
 	private int savedVersion = -1;
 	private @Nullable Path storeFile;
 	private long lastSaveCheck;
@@ -205,7 +209,8 @@ public final class Editor {
 	}
 
 	/** Called every frame before the camera is set up. */
-	public void frame() {
+	public void frame(float partialTick) {
+		Editor.partialTick = partialTick;
 		long now = System.nanoTime();
 		double dt = lastFrameNanos == 0 ? 0 : (now - lastFrameNanos) / 1e9;
 		lastFrameNanos = now;
@@ -222,6 +227,11 @@ public final class Editor {
 		if (mc.gui.screen() != null) camera.stopMovement();
 		camera.update(dt);
 		trackEntities();
+		Entity f = followed();
+		if (f != null) {
+			Vec3 at = f.getPosition(partialTick);
+			lastFollowOffset.set(camera.pos.x - at.x, camera.pos.y - at.y, camera.pos.z - at.z);
+		} else lastFollowOffset.set(Double.NaN, 0, 0);
 		seeThrough.frame();
 		if (now - lastSaveCheck > 2_000_000_000L) {
 			lastSaveCheck = now;
@@ -438,7 +448,7 @@ public final class Editor {
 		Vec3 to = from.add(dir.x() * maxDistance, dir.y() * maxDistance, dir.z() * maxDistance);
 		EntityHit best = null;
 		for (Entity e : mc.level.entitiesForRendering()) {
-			AABB box = e.getBoundingBox().inflate(Math.max(0.1, e.getPickRadius()));
+			AABB box = renderBox(e).inflate(Math.max(0.1, e.getPickRadius()));
 			Optional<Vec3> p = box.contains(from) ? Optional.of(from) : box.clip(from, to);
 			if (p.isEmpty()) continue;
 			double d = p.get().distanceTo(from);
@@ -494,9 +504,19 @@ public final class Editor {
 		return new Vector3d(from);
 	}
 
+	/** Centre of the entity where it is drawn this frame. */
 	public static Vector3d centre(Entity e) {
-		AABB b = e.getBoundingBox();
+		AABB b = renderBox(e);
 		return new Vector3d((b.minX + b.maxX) / 2, (b.minY + b.maxY) / 2, (b.minZ + b.maxZ) / 2);
+	}
+
+	/**
+	 * The entity's box where it is drawn this frame: entities move once per game tick and are drawn
+	 * interpolated between ticks, so the tick box would step while the entity glides.
+	 */
+	public static AABB renderBox(Entity e) {
+		Vec3 at = e.getPosition(partialTick);
+		return e.getBoundingBox().move(at.x - e.getX(), at.y - e.getY(), at.z - e.getZ());
 	}
 
 	/** The entity being orbited right now (during a Ctrl+LMB drag), if any. */

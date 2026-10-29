@@ -358,6 +358,12 @@ public final class EditorDebug {
 		return "ok";
 	}
 
+	/** The camera's offset from where the followed entity was drawn in the last frame, "x,y,z" ("none" without one). */
+	public static String followOffset() {
+		var o = Editor.get().lastFollowOffset;
+		return Double.isNaN(o.x) ? "none" : o.x + "," + o.y + "," + o.z;
+	}
+
 	public static String unfollow() {
 		Editor.get().follow(null);
 		return "ok";

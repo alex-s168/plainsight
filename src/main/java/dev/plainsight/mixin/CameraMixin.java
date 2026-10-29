@@ -38,7 +38,7 @@ public abstract class CameraMixin {
 	@Inject(method = "alignWithEntity", at = @At("TAIL"))
 	private void plainsight$editorCamera(float partialTicks, CallbackInfo ci) {
 		Editor editor = Editor.get();
-		editor.frame();
+		editor.frame(partialTicks);
 		if (!Editor.isActive()) return;
 		var c = editor.camera;
 		setPosition(c.pos.x, c.pos.y, c.pos.z);

@@ -92,7 +92,7 @@ public final class EntitySelectTool implements Tool {
 	@Override
 	public void render(Overlay o) {
 		if (hovered == null || hovered.isRemoved()) return;
-		AABB b = hovered.getBoundingBox();
+		AABB b = Editor.renderBox(hovered);
 		o.aabbEdges(Overlay.Layer.ON_TOP, b.minX, b.minY, b.minZ, b.maxX, b.maxY, b.maxZ, 0xFFB0E0FF, 2.5f);
 	}
 

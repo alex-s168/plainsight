@@ -55,7 +55,7 @@ what the tool is doing and closes ImGui popups.
   SeedcrackerX (as soon as it cracks it or finds it in its database) or `/plainsight seed <seed>` (`/plainsight seed world` in
   singleplayer, `/plainsight seed clear`); a given seed is checked against the server's hashed seed.
   Seeds are hidden on screen by default (for screen sharing): chat lines (SeedcrackerX, `/seed`), titles
-  and this mod show them as dots; toggle in the settings or with `/plainsight seed hide <true|false>`.
+  and this mod show them as dots; toggle in the editor's Tools menu or with `/plainsight seed hide <true|false>`.
   Settings: tint strength, fade cycle (seconds), radius around the camera (default 32 chunks, also `/plainsight guess radius <n>`).
 
   How: a private, headless vanilla server with that seed generates chunks around the editor camera

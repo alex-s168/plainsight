@@ -119,6 +119,15 @@ public final class EditorUI {
 			if (ImGui.menuItem("Delete", "Del", false, any)) deferred = editor::deleteSelected;
 			ImGui.endMenu();
 		}
+		boolean tools = ImGui.beginMenu("Tools");
+		rect("menu_tools");
+		if (tools) {
+			if (ImGui.menuItem("Hide seeds on screen", "", dev.plainsight.guess.SeedHider.enabled()))
+				dev.plainsight.guess.SeedHider.setEnabled(!dev.plainsight.guess.SeedHider.enabled());
+			rect("menu_hide_seeds");
+			tooltip("Hide seeds on screen", "For screen sharing: seeds in chat (SeedcrackerX, /seed), titles and the editor show as dots.");
+			ImGui.endMenu();
+		}
 		if (ImGui.beginMenu("Help")) {
 			helpContents();
 			ImGui.endMenu();
