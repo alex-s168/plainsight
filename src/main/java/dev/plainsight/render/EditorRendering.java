@@ -32,6 +32,19 @@ public final class EditorRendering {
 			GuessTint.render(renderer.gameRenderState().levelRenderState.cameraRenderState, guess);
 	}
 
+	/** HUD outside the editor: an ImGui frame for the minimap only (no input goes to ImGui here). */
+	private static void hud(GameRenderer renderer) {
+		Window w = Minecraft.getInstance().getWindow();
+		float sw = Math.max(1, w.getScreenWidth()), sh = Math.max(1, w.getScreenHeight());
+		ImGuiLayer layer = ImGuiLayer.get();
+		try {
+			layer.newFrame(w.getWidth(), w.getHeight(), w.getWidth() / sw, w.getHeight() / sh);
+			dev.plainsight.minimap.Minimap.draw();
+		} finally {
+			layer.endFrameAndRender(renderer.mainRenderTarget());
+		}
+	}
+
 	public static void ui(GameRenderer renderer) {
 		Minecraft mc = Minecraft.getInstance();
 		Editor editor = Editor.get();
@@ -40,6 +53,7 @@ public final class EditorRendering {
 				mc.textInputManager().stopTextInput(EditorRendering.class);
 				textInput = false;
 			}
+			if (dev.plainsight.minimap.Minimap.visible()) hud(renderer);
 			return;
 		}
 		Window w = mc.getWindow();

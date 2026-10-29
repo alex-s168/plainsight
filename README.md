@@ -121,6 +121,21 @@ puts the box down (hides its handles). Tool options show name, centre, size and 
 * `Overlay`: immediate-mode lines/triangles per frame in three layers (depth-tested, always on top,
   and "behind terrain only" for x-ray hints), drawn after the level.
 
+## Minimap (prototype, with Voxy)
+
+A minimap in the top right of the HUD that is Voxy's LOD world seen from a second camera: above and
+behind the player, tilted 60 degrees down and turned with the player's view, so terrain and builds show
+in 3D. <kbd>N</kbd> switches it off and on, <kbd>=</kbd> / <kbd>-</kbd> zoom (24 m to 6 km, gliding).
+An arrow marks the player, a red N the north. Hidden in the editor and with F1.
+
+How: right after Voxy's own frame it renders once more, through an extra Voxy viewport (as for
+Vivecraft's second eye) with the minimap camera, into the minimap's textures, with its own set of
+Voxy's offscreen targets swapped in (so the main view's are not reallocated). The LOD is drawn up to the
+camera and over the loaded chunks too, Voxy keeps loading around the player, and chunks where blocks
+change are given to Voxy again (at most once a second), since Voxy otherwise reads loaded chunks only
+when they load and unload. Not with shader packs (Iris pipeline). It costs about one more Voxy frame
+at the minimap's size (around 0.5 ms on an integrated GPU in a flat world).
+
 ## Development
 
 Requires Nix with flakes. `./dev <cmd>` runs a command in the dev shell (JetBrains Runtime 25 for

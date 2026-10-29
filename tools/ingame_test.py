@@ -1226,6 +1226,44 @@ def test_seedcracker_seed_is_taken():
     c.command("plainsight seed clear")
 
 
+def test_minimap():
+    """With Voxy the HUD shows a minimap (an extra Voxy pass); = / - zoom it, N switches it off and on."""
+    if not state()["lodMod"] or not state()["sodium"]:
+        print("      (needs Voxy, skipped)")
+        return
+    editor_off()
+    def mm():
+        e, v, r, d, err = ed("minimap").split(" ", 4)
+        return e == "true", v == "true", int(r), int(d), err
+    e, v, r0, d0, err = mm()
+    check(e and v and err == "-", "the minimap is on and shown: %s" % ed("minimap"))
+    time.sleep(0.5)
+    check(mm()[2] > r0, "and rendered every frame")
+    c.key(K["EQUALS"])
+    time.sleep(0.3)
+    check(mm()[3] < d0, "= zooms in: %d -> %d" % (d0, mm()[3]))
+    c.key(K["MINUS"])
+    c.key(K["MINUS"])
+    time.sleep(0.3)
+    check(mm()[3] > d0, "- zooms out: %d -> %d" % (d0, mm()[3]))
+    c.key(K["MINUS"])
+    shot("minimap")
+    c.key(K["N"])
+    time.sleep(0.3)
+    e, v, r1, _, _ = mm()
+    time.sleep(0.4)
+    check(not e and not v and mm()[2] == r1, "N switches it off (no more passes)")
+    c.key(K["N"])
+    time.sleep(0.3)
+    check(mm()[0], "and on again")
+    editor_on()
+    time.sleep(0.4)
+    r2 = mm()[2]
+    time.sleep(0.4)
+    check(mm()[2] == r2, "not in the editor")
+    editor_off()
+
+
 def test_guess_prefers_real_lod():
     """Terrain Voxy already has (here: flat land loaded far from spawn, then unloaded) is copied into the
     guessed view instead of generated (the seed's generator would make hills there)."""

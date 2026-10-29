@@ -91,6 +91,11 @@ public final class ImGuiRenderer implements AutoCloseable {
 		return id;
 	}
 
+	/** Forgets a texture registered with {@link #registerTexture} (before the texture is closed). */
+	public void releaseTexture(long id) {
+		textures.remove(id);
+	}
+
 	public void render(ImDrawData data, RenderTarget target) {
 		int lists = data.getCmdListsCount();
 		lastFrameInfo = "lists=" + lists + " vtx=" + data.getTotalVtxCount() + " display=" + data.getDisplaySizeX() + "x" + data.getDisplaySizeY();

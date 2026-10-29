@@ -5,6 +5,10 @@
 	"compatibilityLevel": "JAVA_25",
 	"client": [
 		"IngestMirrorMixin",
+		"MinimapPipelineMixin",
+		"MinimapNormalPipelineMixin",
+		"MinimapRenderSystemMixin",
+		"MinimapViewportMixin",
 		"RenderPipelineMixin",
 		"RenderSystemNearMixin",
 		"ShaderPatchMixin",

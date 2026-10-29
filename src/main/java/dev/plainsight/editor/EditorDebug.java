@@ -364,6 +364,12 @@ public final class EditorDebug {
 		return Double.isNaN(o.x) ? "none" : o.x + "," + o.y + "," + o.z;
 	}
 
+	/** Minimap state: "enabled visible rendered targetDistance error". */
+	public static String minimap() {
+		return dev.plainsight.minimap.Minimap.enabled + " " + dev.plainsight.minimap.Minimap.visible() + " " + dev.plainsight.minimap.Minimap.rendered
+				+ " " + Math.round(dev.plainsight.minimap.Minimap.targetDistance) + " " + (dev.plainsight.minimap.Minimap.error.isEmpty() ? "-" : dev.plainsight.minimap.Minimap.error);
+	}
+
 	public static String unfollow() {
 		Editor.get().follow(null);
 		return "ok";

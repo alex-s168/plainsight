@@ -20,6 +20,8 @@ public abstract class RenderSystemNearMixin {
 	@WrapOperation(method = "setupViewport", at = @At(value = "INVOKE",
 			target = "Lme/cortex/voxy/client/core/VoxyRenderSystem;computeProjectionMat(Lme/cortex/voxy/client/core/RenderProperties;Lorg/joml/Matrix4fc;FF)Lorg/joml/Matrix4f;"))
 	private Matrix4f plainsight$nearInEditor(RenderProperties properties, Matrix4fc base, float near, float far, Operation<Matrix4f> original) {
+		// the minimap pass brings its own camera projection (already in Voxy's depth convention)
+		if (dev.plainsight.minimap.MinimapVoxy.inPass) return new Matrix4f(base);
 		return original.call(properties, base, Editor.isActive() ? 0.05f : near, far);
 	}
 }

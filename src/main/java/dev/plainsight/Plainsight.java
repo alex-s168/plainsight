@@ -15,7 +15,7 @@ public final class Plainsight implements ClientModInitializer {
 	public static final String ID = "plainsight";
 	public static final Logger LOG = LoggerFactory.getLogger(ID);
 	public static final KeyMapping.Category CATEGORY = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(ID, "main"));
-	private static KeyMapping toggleEditor, overlaysInGame;
+	private static KeyMapping toggleEditor, overlaysInGame, minimap, minimapZoomIn, minimapZoomOut;
 
 	public static KeyMapping toggleEditor() {
 		return toggleEditor;
@@ -32,8 +32,14 @@ public final class Plainsight implements ClientModInitializer {
 		}
 		toggleEditor = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.plainsight.editor", InputConstants.KEY_RSHIFT, CATEGORY));
 		overlaysInGame = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.plainsight.overlays_in_game", InputConstants.KEY_J, CATEGORY));
+		minimap = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.plainsight.minimap", InputConstants.KEY_N, CATEGORY));
+		minimapZoomIn = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.plainsight.minimap_zoom_in", InputConstants.KEY_EQUALS, CATEGORY));
+		minimapZoomOut = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.plainsight.minimap_zoom_out", InputConstants.KEY_MINUS, CATEGORY));
 		ClientTickEvents.END_CLIENT_TICK.register(mc -> {
 			while (overlaysInGame.consumeClick()) Editor.get().toggleOverlaysInGame();
+			while (minimap.consumeClick()) dev.plainsight.minimap.Minimap.enabled = !dev.plainsight.minimap.Minimap.enabled;
+			while (minimapZoomIn.consumeClick()) dev.plainsight.minimap.Minimap.zoom(1);
+			while (minimapZoomOut.consumeClick()) dev.plainsight.minimap.Minimap.zoom(-1);
 			guessedTerrainTick();
 		});
 		net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback.EVENT.register(

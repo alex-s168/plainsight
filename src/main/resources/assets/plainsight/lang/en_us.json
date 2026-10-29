@@ -1,5 +1,8 @@
 {
 	"key.plainsight.editor": "Toggle Editor",
 	"key.plainsight.overlays_in_game": "Show Editor Overlays In Game",
+	"key.plainsight.minimap": "Toggle Minimap",
+	"key.plainsight.minimap_zoom_in": "Minimap Zoom In",
+	"key.plainsight.minimap_zoom_out": "Minimap Zoom Out",
 	"key.category.plainsight.main": "Plainsight"
 }
