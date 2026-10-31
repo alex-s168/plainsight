@@ -31,8 +31,27 @@ public final class DepthPick {
 	private DepthPick() {
 	}
 
+	/** This frame's sample was taken already (before always-on-top gizmos clear the depth). */
+	private static boolean sampledThisFrame;
+
+	/**
+	 * Copies the depth under the mouse, once per frame: right before the level's always-on-top gizmos (e.g.
+	 * the chunk borders, F3+G) when there are any, as that pass clears the depth, else after the level.
+	 */
+	public static void sampleOnce(CameraRenderState camera) {
+		if (sampledThisFrame) return;
+		sampledThisFrame = true;
+		sample(camera);
+	}
+
+	/** After the level: the frame's sample, unless it was taken before always-on-top gizmos. */
+	public static void afterLevel(CameraRenderState camera) {
+		sampleOnce(camera);
+		sampledThisFrame = false;
+	}
+
 	/** Copies the depth under the mouse (call after the level is drawn, before editor overlays). */
-	public static void sample(CameraRenderState camera) {
+	private static void sample(CameraRenderState camera) {
 		Editor editor = Editor.get();
 		RenderTarget target = Minecraft.getInstance().gameRenderer.mainRenderTarget();
 		GpuTexture depth = target.getDepthTexture();

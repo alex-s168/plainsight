@@ -18,7 +18,7 @@ public final class EditorRendering {
 	public static void afterLevel(GameRenderer renderer) {
 		Editor editor = Editor.get();
 		// the surface under the cursor, before overlays add their own depth
-		if (Editor.isActive()) DepthPick.sample(renderer.gameRenderState().levelRenderState.cameraRenderState);
+		if (Editor.isActive()) DepthPick.afterLevel(renderer.gameRenderState().levelRenderState.cameraRenderState);
 		// block and path overlays: always in the editor, in the normal game while its overlays are shown (J)
 		boolean show = Editor.isActive() || editor.overlaysInGame();
 		if (show) BlockOverlayRenderer.render(renderer.gameRenderState().levelRenderState.cameraRenderState);

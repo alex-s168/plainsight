@@ -938,6 +938,33 @@ def test_box_tints_selected_terrain():
     fresh_tree()
 
 
+def test_chunk_borders_follow_cursor():
+    """In the editor the chunk borders (F3+G) are around the chunk under the cursor; and with them on
+    (always-on-top gizmos clear the depth) the surface under the cursor is still found."""
+    editor_on()
+    check(ed("chunkBorders", "true") == "true", "chunk borders on")
+    try:
+        cam(0, -40, -20, 0, 40)
+        chunks = set()
+        for x, y in ((350, 850), (1200, 300)):
+            c.move(x, y)
+            time.sleep(1)
+            surface = state()["surfaceUnderCursor"]
+            check(surface, "surface under the cursor found with chunk borders on")
+            # the block just behind the surface, seen from the camera at (0, -40, -20)
+            p = [float(v) for v in surface.split(",")]
+            d = [p[0] - 0, p[1] + 40, p[2] + 20]
+            n = math.sqrt(sum(v * v for v in d))
+            sx, sz = math.floor(p[0] + d[0] / n * 0.01), math.floor(p[2] + d[2] / n * 0.01)
+            ax, _, az = (int(v) for v in ed("chunkBorderAnchor").split(","))
+            check((ax >> 4, az >> 4) == (sx >> 4, sz >> 4), "borders around the cursor's chunk: %s vs %s" % ((ax, az), surface))
+            chunks.add((ax >> 4, az >> 4))
+        check(len(chunks) == 2, "and they move with it: %s" % chunks)
+        shot("chunk-borders")
+    finally:
+        ed("chunkBorders", "false")
+
+
 def test_tool_click_again_unselects():
     editor_on()
     ed("selectTool", "box_select")

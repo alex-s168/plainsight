@@ -43,6 +43,8 @@ public final class EditorUI {
 	private @Nullable Runnable deferred;
 	private @Nullable Module popupModule;
 	private float menuHeight, statusHeight;
+	/** Bottom of the viewport's button bar (window units): the HUD is laid out below it. */
+	public float viewportButtonsBottom;
 	/** The hints shown in the status bar this frame (for tests). */
 	public String statusHintsText = "";
 	/** Screen rectangles of the last frame's widgets, for automated tests. */
@@ -136,7 +138,7 @@ public final class EditorUI {
 		ImGui.bulletText("WASD: fly, Space / Shift: up / down, hold Ctrl: faster");
 		ImGui.textDisabled("Tools");
 		ImGui.bulletText("RMB: use tool   MMB: pick block");
-		ImGui.bulletText("Toggles (light overlay, brightness, minimap, hide seeds): right-click for options");
+		ImGui.bulletText("Modules (light overlay, brightness, minimap, hide seeds): click to switch, right-click for options");
 		ImGui.bulletText("Box: LMB on a handle selects it; drag gizmo arrows, squares, rings");
 		ImGui.bulletText("Enter, a click on empty space or Done: put the box down");
 		ImGui.bulletText("Esc: cancel   Del: delete   Arrows / PgUp / PgDn: nudge");
@@ -282,7 +284,6 @@ public final class EditorUI {
 				if (m != null) {
 					ImGui.text(m.name());
 					ImGui.separator();
-					if (ImGui.checkbox("Enabled", m.enabled())) m.toggle();
 					guarded("module " + m.id(), m::options);
 				}
 			} finally {
@@ -329,6 +330,7 @@ public final class EditorUI {
 				lodWarning();
 				modulePopup();
 			});
+			viewportButtonsBottom = ImGui.getWindowPosY() + ImGui.getWindowHeight();
 		} finally {
 			ImGui.end();
 		}

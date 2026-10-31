@@ -421,6 +421,20 @@ public final class EditorDebug {
 		return b.name();
 	}
 
+	/** Switches the chunk borders (F3+G) on or off. */
+	public static String chunkBorders(String on) {
+		var entries = net.minecraft.client.Minecraft.getInstance().debugEntries;
+		var id = net.minecraft.client.gui.components.debug.DebugScreenEntries.CHUNK_BORDERS;
+		if (entries.isCurrentlyEnabled(id) != Boolean.parseBoolean(on)) entries.toggleStatus(id);
+		return String.valueOf(entries.isCurrentlyEnabled(id));
+	}
+
+	/** The block the chunk borders are drawn around in the editor, "x,y,z". */
+	public static String chunkBorderAnchor() {
+		var p = Editor.get().chunkBorderAnchor();
+		return p.getX() + "," + p.getY() + "," + p.getZ();
+	}
+
 	public static String clearTree() {
 		Editor.get().boxTool.stopEditing();
 		Editor.get().tree.clear();

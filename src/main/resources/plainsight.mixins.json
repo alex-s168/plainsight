@@ -6,19 +6,25 @@
 	"client": [
 		"BufferBuilderMixin",
 		"CameraMixin",
+		"ChunkBorderRendererMixin",
 		"ChatComponentMixin",
 		"CloudRendererMixin",
 		"EntityRendererMixin",
 		"FogRendererMixin",
 		"GameRendererAccessor",
 		"GameRendererMixin",
+		"GuiMixin",
+		"GuiRenderStateMixin",
 		"GlCommandEncoderMixin",
 		"HudMixin",
 		"KeyboardHandlerMixin",
+		"LevelRendererMixin",
 		"LightmapMixin",
 		"MinimapBlockChangeMixin",
 		"MouseHandlerMixin",
-		"SectionCompilerMixin"
+		"PictureInPictureRendererMixin",
+		"SectionCompilerMixin",
+		"WindowMixin"
 	],
 	"injectors": { "defaultRequire": 1 }
 }

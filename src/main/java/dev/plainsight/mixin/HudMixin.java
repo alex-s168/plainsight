@@ -9,8 +9,8 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * The editor keeps chat and messages but hides the crosshair, hotbar and full-screen effects (the HUD is
- * drawn over the editor panels, so a vignette would darken them).
+ * The editor keeps chat and messages (laid out in the viewport, see HudInViewport) but hides the
+ * crosshair, hotbar and full-screen effects.
  */
 @Mixin(Hud.class)
 public abstract class HudMixin {

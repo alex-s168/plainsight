@@ -242,6 +242,27 @@ public final class Editor {
 		if (System.currentTimeMillis() > statusUntil) status = "";
 	}
 
+	private net.minecraft.core.@Nullable BlockPos lastCursorBlock;
+	private long lastCursorBlockTime;
+
+	/**
+	 * Where the chunk borders (F3+G) are drawn in the editor: the block under the cursor, so they show the
+	 * chunk being looked at even from high above. A moment after the cursor leaves the terrain (sky, the
+	 * panels) they go to the camera's chunk.
+	 */
+	public net.minecraft.core.BlockPos chunkBorderAnchor() {
+		Vector3d surface = dev.plainsight.render.DepthPick.at(mouseX, mouseY);
+		long now = System.currentTimeMillis();
+		if (surface != null) {
+			// just behind the surface: the block that was hit, not the air in front of it
+			Vector3d in = new Vector3d(surface).sub(camera.pos).normalize(0.01).add(surface);
+			lastCursorBlock = net.minecraft.core.BlockPos.containing(in.x, in.y, in.z);
+			lastCursorBlockTime = now;
+		}
+		if (lastCursorBlock != null && now - lastCursorBlockTime < 1000) return lastCursorBlock;
+		return net.minecraft.core.BlockPos.containing(camera.pos.x, camera.pos.y, camera.pos.z);
+	}
+
 	/** Builds this frame's world overlay; called during level rendering. */
 	public void buildOverlay() {
 		overlay.clear();
