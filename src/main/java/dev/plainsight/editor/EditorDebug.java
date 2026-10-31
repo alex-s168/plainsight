@@ -370,6 +370,25 @@ public final class EditorDebug {
 				+ " " + Math.round(dev.plainsight.minimap.Minimap.targetDistance) + " " + (dev.plainsight.minimap.Minimap.error.isEmpty() ? "-" : dev.plainsight.minimap.Minimap.error);
 	}
 
+	/** Whether the minimap renders through the shader pack (Iris with Voxy). */
+	public static String minimapThroughPack() {
+		return String.valueOf(dev.plainsight.minimap.Minimap.throughPack());
+	}
+
+	/** Saves the minimap's render target (what the HUD shows) to a PNG; render thread. */
+	public static String minimapShot(String path) {
+		var target = dev.plainsight.minimap.Minimap.target();
+		if (target == null) return "no minimap target";
+		net.minecraft.client.Screenshot.takeScreenshot(target, image -> {
+			try (image) {
+				image.writeToFile(java.nio.file.Path.of(path));
+			} catch (java.io.IOException e) {
+				dev.plainsight.Plainsight.LOG.warn("minimap shot", e);
+			}
+		});
+		return "ok";
+	}
+
 	public static String unfollow() {
 		Editor.get().follow(null);
 		return "ok";
@@ -378,6 +397,28 @@ public final class EditorDebug {
 	public static String toggle() {
 		Editor.get().toggle();
 		return String.valueOf(Editor.isActive());
+	}
+
+	/** Minimap options: "playerLayer showSelections showPlayers showMobs". */
+	public static String minimapOptions() {
+		return dev.plainsight.minimap.Minimap.playerLayer + " " + dev.plainsight.minimap.Minimap.showSelections + " "
+				+ dev.plainsight.minimap.Minimap.showPlayers + " " + dev.plainsight.minimap.Minimap.showMobs;
+	}
+
+	public static String setMinimapOptions(String playerLayer, String selections, String players, String mobs) {
+		dev.plainsight.minimap.Minimap.playerLayer = Boolean.parseBoolean(playerLayer);
+		dev.plainsight.minimap.Minimap.showSelections = Boolean.parseBoolean(selections);
+		dev.plainsight.minimap.Minimap.showPlayers = Boolean.parseBoolean(players);
+		dev.plainsight.minimap.Minimap.showMobs = Boolean.parseBoolean(mobs);
+		return minimapOptions();
+	}
+
+	/** Adds a box of whole blocks (corners inclusive) to the selection tree; "hidden" adds it hidden. */
+	public static String addBox(int x1, int y1, int z1, int x2, int y2, int z2, String hidden) {
+		var b = Editor.get().tree.add(new dev.plainsight.editor.selection.BoxNode(dev.plainsight.editor.math.OrientedBox.ofBlocks(x1, y1, z1, x2, y2, z2)));
+		b.visible = !"hidden".equals(hidden);
+		Editor.get().tree.touch();
+		return b.name();
 	}
 
 	public static String clearTree() {

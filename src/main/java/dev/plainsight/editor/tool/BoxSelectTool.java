@@ -348,15 +348,11 @@ public final class BoxSelectTool implements Tool {
 		if (creating) {
 			OrientedBox preview = OrientedBox.ofBlocks(createStart.getX(), createStart.getY(), createStart.getZ(),
 					createEnd.getX(), createEnd.getY(), createEnd.getZ());
-			o.boxFaces(Overlay.Layer.WORLD, preview, 0x30FFFFFF);
-			o.boxEdges(Overlay.Layer.WORLD, preview, 0xE0FFFFFF, 2f);
-			o.boxEdges(Overlay.Layer.XRAY, preview, 0x40FFFFFF, 1.5f);
+			o.selectionBox(preview, 0xE0FFFFFF, 2f, 0x30, 0x70, 0x40);
 		}
 		if (editing == null) return;
 		OrientedBox box = editing.box();
-		if (!dragging) o.boxFaces(Overlay.Layer.WORLD, box, 0x26FFFFFF);
-		o.boxEdges(Overlay.Layer.WORLD, box, 0xE6FFFFFF, 2f);
-		o.boxEdges(Overlay.Layer.XRAY, box, 0x50FFFFFF, 1.5f);
+		o.selectionBox(box, 0xE6FFFFFF, 2f, dragging ? 0x14 : 0x26, 0x70, 0x50);
 		for (Handle h : Handle.values()) {
 			Vector3d p = handlePos(h, new Vector3d());
 			double s = handleSize(p);

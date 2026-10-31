@@ -48,6 +48,21 @@ public final class Overlay {
 			tris[o + 9] = color;
 		}
 
+		void tri(double[] a, double[] b, double[] c, int color) {
+			if ((triCount + 1) * 10 > tris.length) tris = java.util.Arrays.copyOf(tris, tris.length * 2);
+			int o = triCount++ * 10;
+			tris[o] = a[0];
+			tris[o + 1] = a[1];
+			tris[o + 2] = a[2];
+			tris[o + 3] = b[0];
+			tris[o + 4] = b[1];
+			tris[o + 5] = b[2];
+			tris[o + 6] = c[0];
+			tris[o + 7] = c[1];
+			tris[o + 8] = c[2];
+			tris[o + 9] = color;
+		}
+
 		void clear() {
 			lineCount = 0;
 			triCount = 0;
@@ -94,9 +109,26 @@ public final class Overlay {
 		batch.tri(a, c, d, color);
 	}
 
+	/** The {@code dir} face of block (x, y, z), lifted off it by {@code lift} (two-sided). */
+	public void blockFace(Layer layer, int x, int y, int z, net.minecraft.core.Direction dir, double lift, int color) {
+		int ax = dir.getAxis().ordinal(), u = (ax + 1) % 3, v = (ax + 2) % 3;
+		double[] base = {x, y, z};
+		base[ax] += dir.getAxisDirection() == net.minecraft.core.Direction.AxisDirection.POSITIVE ? 1 + lift : -lift;
+		double[][] q = new double[4][];
+		for (int i = 0; i < 4; i++) {
+			q[i] = base.clone();
+			q[i][u] += (i == 1 || i == 2) ? 1 : 0;
+			q[i][v] += (i >= 2) ? 1 : 0;
+		}
+		Batch b = batches[layer.ordinal()];
+		b.tri(q[0], q[1], q[2], color);
+		b.tri(q[0], q[2], q[3], color);
+	}
+
 	// -- shapes ---------------------------------------------------------------------------------------------
 
-	private static final int[][] EDGES = {{0, 1}, {2, 3}, {4, 5}, {6, 7}, {0, 2}, {1, 3}, {4, 6}, {5, 7}, {0, 4}, {1, 5}, {2, 6}, {3, 7}};
+	/** The 12 edges of a box as pairs of {@link OrientedBox#corner} indices. */
+	public static final int[][] EDGES = {{0, 1}, {2, 3}, {4, 5}, {6, 7}, {0, 2}, {1, 3}, {4, 6}, {5, 7}, {0, 4}, {1, 5}, {2, 6}, {3, 7}};
 	private static final int[][] FACES = {{0, 2, 6, 4}, {1, 5, 7, 3}, {0, 4, 5, 1}, {2, 3, 7, 6}, {0, 1, 3, 2}, {4, 6, 7, 5}};
 
 	public void boxEdges(Layer layer, OrientedBox box, int color, float width) {
@@ -107,6 +139,48 @@ public final class Overlay {
 	public void boxFaces(Layer layer, OrientedBox box, int color) {
 		Vector3d[] c = corners(box);
 		for (int[] f : FACES) quad(layer, c[f[0]], c[f[1]], c[f[2]], c[f[3]], color);
+	}
+
+	/** How far a selection box is drawn outside its blocks: its faces then show on the terrain they lie on. */
+	private static final double SELECTION_INFLATE = 0.01;
+	/** Faces longer than this many blocks get no block grid (it would only be noise). */
+	private static final int GRID_MAX_CELLS = 64;
+
+	/**
+	 * A selection box that shows which blocks it covers: a light fill and a block grid on its faces and its
+	 * edges, all just outside the box (so they lie on the outer surfaces of the blocks inside it, not on
+	 * the neighbours'), plus faint edges through terrain.
+	 */
+	public void selectionBox(OrientedBox box, int color, float width, int faceAlpha, int gridAlpha, int xrayAlpha) {
+		OrientedBox out = new OrientedBox(box);
+		out.half.add(SELECTION_INFLATE, SELECTION_INFLATE, SELECTION_INFLATE);
+		if (faceAlpha > 0) boxFaces(Layer.WORLD, out, withAlpha(color, faceAlpha));
+		if (faceAlpha > 0) BoxTerrainTint.draw(this, box, withAlpha(color, Math.min(255, faceAlpha * 2)));
+		if (gridAlpha > 0) blockGrid(box, out, withAlpha(color, gridAlpha));
+		boxEdges(Layer.WORLD, out, color, width);
+		if (xrayAlpha > 0) boxEdges(Layer.XRAY, box, withAlpha(color, xrayAlpha), 1.25f);
+	}
+
+	/** Lines between the blocks on each face of {@code box} (its own grid, from its minimum corner), drawn on {@code out}. */
+	private void blockGrid(OrientedBox box, OrientedBox out, int color) {
+		Vector3d[] axes = {box.axis(0, new Vector3d()), box.axis(1, new Vector3d()), box.axis(2, new Vector3d())};
+		Vector3d a = new Vector3d(), b = new Vector3d();
+		for (int n = 0; n < 3; n++) {
+			for (int side = -1; side <= 1; side += 2) {
+				for (int k = 0; k < 2; k++) {
+					// lines across the face at whole-block steps along axis u, spanning axis v
+					int u = (n + 1 + k) % 3, v = (n + 2 - k) % 3;
+					double hu = box.halfExtent(u);
+					if (hu * 2 > GRID_MAX_CELLS) continue;
+					for (double pu = -hu + 1; pu < hu - 1e-6; pu++) {
+						a.set(out.center).fma(side * out.halfExtent(n), axes[n]).fma(pu, axes[u]);
+						b.set(a).fma(out.halfExtent(v), axes[v]);
+						a.fma(-out.halfExtent(v), axes[v]);
+						line(Layer.WORLD, a, b, color, 1f);
+					}
+				}
+			}
+		}
 	}
 
 	public void aabbEdges(Layer layer, double x1, double y1, double z1, double x2, double y2, double z2, int color, float width) {

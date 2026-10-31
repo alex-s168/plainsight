@@ -29,6 +29,12 @@ public abstract class MinimapRenderSystemMixin {
 		MinimapVoxy.render((VoxyRenderSystem) (Object) this, Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false));
 	}
 
+	/** The minimap's own pipelines (with a shader pack) go with the render system they were made for. */
+	@Inject(method = "shutdown", at = @At("HEAD"))
+	private void plainsight$releaseMinimap(CallbackInfo ci) {
+		MinimapVoxy.release();
+	}
+
 	/** Voxy loads LOD around the rendered camera: that stays the player's view, not the minimap camera. */
 	@WrapOperation(method = "renderOpaque", at = @At(value = "INVOKE",
 			target = "Lme/cortex/voxy/client/core/rendering/RenderDistanceTracker;setCenterAndProcess(DD)Z"))

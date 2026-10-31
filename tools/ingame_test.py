@@ -176,6 +176,22 @@ def test_toggle_keeps_player_still():
     check(not s["camera"]["mcDetached"], "camera back to first person")
 
 
+def test_bridge_screenshot_after_editor():
+    """The editor's depth pick copies the depth buffer every frame; colour readbacks (the bridge's and F2
+    screenshots) must still work afterwards, not come out black."""
+    editor_on()
+    c.move(800, 450)
+    frames_pass(5)
+    editor_off()
+    frames_pass(3)
+    os.makedirs(SHOTS, exist_ok=True)
+    path = os.path.join(SHOTS, "bridge-after-editor.png")
+    r = c.shot(path)
+    check(r.strip() == path, "bridge screenshot failed: " + r[:300])
+    rgb = avg_color(path, 0, 0, 1600, 900)
+    check(sum(rgb) > 30, "bridge screenshot is black: average %s" % (rgb,))
+
+
 def test_overlays_in_game_keybind():
     editor_on()
     fresh_tree()
@@ -887,16 +903,39 @@ def test_tree_visibility_buttons():
     check(lines >= 12, "box drawn")
     c.click(*widget("vis:box 1"), b=1)
     time.sleep(0.3)
-    check(int(state()["overlay"]["WORLD"].split()[0]) == lines - 12, "eye button hides the box")
+    hidden = int(state()["overlay"]["WORLD"].split()[0])
+    check(hidden <= lines - 12, "eye button hides the box (its edges and block grid): %d -> %d lines" % (lines, hidden))
     c.click(*widget("vis:box 1"), b=1)
     time.sleep(0.3)
     check(int(state()["overlay"]["WORLD"].split()[0]) == lines, "and shows it again")
     c.click(*widget("vis:group 1"), b=1)
     time.sleep(0.3)
-    check(int(state()["overlay"]["WORLD"].split()[0]) == lines - 12, "hiding a group hides its children")
+    check(int(state()["overlay"]["WORLD"].split()[0]) == hidden, "hiding a group hides its children")
     shot("tree-hidden-group")
     c.click(*widget("vis:group 1"), b=1)
     time.sleep(0.3)
+
+
+def test_box_tints_selected_terrain():
+    """The solid blocks a box covers are tinted where open to the air (so a box reaching above the
+    terrain still shows which blocks it holds); the same box in the air tints nothing."""
+    editor_on()
+    fresh_tree()
+    cam(2, -50, -12, 0, 30)
+
+    def tris():
+        time.sleep(0.4)
+        return int(state()["overlay"]["WORLD"].split()[2])  # "N lines, M tris"
+
+    ed("addBox", 2, -20, 2, 7, -15, 7, "shown")
+    in_air = tris()
+    fresh_tree()
+    ed("addBox", 2, -62, 2, 7, -57, 7, "shown")
+    on_ground = tris()
+    # the 6x6 grass tops inside the box at least (2 triangles each)
+    check(on_ground >= in_air + 72, "terrain in the box is tinted: %d vs %d triangles in the air" % (on_ground, in_air))
+    shot("box-terrain-tint")
+    fresh_tree()
 
 
 def test_tool_click_again_unselects():
@@ -1196,15 +1235,39 @@ def test_seed_hider():
     c.command("plainsight seed clear")
 
 
-def test_seed_hider_in_tools_menu():
+def test_seed_hider_tool_button():
+    """The seed hider is a toggle in the tool bar (next to the brightness toggles)."""
     editor_on()
     c.command("plainsight seed hide true")
     for want in ("false", "true"):
-        c.click(*widget("menu_tools"), b=1)
+        c.click(*widget("module_hide_seeds"), b=1)
         time.sleep(0.3)
-        c.click(*widget("menu_hide_seeds"), b=1)
+        check(c.static("dev.plainsight.guess.SeedHider", "enabled") == want, "the Hide Seeds button switches it to %s" % want)
+        check(state()["modules"]["hide_seeds"] == (want == "true"), "and shows it")
+
+
+def test_minimap_tool_button_and_options():
+    """The minimap is a toggle in the tool bar; right-click for what it shows."""
+    editor_on()
+    before = ed("minimap").split(" ")[0]
+    c.click(*widget("module_minimap"), b=1)
+    time.sleep(0.3)
+    check(ed("minimap").split(" ")[0] != before, "the Minimap button switches it")
+    c.click(*widget("module_minimap"), b=1)
+    time.sleep(0.3)
+    check(ed("minimap").split(" ")[0] == before, "and back")
+    ed("setMinimapOptions", "true", "true", "true", "false")
+    c.click(*widget("module_minimap"), b=3)
+    time.sleep(0.4)
+    for name, i in (("minimap_players", 2), ("minimap_mobs", 3), ("minimap_selections", 1)):
+        old = ed("minimapOptions").split(" ")[i]
+        c.click(*widget(name), b=1)
         time.sleep(0.3)
-        check(c.static("dev.plainsight.guess.SeedHider", "enabled") == want, "Tools > Hide seeds on screen switches it to %s" % want)
+        check(ed("minimapOptions").split(" ")[i] != old, "%s switches its option: %s" % (name, ed("minimapOptions")))
+    check("minimap_layer" in state()["widgets"], "the layer choice is in the options")
+    c.key(K["ESC"])
+    time.sleep(0.2)
+    ed("setMinimapOptions", "true", "true", "true", "false")
 
 
 def test_seedcracker_seed_is_taken():
@@ -1262,6 +1325,138 @@ def test_minimap():
     time.sleep(0.4)
     check(mm()[2] == r2, "not in the editor")
     editor_off()
+
+
+def minimap_zoom_182():
+    """A known minimap zoom (other tests change it): all the way in (24 m), then 5 steps out (182 m)."""
+    for _ in range(12):
+        c.key(K["EQUALS"])
+        time.sleep(0.1)
+    for _ in range(5):
+        c.key(K["MINUS"])
+        time.sleep(0.1)
+    time.sleep(0.5)
+    check(ed("minimap").split(" ")[3] == "182", "zoom set: %s" % ed("minimap"))
+
+
+def test_minimap_shows_player_layer():
+    """The minimap leaves out the terrain above the player's layer: a roof over the player is not on it,
+    standing on the roof it is."""
+    if not state()["lodMod"] or not state()["sodium"]:
+        print("      (needs Voxy, skipped)")
+        return
+    editor_off()
+    check(ed("minimap").split(" ")[1] == "true", "the minimap is shown: %s" % ed("minimap"))
+    minimap_zoom_182()
+    # the minimap's square, top right (a margin inside its border); GUI scale 3 on the 1600x900 window
+    side = round(300 * 0.3) * 3
+    box = (1600 - 8 * 3 - side + 15, 8 * 3 + 15, side - 30, side - 30)
+
+    # the patch right below the player's arrow: ground under the roof, the roof from on top of it
+    patch = (box[0] + box[2] // 2 - 15, box[1] + box[3] // 2 + 12, 30, 20)
+
+    def colour(name):
+        time.sleep(3)  # changed chunks go to Voxy again about once a second
+        shot(name)
+        return avg_color(os.path.join(SHOTS, name + ".png"), *patch)
+
+    def redness(rgb):
+        return rgb[0] - (rgb[1] + rgb[2]) / 2
+
+    try:
+        # above the stone hut (its roof is at -55), which other tests use
+        cmd("fill -60 -52 -60 60 -52 60 red_wool")
+        cmd("tp @s 0.5 -60 0.5 0 30")
+        under = colour("minimap-under-roof")
+        ed("setMinimapOptions", "false", "true", "true", "false")
+        top = colour("minimap-under-roof-top")
+        ed("setMinimapOptions", "true", "true", "true", "false")
+        check(redness(top) > redness(under) + 15, "with the Top layer option the roof shows from under it too: %s vs %s" % (top, under))
+        cmd("tp @s 0.5 -51 0.5 0 30")
+        on = colour("minimap-on-roof")
+        check(redness(on) > redness(under) + 15, "the red roof shows only from on top of it: %s under, %s on" % (under, on))
+        check(sum(under) > 120, "the ground under the roof is lit as by day, not dark: %s" % (under,))
+    finally:
+        cmd("fill -60 -52 -60 60 -52 60 air")
+        cmd("tp @s 0.5 -60 0.5 0 0")
+
+
+def count_color(path, box, rgb, fuzz=12):
+    """Pixels of a PNG's rectangle within fuzz % of an RGB colour."""
+    col = "rgb(%d,%d,%d)" % rgb
+    r = subprocess.run([os.path.join(ROOT, "dev"), "magick", path, "-crop", "%dx%d+%d+%d" % (box[2], box[3], box[0], box[1]), "+repage",
+                        "-fuzz", "%d%%" % fuzz, "-fill", "black", "+opaque", col, "-fill", "white", "-opaque", col,
+                        "-format", "%[fx:int(mean*w*h+0.5)]", "info:"], cwd=ROOT, capture_output=True, text=True)
+    m = re.search(r"\d+", r.stdout)
+    if not m:
+        raise AssertionError("magick failed: " + r.stderr[-500:])
+    return int(m.group())
+
+
+def test_minimap_overlays():
+    """The minimap shows the selection tree's shown boxes (not hidden ones) and, as chosen, mobs."""
+    if not state()["lodMod"] or not state()["sodium"]:
+        print("      (needs Voxy, skipped)")
+        return
+    editor_on()
+    fresh_tree()
+    box_name = ed("addBox", 6, -60, 6, 12, -58, 12, "shown")
+    editor_off()
+    cmd("tp @s 0.5 -60 0.5 0 30")
+    minimap_zoom_182()
+    side = round(300 * 0.3) * 3
+    box = (1600 - 8 * 3 - side + 4, 8 * 3 + 4, side - 8, side - 8)
+    path = os.path.join(SHOTS, "minimap-overlays.png")
+    yellow = (255, 224, 64)
+
+    def shot_count(rgb):
+        time.sleep(0.5)
+        shot("minimap-overlays")
+        return count_color(path, box, rgb)
+
+    try:
+        ed("setMinimapOptions", "true", "true", "true", "false")
+        shown = shot_count(yellow)
+        check(shown > 30, "the shown box is outlined on the minimap: %d pixels" % shown)
+        ed("setMinimapOptions", "true", "false", "true", "false")
+        check(shot_count(yellow) < shown / 4, "not with the Selections option off")
+        ed("setMinimapOptions", "true", "true", "true", "false")
+        fresh_tree()
+        ed("addBox", 6, -60, 6, 12, -58, 12, "hidden")
+        check(shot_count(yellow) < shown / 4, "a hidden box is not on the minimap")
+        cmd('summon zombie -4.5 -60 8.5 {NoAI:1b,PersistenceRequired:1b,Silent:1b}')
+        red = (240, 60, 60)
+        before = shot_count(red)
+        ed("setMinimapOptions", "true", "true", "true", "true")
+        check(shot_count(red) > before + 10, "with Mobs on a zombie is a red dot")
+    finally:
+        ed("setMinimapOptions", "true", "true", "true", "false")
+        cmd("kill @e[type=zombie]")
+        editor_on()
+        fresh_tree()
+        editor_off()
+
+
+def test_minimap_through_shader_pack():
+    """With Iris and a shader pack (with Voxy support) the minimap is a frame of the pack of its own: rendered
+    every frame, with terrain in it (not only the pack's sky or fog)."""
+    if ed("minimapThroughPack") != "true":
+        print("      (needs Iris with a shader pack, skipped)")
+        return
+    editor_off()
+    e, v, r0 = ed("minimap").split(" ")[:3]
+    time.sleep(0.5)
+    e, v, r1, _, err = ed("minimap").split(" ", 4)
+    check(v == "true" and err == "-" and int(r1) > int(r0), "rendered through the pack every frame: %s" % ed("minimap"))
+    os.makedirs(SHOTS, exist_ok=True)
+    path = os.path.join(SHOTS, "minimap-pack.png")
+    ed("minimapShot", path)
+    time.sleep(0.5)
+    r = subprocess.run([os.path.join(ROOT, "dev"), "magick", path, "-colorspace", "gray", "-format", "%[fx:int(255*standard_deviation)]", "info:"],
+                       cwd=ROOT, capture_output=True, text=True)
+    m = re.search(r"\d+", r.stdout)
+    check(m and int(m.group()) > 8, "the minimap shows terrain, not a uniform sky: deviation %s" % r.stdout.strip())
+    shot("minimap-pack-hud")
 
 
 def test_guess_prefers_real_lod():

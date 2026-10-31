@@ -119,15 +119,6 @@ public final class EditorUI {
 			if (ImGui.menuItem("Delete", "Del", false, any)) deferred = editor::deleteSelected;
 			ImGui.endMenu();
 		}
-		boolean tools = ImGui.beginMenu("Tools");
-		rect("menu_tools");
-		if (tools) {
-			if (ImGui.menuItem("Hide seeds on screen", "", dev.plainsight.guess.SeedHider.enabled()))
-				dev.plainsight.guess.SeedHider.setEnabled(!dev.plainsight.guess.SeedHider.enabled());
-			rect("menu_hide_seeds");
-			tooltip("Hide seeds on screen", "For screen sharing: seeds in chat (SeedcrackerX, /seed), titles and the editor show as dots.");
-			ImGui.endMenu();
-		}
 		if (ImGui.beginMenu("Help")) {
 			helpContents();
 			ImGui.endMenu();
@@ -145,6 +136,7 @@ public final class EditorUI {
 		ImGui.bulletText("WASD: fly, Space / Shift: up / down, hold Ctrl: faster");
 		ImGui.textDisabled("Tools");
 		ImGui.bulletText("RMB: use tool   MMB: pick block");
+		ImGui.bulletText("Toggles (light overlay, brightness, minimap, hide seeds): right-click for options");
 		ImGui.bulletText("Box: LMB on a handle selects it; drag gizmo arrows, squares, rings");
 		ImGui.bulletText("Enter, a click on empty space or Done: put the box down");
 		ImGui.bulletText("Esc: cancel   Del: delete   Arrows / PgUp / PgDn: nudge");

@@ -41,9 +41,7 @@ public final class SelectionRenderer {
 			case BoxNode b -> {
 				if (b == editor.boxTool.editing()) return;
 				int c = sel ? BOX_SELECTED : BOX;
-				if (sel) o.boxFaces(Overlay.Layer.WORLD, b.box(), Overlay.withAlpha(c, 34));
-				o.boxEdges(Overlay.Layer.WORLD, b.box(), c, sel ? 2.5f : 1.75f);
-				o.boxEdges(Overlay.Layer.XRAY, b.box(), Overlay.withAlpha(c, sel ? 110 : 60), 1.25f);
+				o.selectionBox(b.box(), c, sel ? 2.5f : 1.75f, sel ? 40 : 22, sel ? 90 : 55, sel ? 110 : 60);
 			}
 			case EntityNode e -> {
 				Entity entity = entities.get(e.entity());

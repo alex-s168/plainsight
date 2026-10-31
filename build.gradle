@@ -95,6 +95,8 @@ dependencies {
 	// optional compatibility mixins (src/main/java/dev/plainsight/mixin/sodium, .../voxy), applied only with those mods
 	compileOnly "maven.modrinth:sodium:${project.sodium_version}"
 	compileOnly "maven.modrinth:voxy:${project.voxy_version}"
+	// shader packs: the minimap goes through the pack with Iris (Voxy's Iris pipeline)
+	compileOnly "maven.modrinth:iris:${project.iris_version}"
 	// SeedcrackerX's API (its seedcrackerx entrypoint hands us the seed it finds)
 	compileOnly "19MisterX98:SeedcrackerX:${project.seedcracker_tag}:${project.seedcracker_version}@jar"
 

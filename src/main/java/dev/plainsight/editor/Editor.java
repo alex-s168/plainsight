@@ -94,7 +94,9 @@ public final class Editor {
 	public final dev.plainsight.module.Brightness ingameBrightness = new dev.plainsight.module.Brightness(false);
 	/** Toggleable modules shown in the tool bar (right-click for settings). */
 	public final dev.plainsight.module.LightOverlay lightOverlay = new dev.plainsight.module.LightOverlay();
-	public final List<Module> modules = List.of(lightOverlay, editorBrightness, ingameBrightness);
+	public final dev.plainsight.module.MinimapModule minimap = new dev.plainsight.module.MinimapModule();
+	public final dev.plainsight.module.SeedHiding seedHiding = new dev.plainsight.module.SeedHiding();
+	public final List<Module> modules = List.of(lightOverlay, editorBrightness, ingameBrightness, minimap, seedHiding);
 	/** The viewport's buttons: view options and overlay demos. */
 	public final dev.plainsight.module.GuessedTerrain guessedTerrain = new dev.plainsight.module.GuessedTerrain();
 	public final List<Module> viewModules = List.of(fluids, seeThrough, blockOverlayDemo, pathDemo, guessedTerrain);
@@ -243,6 +245,7 @@ public final class Editor {
 	/** Builds this frame's world overlay; called during level rendering. */
 	public void buildOverlay() {
 		overlay.clear();
+		dev.plainsight.render.BoxTerrainTint.endFrame();
 		Minecraft mc = Minecraft.getInstance();
 		if (!active) {
 			// outside the editor: only what the player asked to see (selections, light levels), no tools

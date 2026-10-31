@@ -9,18 +9,18 @@ import net.caffeinemc.mods.sodium.client.util.FogParameters;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL44;
 
-import java.lang.reflect.Field;
 
 /**
  * Renders the minimap as an extra Voxy pass, right after Voxy's own frame (mixin on its render system):
  * the same LOD world through another of Voxy's viewports (it keeps one per view, as for Vivecraft's eyes),
- * from the minimap camera, into the minimap's textures.
+ * from the minimap camera, into the minimap's textures. With a shader pack (Voxy's Iris pipeline) the pass
+ * goes through the pack instead, as a frame of its own before the level's ({@link MinimapIris}).
  */
 public final class MinimapVoxy {
 	/** Set during the minimap pass: Voxy then picks the minimap viewport, projection and targets. */
 	public static boolean inPass;
-	private static final FogParameters NO_FOG = new FogParameters(0, 0, 0, 0, 1e9f, 1e9f, 1e9f, 1e9f, 1e9f);
-	private static Field pipelineField;
+	static final boolean IRIS = net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("iris");
+	static final FogParameters NO_FOG = new FogParameters(0, 0, 0, 0, 1e9f, 1e9f, 1e9f, 1e9f, 1e9f);
 	private static long lastReingest;
 
 	private MinimapVoxy() {
@@ -44,17 +44,18 @@ public final class MinimapVoxy {
 	}
 
 	public static void render(VoxyRenderSystem rs, float partialTick) {
-		if (inPass || !Minimap.prepare(partialTick)) return;
-		reingestChanged();
+		if (inPass) return;
 		try {
 			AbstractRenderPipeline pipeline = pipeline(rs);
-			// shader packs (Iris) bring their own pipeline: not supported
-			if (!(pipeline instanceof NormalRenderPipeline) || !(pipeline instanceof MinimapTargets targets)) return;
+			// shader packs (Iris) bring their own pipeline: see throughPack
+			if (!(pipeline instanceof NormalRenderPipeline) || !(pipeline instanceof MinimapTargets targets) || !Minimap.prepare(partialTick)) return;
+			reingestChanged();
 			RenderProperties props = pipeline.properties;
 			int colour = ((com.mojang.renderpearl.backend.opengl.GlTexture) Minimap.colour).glId();
 			int depth = ((com.mojang.renderpearl.backend.opengl.GlTexture) Minimap.depth).glId();
-			// sky behind the terrain; empty depth everywhere, so Voxy draws the LOD on every pixel
-			GL44.glClearTexImage(colour, 0, GL11.GL_RGBA, GL11.GL_FLOAT, new float[]{0.55f, 0.69f, 0.95f, 1f});
+			// dark behind the terrain: where the layer cut opens solid ground (walls, rock) nothing is drawn;
+			// empty depth everywhere, so Voxy draws the LOD on every pixel
+			GL44.glClearTexImage(colour, 0, GL11.GL_RGBA, GL11.GL_FLOAT, new float[]{0.07f, 0.07f, 0.08f, 1f});
 			GL44.glClearTexImage(depth, 0, GL11.GL_DEPTH_COMPONENT, GL11.GL_FLOAT, new float[]{props.clearDepth()});
 			var proj = new org.joml.Matrix4f(Minimap.projection(props.isReverseZ(), props.isZero2One()));
 			inPass = true;
@@ -67,18 +68,34 @@ public final class MinimapVoxy {
 				targets.plainsight$swapMinimapTargets();
 				inPass = false;
 			}
-			Minimap.rendered++;
-		} catch (RuntimeException | ReflectiveOperationException | LinkageError e) {
+			Minimap.markRendered(false);
+		} catch (RuntimeException | LinkageError e) {
 			Minimap.error = e.toString();
 			Plainsight.LOG.error("Minimap rendering failed; minimap off", e);
 		}
 	}
 
-	private static AbstractRenderPipeline pipeline(VoxyRenderSystem rs) throws ReflectiveOperationException {
-		if (pipelineField == null) {
-			pipelineField = VoxyRenderSystem.class.getDeclaredField("pipeline");
-			pipelineField.setAccessible(true);
+	/** Before the level is drawn: the minimap through the shader pack, when Voxy renders with one. */
+	public static void throughPack(float partialTick) {
+		VoxyRenderSystem rs = me.cortex.voxy.client.core.IVoxyRenderSystemHolder.getNullable();
+		if (!IRIS || rs == null) return;
+		try {
+			if (!MinimapIris.usesPack(pipeline(rs)) || !Minimap.prepare(partialTick)) return;
+			reingestChanged();
+			if (MinimapIris.render(rs)) Minimap.markRendered(true);
+		} catch (RuntimeException | LinkageError e) {
+			Minimap.error = e.toString();
+			Plainsight.LOG.error("Minimap rendering through the shader pack failed; minimap off", e);
+			release();
 		}
-		return (AbstractRenderPipeline) pipelineField.get(rs);
+	}
+
+	/** Frees the minimap's own pipelines (shader pack), e.g. with the render system they were made for. */
+	public static void release() {
+		if (IRIS) MinimapIris.release();
+	}
+
+	private static AbstractRenderPipeline pipeline(VoxyRenderSystem rs) {
+		return ((dev.plainsight.mixin.voxy.VoxyRenderSystemAccessor) rs).plainsight$pipeline();
 	}
 }

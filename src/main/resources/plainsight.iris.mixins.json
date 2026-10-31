@@ -1,0 +1,13 @@
+{
+	"required": false,
+	"package": "dev.plainsight.mixin.iris",
+	"plugin": "dev.plainsight.SodiumMixinPlugin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"CameraUniformsMixin",
+		"CloudHeightMixin",
+		"IrisRenderingPipelineAccessor",
+		"PipelineManagerAccessor"
+	],
+	"injectors": { "defaultRequire": 1 }
+}

@@ -8,10 +8,14 @@
 		"MinimapPipelineMixin",
 		"MinimapNormalPipelineMixin",
 		"MinimapRenderSystemMixin",
+		"MinimapTerrainCutMixin",
 		"MinimapViewportMixin",
+		"RenderPipelineAccessor",
 		"RenderPipelineMixin",
 		"RenderSystemNearMixin",
+		"SectionRendererAccessor",
 		"ShaderPatchMixin",
+		"VoxyRenderSystemAccessor",
 		"VoxyShutdownMixin"
 	],
 	"injectors": { "defaultRequire": 1 }
