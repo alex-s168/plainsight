@@ -27,11 +27,13 @@ import java.util.Properties;
 public final class SeedStore {
 	private static final Properties SEEDS = new Properties();
 	private static final Properties SOURCES = new Properties();
+	/** Seeds the bedrock check rejected, per server (a rejected seed is not taken again from SeedcrackerX). */
+	private static final Properties REJECTED = new Properties();
 	private static boolean loaded;
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 	/** The singleplayer world's seed file last read, and what it held (seed null: none). */
 	private static Path worldFile;
-	private static String worldSeed, worldSource;
+	private static String worldSeed, worldSource, worldRejected;
 
 	private SeedStore() {
 	}
@@ -50,6 +52,7 @@ public final class SeedStore {
 			all.load(r);
 			for (String k : all.stringPropertyNames()) {
 				if (k.endsWith(".source")) SOURCES.setProperty(k.substring(0, k.length() - 7), all.getProperty(k));
+				else if (k.endsWith(".rejected")) REJECTED.setProperty(k.substring(0, k.length() - 9), all.getProperty(k));
 				else SEEDS.setProperty(k, all.getProperty(k));
 			}
 		} catch (IOException | IllegalArgumentException e) {
@@ -64,6 +67,7 @@ public final class SeedStore {
 			Properties all = new Properties();
 			all.putAll(SEEDS);
 			for (String k : SOURCES.stringPropertyNames()) all.setProperty(k + ".source", SOURCES.getProperty(k));
+			for (String k : REJECTED.stringPropertyNames()) all.setProperty(k + ".rejected", REJECTED.getProperty(k));
 			try (Writer w = Files.newBufferedWriter(f)) {
 				all.store(w, "plainsight: world seeds per server, for the editor's guessed terrain");
 			}
@@ -85,12 +89,13 @@ public final class SeedStore {
 	private static void loadWorld(Path f) {
 		if (f.equals(worldFile)) return;
 		worldFile = f;
-		worldSeed = worldSource = null;
+		worldSeed = worldSource = worldRejected = null;
 		if (Files.exists(f)) {
 			try (Reader r = Files.newBufferedReader(f)) {
 				JsonObject o = JsonParser.parseReader(r).getAsJsonObject();
 				if (o.has("seed")) worldSeed = o.get("seed").getAsString();
 				if (o.has("source")) worldSource = o.get("source").getAsString();
+				if (o.has("rejected")) worldRejected = o.get("rejected").getAsString();
 			} catch (IOException | RuntimeException e) {
 				Plainsight.LOG.warn("Could not read {}", f, e);
 			}
@@ -113,14 +118,15 @@ public final class SeedStore {
 
 	private static void saveWorld() {
 		try {
-			if (worldSeed == null) {
+			if (worldSeed == null && worldRejected == null) {
 				Files.deleteIfExists(worldFile);
 				return;
 			}
 			Files.createDirectories(worldFile.getParent());
 			JsonObject o = new JsonObject();
-			o.addProperty("seed", worldSeed);
+			if (worldSeed != null) o.addProperty("seed", worldSeed);
 			if (worldSource != null) o.addProperty("source", worldSource);
+			if (worldRejected != null) o.addProperty("rejected", worldRejected);
 			Files.writeString(worldFile, GSON.toJson(o));
 		} catch (IOException e) {
 			Plainsight.LOG.warn("Could not write {}", worldFile, e);
@@ -141,10 +147,12 @@ public final class SeedStore {
 	public static synchronized long[] knownSeeds() {
 		load();
 		var all = new java.util.ArrayList<Object>(SEEDS.values());
+		all.addAll(REJECTED.values());
 		Path f = singleplayerFile();
 		if (f != null) {
 			loadWorld(f);
 			if (worldSeed != null) all.add(worldSeed);
+			if (worldRejected != null) all.add(worldRejected);
 		}
 		return all.stream().mapToLong(v -> {
 			try {
@@ -197,18 +205,73 @@ public final class SeedStore {
 			loadWorld(f);
 			worldSeed = Long.toString(seed);
 			worldSource = source;
+			worldRejected = null;
 			saveWorld();
 		} else {
 			SEEDS.setProperty(key, Long.toString(seed));
 			SOURCES.setProperty(key, source);
+			REJECTED.remove(key);
 			save();
 		}
 		Plainsight.LOG.info("World seed for {} set ({})", key, source);
 	}
 
+	/**
+	 * The bedrock check found the seed is not this world's: it is no longer used (guessed terrain,
+	 * locate) and SeedcrackerX's finding it again is ignored; setting it with the command uses it again.
+	 */
+	public static synchronized void reject() {
+		load();
+		String key = worldKey();
+		String v = raw();
+		if (key == null || v == null) return;
+		Path f = singleplayerFile();
+		if (f != null) {
+			loadWorld(f);
+			worldRejected = v;
+			worldSeed = worldSource = null;
+			saveWorld();
+		} else {
+			REJECTED.setProperty(key, v);
+			SEEDS.remove(key);
+			SOURCES.remove(key);
+			save();
+		}
+		Plainsight.LOG.info("World seed for {} rejected by the bedrock check", key);
+	}
+
+	/** The seed the bedrock check rejected for this world, if any. */
+	public static synchronized OptionalLong rejected() {
+		load();
+		String v;
+		Path f = singleplayerFile();
+		if (f != null) {
+			loadWorld(f);
+			v = worldRejected;
+		} else {
+			String key = worldKey();
+			v = key == null ? null : REJECTED.getProperty(key);
+		}
+		try {
+			return v == null ? OptionalLong.empty() : OptionalLong.of(Long.parseLong(v));
+		} catch (NumberFormatException e) {
+			return OptionalLong.empty();
+		}
+	}
+
+	/** {@link #fromSeedCracker} with the seed as text (tests: the dev bridge passes strings). */
+	public static String fromSeedCrackerText(String seed) {
+		fromSeedCracker(Long.parseLong(seed));
+		return "ok";
+	}
+
 	/** A seed SeedcrackerX found: kept (if new) and announced in chat. Render thread. */
 	public static void fromSeedCracker(long seed) {
 		if (seed().orElse(Long.MIN_VALUE) == seed) return;
+		if (rejected().orElse(Long.MIN_VALUE) == seed) {
+			Plainsight.LOG.info("SeedcrackerX found the seed the bedrock check rejected for this world: not used");
+			return;
+		}
 		set(seed, "SeedcrackerX");
 		Minecraft.getInstance().gui.hud.getChat().addClientSystemMessage(net.minecraft.network.chat.Component.literal(
 				"[Plainsight] Seed " + SeedHider.show(seed) + " from SeedcrackerX saved: the editor shows guessed terrain (with Voxy)."));

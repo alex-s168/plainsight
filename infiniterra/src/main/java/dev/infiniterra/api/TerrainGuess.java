@@ -14,6 +14,7 @@ import java.util.OptionalLong;
  * mistaken for the real world. Real chunks and the LOD already known always win over guesses.
  * <p>
  * The host decides which world and seed, and when the guess is shown; it calls {@link #update} every tick.
+ * Whether the seed fits the world shows in {@link SeedCheck}.
  */
 public final class TerrainGuess {
 	private TerrainGuess() {
@@ -64,6 +65,7 @@ public final class TerrainGuess {
 	 * generated around while shown.
 	 */
 	public static void update(@Nullable String worldKey, OptionalLong seed, boolean show, double focusX, double focusZ) {
+		dev.infiniterra.impl.guess.SeedCheckImpl.update(worldKey, seed);
 		GuessWorld.reconcile(worldKey, seed);
 		GuessWorld world = GuessWorld.current();
 		boolean shown = show && world != null && world.state() == GuessWorld.State.READY;

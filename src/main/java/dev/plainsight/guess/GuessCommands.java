@@ -61,13 +61,29 @@ public final class GuessCommands {
 	private static int show(CommandContext<FabricClientCommandSource> c) {
 		OptionalLong seed = SeedStore.seed();
 		if (seed.isEmpty()) {
-			c.getSource().sendFeedback(Component.literal("No seed known for this world. SeedcrackerX finds it, or use /plainsight seed <seed>."));
+			OptionalLong rejected = SeedStore.rejected();
+			c.getSource().sendFeedback(Component.literal("No seed known for this world"
+					+ (rejected.isPresent() ? " (seed " + SeedHider.show(rejected.getAsLong()) + " did not match its bedrock)" : "")
+					+ ". SeedcrackerX finds it, or use /plainsight seed <seed>."));
 			return 0;
 		}
 		TerrainGuess.Status w = TerrainGuess.current();
 		c.getSource().sendFeedback(Component.literal("Seed " + SeedHider.show(seed.getAsLong()) + " (" + SeedStore.source() + ")"
-				+ (w == null ? "" : ", guessed terrain: " + w.state().name().toLowerCase(java.util.Locale.ROOT) + ", " + w.guessedCount() + " chunks")));
+				+ (w == null ? "" : ", guessed terrain: " + w.state().name().toLowerCase(java.util.Locale.ROOT) + ", " + w.guessedCount() + " chunks")
+				+ ", " + checkText()));
 		return 1;
+	}
+
+	/** The bedrock check of the seed, in words. */
+	public static String checkText() {
+		var r = dev.infiniterra.api.SeedCheck.result();
+		if (r == null) return "not checked";
+		if (!r.comparable()) return "not checked here (no bedrock pattern in this dimension)";
+		return "bedrock check: " + switch (r.verdict()) {
+			case MATCHES -> "matches";
+			case MISMATCH -> "does not match";
+			case UNKNOWN -> "pending";
+		} + " (" + r.matched() + " chunks match, " + r.mismatched() + " do not)";
 	}
 
 	private static int fromWorld(CommandContext<FabricClientCommandSource> c) {

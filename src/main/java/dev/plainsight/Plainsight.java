@@ -154,5 +154,15 @@ public final class Plainsight implements ClientModInitializer {
 		dev.infiniterra.api.TerrainGuess.update(mc.level == null ? null : dev.plainsight.guess.SeedStore.worldKey(),
 				mc.level == null ? java.util.OptionalLong.empty() : dev.plainsight.guess.SeedStore.seed(),
 				Editor.isActive() && editor.guessedTerrain.enabled(), editor.camera.pos.x, editor.camera.pos.z);
+		// the bedrock of the chunks around does not fit the seed: stop using it, and say so
+		var check = dev.infiniterra.api.SeedCheck.result();
+		var seed = dev.plainsight.guess.SeedStore.seed();
+		if (check != null && check.verdict() == dev.infiniterra.api.SeedCheck.Verdict.MISMATCH && seed.isPresent() && seed.getAsLong() == check.seed()) {
+			dev.plainsight.guess.SeedStore.reject();
+			mc.gui.hud.getChat().addClientSystemMessage(net.minecraft.network.chat.Component.literal("[Plainsight] Stopped using seed "
+					+ dev.plainsight.guess.SeedHider.show(check.seed()) + ": the bedrock of " + check.mismatched() + " chunks here does not match it"
+					+ " (" + check.matched() + " do), so it is probably not this world's seed. Guessed terrain and /plainsight locate are off;"
+					+ " /plainsight seed <seed> sets one.").withStyle(net.minecraft.ChatFormatting.YELLOW));
+		}
 	}
 }

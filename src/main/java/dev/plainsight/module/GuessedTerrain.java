@@ -56,6 +56,7 @@ public final class GuessedTerrain implements Module {
 		TerrainGuess.Status w = TerrainGuess.current();
 		var seed = SeedStore.seed();
 		ImGui.text(seed.isPresent() ? "Seed " + dev.plainsight.guess.SeedHider.show(seed.getAsLong()) + " (" + SeedStore.source() + ")" : "No seed known");
+		if (seed.isPresent()) ImGui.textDisabled(dev.plainsight.guess.GuessCommands.checkText());
 		if (w == null) {
 			ImGui.textDisabled(TerrainGuess.supported() ? "SeedcrackerX finds it, or /plainsight seed <seed>" : "Needs Voxy to show guessed terrain");
 			return;

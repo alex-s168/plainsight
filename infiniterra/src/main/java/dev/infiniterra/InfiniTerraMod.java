@@ -21,6 +21,7 @@ public final class InfiniTerraMod implements ClientModInitializer {
 	public void onInitializeClient() {
 		if (DISABLED) return;
 		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> dev.infiniterra.impl.guess.GuessWorld.shutdown());
+		net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents.CHUNK_LOAD.register((level, chunk) -> dev.infiniterra.impl.guess.SeedCheckImpl.loaded(chunk));
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(dev.infiniterra.impl.guess.GuessWorld::shutdown));
 	}
 }

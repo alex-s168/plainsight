@@ -2058,6 +2058,49 @@ def test_zz_leave_world_with_guessed_terrain():
     c.command("plainsight seed clear")
 
 
+def test_zzz_seed_check_against_bedrock():
+    """In a world with normal terrain, the bedrock of the loaded chunks matches its seed; another seed does not:
+    plainsight then stops using it, says so, and does not take it again from SeedcrackerX. In the flat test
+    world (no random bedrock) seeds are not judged. Runs last: it switches worlds."""
+    c.command("plainsight seed 4242")
+    time.sleep(2)
+    s = state()
+    check(s["seed"] == "4242" and not s["seedCheck"].startswith("MISMATCH"), "flat world: not judged: %s" % s["seedCheck"])
+    c.command("plainsight seed clear")
+    ed("leaveWorld")
+    deadline = time.time() + 40
+    while time.time() < deadline and "world=none" not in c.status():
+        time.sleep(1)
+    c.world("plainsight-normal", "creative", "normal")
+    c.wait_world(300)
+    try:
+        # (the world may have been left in another dimension)
+        c.command("execute in minecraft:overworld run tp @s 0 120 0")
+        time.sleep(8)
+        c.command("plainsight seed 12345")
+        s = wait_for(lambda s: s["seedCheck"].startswith("MATCHES"), 60)
+        check(s["seedCheck"].startswith("MATCHES"), "the right seed matches the bedrock: %s" % s["seedCheck"])
+        check(s["seedCheck"].split()[2] == "0", "and no chunk mismatches: %s" % s["seedCheck"])
+        c.command("plainsight seed 12346")
+        s = wait_for(lambda s: s["seed"] == "", 60)
+        check(s["seed"] == "" and s["seedRejected"] == "12346", "another seed is rejected: seed=%s rejected=%s check=%s"
+              % (s["seed"], s["seedRejected"], s["seedCheck"]))
+        check("Stopped using seed" in ed("chatShown", 4), "and plainsight says so: %s" % ed("chatShown", 4))
+        # SeedcrackerX finding it again is ignored
+        c.static("dev.plainsight.guess.SeedStore", "fromSeedCrackerText", "12346")
+        time.sleep(0.5)
+        check(state()["seed"] == "", "SeedcrackerX's same seed is not taken again")
+    finally:
+        c.command("plainsight seed clear")
+        ed("leaveWorld")
+        deadline = time.time() + 40
+        while time.time() < deadline and "world=none" not in c.status():
+            time.sleep(1)
+        c.world("plainsight-test")
+        c.wait_world()
+        time.sleep(3)
+
+
 def test_guessed_terrain():
     """With a seed (here given by command) and Voxy, the editor shows terrain generated from the seed far
     from the player, tinted; Voxy shows the normal LOD again outside the editor."""

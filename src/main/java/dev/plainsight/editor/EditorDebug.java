@@ -74,6 +74,10 @@ public final class EditorDebug {
 		var guess = dev.infiniterra.api.TerrainGuess.current();
 		var seed = dev.plainsight.guess.SeedStore.seed();
 		o.addProperty("seed", seed.isPresent() ? Long.toString(seed.getAsLong()) : "");
+		var check = dev.infiniterra.api.SeedCheck.result();
+		o.addProperty("seedCheck", check == null ? "" : check.verdict() + " " + check.matched() + " " + check.mismatched() + " " + check.uncomparable());
+		var rejected = dev.plainsight.guess.SeedStore.rejected();
+		o.addProperty("seedRejected", rejected.isPresent() ? Long.toString(rejected.getAsLong()) : "");
 		o.addProperty("guessState", guess == null ? "" : guess.state().name() + (guess.error() != null ? ": " + guess.error() : ""));
 		o.addProperty("guessed", guess == null ? 0 : guess.guessedCount());
 		o.addProperty("guessReal", guess == null ? 0 : guess.realCount());
