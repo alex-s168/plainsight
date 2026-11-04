@@ -20,7 +20,9 @@ import org.joml.Vector4f;
  */
 public final class Minimap {
 	/** Pitch of the minimap camera (degrees down from the horizon): a tilted top view. */
-	public static final float PITCH = 60;
+	/** Degrees down from the horizon: the editor map's tilt (Ctrl + mouse there), 60 by default. */
+	public static final float DEFAULT_PITCH = 60;
+	public static volatile float pitch = DEFAULT_PITCH;
 	/** Vertical field of view of the minimap camera (degrees); narrow, so it looks almost like a map. */
 	public static final float FOV = 40;
 	public static final double MIN_DISTANCE = 24, MAX_DISTANCE = 6000;
@@ -145,7 +147,7 @@ public final class Minimap {
 
 		var at = mc.player.getPosition(partialTick);
 		cutY = playerLayer ? (float) Math.floor(at.y + 1e-3) + 1 : Float.MAX_VALUE;
-		double pitch = Math.toRadians(PITCH), yawR = Math.toRadians(yaw);
+		double pitch = Math.toRadians(Minimap.pitch), yawR = Math.toRadians(yaw);
 		// view direction (Minecraft: yaw 0 looks towards +Z); the camera sits behind and above the player
 		double dx = -Math.sin(yawR) * Math.cos(pitch), dy = -Math.sin(pitch), dz = Math.cos(yawR) * Math.cos(pitch);
 		cameraPos.set(at.x - dx * distance, at.y + 1 - dy * distance, at.z - dz * distance);

@@ -639,9 +639,11 @@ public final class Editor {
 	// -- input (from the mixins; only while active and no screen is open) ----------------------------------
 
 	public void onMouseMove(double x, double y) {
+		double lastX = mouseX, lastY = mouseY;
 		mouseX = x;
 		mouseY = y;
 		if (map.dragging()) map.dragTo(this, mouseRay());
+		else if (map.active() && ctrl && !ImGuiLayer.get().wantsMouse() && viewport.contains(x, y)) map.rotate(this, x - lastX, y - lastY);
 		if (camera.drag() != EditorCamera.Drag.NONE) {
 			camera.dragBy(x - lastDragX, y - lastDragY, viewport.worldPerPixel(fov()));
 			lastDragX = x;

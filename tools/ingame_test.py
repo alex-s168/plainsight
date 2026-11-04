@@ -1537,6 +1537,56 @@ def test_map_mode_camera():
     check(s["camera"]["pos"] == before["pos"] and s["camera"]["pitch"] == before["pitch"], "with the 3D camera as it was: %s vs %s" % (s["camera"], before))
 
 
+def test_map_turn_and_tilt():
+    """Ctrl + mouse in the map: left/right turns it around the view's centre, up/down tilts it (top-down at
+    most, 10 degrees at least); the minimap takes the tilt."""
+    editor_on()
+    fresh_tree()
+    cam(2, -50, -6, 0, 30)
+    c.key(K["M"])
+    time.sleep(0.4)
+    try:
+        s = state()
+        c.move(800, 450)
+        time.sleep(0.1)
+        c.key(K["LCTRL"], "press")
+        for i in range(10):
+            c.move(800 + 10 * (i + 1), 450)
+            time.sleep(0.03)
+        time.sleep(0.2)
+        t = state()["camera"]
+        check(abs(t["yaw"] - (s["camera"]["yaw"] + 30)) < 1, "moving right turns the map: %s -> %s" % (s["camera"]["yaw"], t["yaw"]))
+        check(abs(t["pitch"] - s["camera"]["pitch"]) < 1e-3, "without tilting it")
+        for i in range(10):
+            c.move(900, 450 - 30 * (i + 1))
+            time.sleep(0.03)
+        time.sleep(0.2)
+        t = state()["camera"]
+        check(abs(t["pitch"] - 90) < 1e-3, "moving up tilts it to top-down, no further: %s" % t["pitch"])
+        check(abs(float(c.static("dev.plainsight.editor.EditorDebug", "minimapTilt")) - 90) < 1e-3, "the minimap takes the tilt")
+        for _ in range(2):
+            # down the viewport twice (Ctrl up while going back to the top)
+            c.key(K["LCTRL"], "release")
+            c.move(900, 150)
+            time.sleep(0.05)
+            c.key(K["LCTRL"], "press")
+            for i in range(20):
+                c.move(900, 150 + 30 * (i + 1))
+                time.sleep(0.02)
+        time.sleep(0.2)
+        check(abs(state()["camera"]["pitch"] - 10) < 1e-3, "and down to 10 degrees at most: %s" % state()["camera"]["pitch"])
+        c.key(K["LCTRL"], "release")
+        p = state()["camera"]["pos"]
+        c.move(500, 300)
+        time.sleep(0.2)
+        check(state()["camera"]["pos"] == p, "without Ctrl the mouse does not turn it")
+    finally:
+        c.key(K["LCTRL"], "release")
+        ed("setMinimapTilt", 60)
+        c.key(K["M"])
+        time.sleep(0.4)
+
+
 def test_point_select():
     """The point tool selects a block position with RMB (also in the map); it copies as "X Y Z" only."""
     editor_on()

@@ -7,15 +7,19 @@ import org.joml.Vector3dc;
 /**
  * The editor's map (M): the camera looks down at the minimap's angle, north up, through a narrow field
  * of view (a slightly 3D map, like the minimap's); the wheel zooms towards the point under the cursor
- * and dragging moves the map. With Voxy the view is drawn like the minimap (the player's layer, daylight;
+ * and dragging moves the map. Ctrl + mouse turns the map and tilts it (the minimap takes the tilt). With Voxy the view is drawn like the minimap (the player's layer, daylight;
  * see Minimap's editor map pass). The 3D camera comes back when the map is left. Zoom and drag work on a
  * horizontal plane at the player's height.
  */
 public final class MapMode {
 	/** Field of view of the map camera (degrees): narrow, so it looks almost like a flat map. */
 	public static final float FOV = 40;
-	/** Degrees down from the horizon, as the minimap. */
-	public static final float PITCH = dev.plainsight.minimap.Minimap.PITCH;
+	/** Tilt limits (degrees down from the horizon): fully top-down, and 10 degrees above the side view. */
+	public static final float MIN_PITCH = 10, MAX_PITCH = 90;
+	/** Degrees of turn and of tilt per pixel of mouse movement with Ctrl. */
+	static final double TURN_PER_PIXEL = 0.3, TILT_PER_PIXEL = 0.1;
+	/** The map's direction: north up (yaw 180) until it is turned. */
+	private float yaw = 180;
 	public static final double MIN_HEIGHT = 12, MAX_HEIGHT = 6000;
 	private boolean active;
 	private final Vector3d saved = new Vector3d();
@@ -61,8 +65,11 @@ public final class MapMode {
 		planeY = player != null ? player.getY() : c.pos.y - 64;
 		active = true;
 		c.stopMovement();
-		c.set(new Vector3d(at.x, planeY + height, at.z + height / Math.tan(Math.toRadians(PITCH))), 180, PITCH);
-		editor.setStatus("Map: scroll to zoom, drag to move, " + dev.plainsight.Plainsight.mapKeyName() + " for the 3D view");
+		float pitch = tilt();
+		Vector3d dir = dev.plainsight.editor.EditorCamera.direction(yaw, pitch, new Vector3d());
+		// from above (at the map's height) and behind the point, in the map's direction
+		c.set(new Vector3d(at.x, planeY, at.z).fma(-height / Math.sin(Math.toRadians(pitch)), dir), yaw, pitch);
+		editor.setStatus("Map: scroll to zoom, drag to move, Ctrl + mouse to turn and tilt, " + dev.plainsight.Plainsight.mapKeyName() + " for the 3D view");
 	}
 
 	public void exit(Editor editor) {
@@ -71,6 +78,29 @@ public final class MapMode {
 		dragging = false;
 		editor.camera.stopMovement();
 		editor.camera.set(saved, savedYaw, savedPitch);
+	}
+
+	/** The map's tilt, shared with the minimap. */
+	private static float tilt() {
+		return Math.clamp(dev.plainsight.minimap.Minimap.pitch, MIN_PITCH, MAX_PITCH);
+	}
+
+	/**
+	 * Ctrl + mouse: turns the map around the up axis through the point at the view's centre (left/right)
+	 * and tilts it slowly (up: towards top-down). The minimap takes the tilt.
+	 */
+	public void rotate(Editor editor, double dx, double dy) {
+		var c = editor.camera;
+		Vector3d centre = onPlane(c.pos, c.forward(new Vector3d()));
+		if (centre == null) return;
+		double dist = c.pos.distance(centre);
+		yaw = (float) (c.yaw + dx * TURN_PER_PIXEL);
+		float pitch = (float) Math.clamp(c.pitch - dy * TILT_PER_PIXEL, MIN_PITCH, MAX_PITCH);
+		dev.plainsight.minimap.Minimap.pitch = pitch;
+		Vector3d dir = dev.plainsight.editor.EditorCamera.direction(yaw, pitch, new Vector3d());
+		Vector3d pos = new Vector3d(centre).fma(-dist, dir);
+		c.set(pos, yaw, pitch);
+		height = pos.y - planeY;
 	}
 
 	/** Where the cursor ray meets the map's plane (null if it does not point down). */
@@ -113,8 +143,9 @@ public final class MapMode {
 		dragging = false;
 	}
 
-	/** Leaving the editor or the world: the next editor starts in 3D. */
+	/** Leaving the editor or the world: the next editor starts in 3D, the map north up. */
 	public void reset() {
+		yaw = 180;
 		active = false;
 		dragging = false;
 	}

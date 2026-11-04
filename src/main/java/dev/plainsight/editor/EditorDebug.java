@@ -478,6 +478,16 @@ public final class EditorDebug {
 		return dev.plainsight.render.WaypointMarkers.drawn + " " + dev.plainsight.render.WaypointMarkers.nameAlpha + " " + dev.plainsight.render.WaypointMarkers.nameShown;
 	}
 
+	/** The minimap's tilt (degrees down from the horizon), set by the editor map. */
+	public static String minimapTilt() {
+		return Float.toString(dev.plainsight.minimap.Minimap.pitch);
+	}
+
+	public static String setMinimapTilt(float degrees) {
+		dev.plainsight.minimap.Minimap.pitch = degrees;
+		return "ok";
+	}
+
 	/** Sets the waypoint diamonds' size (the Waypoints module's slider). */
 	public static String waypointScale(float scale) {
 		dev.plainsight.render.WaypointMarkers.scale = scale;

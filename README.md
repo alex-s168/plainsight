@@ -126,8 +126,8 @@ puts the box down (hides its handles). Tool options show name, centre, size and 
 ## Minimap (prototype, with Voxy)
 
 A minimap in the top right of the HUD that is Voxy's LOD world seen from a second camera: above and
-behind the player, tilted 60 degrees down and turned with the player's view, so terrain and builds show
-in 3D. <kbd>N</kbd> switches it off and on, <kbd>=</kbd> / <kbd>-</kbd> zoom (24 m to 6 km, gliding).
+behind the player, tilted 60 degrees down (the editor map's tilt: Ctrl + mouse up/down there, from
+top-down to 10 degrees) and turned with the player's view, so terrain and builds show in 3D. <kbd>N</kbd> switches it off and on, <kbd>=</kbd> / <kbd>-</kbd> zoom (24 m to 6 km, gliding).
 An arrow marks the player, a red N the north. Hidden in the editor and with F1.
 
 How: right after Voxy's own frame it renders once more, through an extra Voxy viewport (as for
