@@ -10,3 +10,6 @@ pluginManagement {
 }
 
 rootProject.name = 'plainsight'
+
+// terrain rendering, guessed terrain and LOD mod interop; a library mod nested in plainsight's jar
+include 'infiniterra'

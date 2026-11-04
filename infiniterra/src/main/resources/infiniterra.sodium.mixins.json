@@ -1,0 +1,11 @@
+{
+	"required": false,
+	"package": "dev.infiniterra.mixin.sodium",
+	"plugin": "dev.infiniterra.InfiniTerraMixinPlugin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"OcclusionCullerMixin",
+		"RenderSectionManagerMixin"
+	],
+	"injectors": { "defaultRequire": 1 }
+}

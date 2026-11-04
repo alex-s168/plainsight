@@ -1,5 +1,7 @@
 package dev.plainsight.guess;
 
+import dev.infiniterra.api.WorldgenServer;
+
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -44,14 +46,14 @@ import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.literal;
 
 /**
  * {@code /plainsight locate structure|biome <id or #tag>}: vanilla's /locate, run on the seed's worldgen
- * server ({@link SeedServer}) from the player's position in its dimension, so it works on any server once
+ * server ({@link WorldgenServer}) from the player's position in its dimension, so it works on any server once
  * the seed is known. The answer is what the seed generates (a world made with other versions or mods can
  * differ). With Xaero's Minimap the result offers a waypoint ({@code /plainsight waypoint x y z name}).
  */
 public final class LocateCommands {
 	private static final int MAX_STRUCTURE_SEARCH_RADIUS = 100, MAX_BIOME_SEARCH_RADIUS = 6400;
 	/** The server this command keeps for the world's seed (released when leaving the world or the seed changes). */
-	private static @Nullable SeedServer held;
+	private static @Nullable WorldgenServer held;
 
 	private enum Kind {
 		STRUCTURE("structure", "commands.locate.structure.success", "commands.locate.structure.not_found", "commands.locate.structure.invalid"),
@@ -134,17 +136,17 @@ public final class LocateCommands {
 	}
 
 	/** The worldgen server for the world's seed (started if needed), or null without a seed. Render thread. */
-	private static @Nullable SeedServer server() {
+	private static @Nullable WorldgenServer server() {
 		OptionalLong seed = Minecraft.getInstance().level == null ? OptionalLong.empty() : SeedStore.seed();
-		if (held != null && (seed.isEmpty() || held.seed != seed.getAsLong() || held.failed())) shutdown();
-		if (held == null && seed.isPresent()) held = SeedServer.acquire(seed.getAsLong());
+		if (held != null && (seed.isEmpty() || held.seed() != seed.getAsLong() || held.failed())) shutdown();
+		if (held == null && seed.isPresent()) held = WorldgenServer.acquire(seed.getAsLong());
 		return held;
 	}
 
 	/** The structures or biomes (and their tags) of the seed's server; starts it on the first try. */
 	private static SuggestionProvider<FabricClientCommandSource> suggestions(Kind kind) {
 		return (c, builder) -> {
-			SeedServer s = server();
+			WorldgenServer s = server();
 			MinecraftServer server = s == null ? null : s.serverNow();
 			if (server == null) return builder.buildFuture();
 			var lookup = server.registryAccess().lookupOrThrow(kind.registry());
@@ -158,7 +160,7 @@ public final class LocateCommands {
 		FabricClientCommandSource source = c.getSource();
 		String input = StringArgumentType.getString(c, kind.arg).trim();
 		Minecraft mc = Minecraft.getInstance();
-		SeedServer s = server();
+		WorldgenServer s = server();
 		if (s == null || mc.player == null || mc.level == null) {
 			source.sendError(Component.literal("No seed known for this world: SeedcrackerX finds it, or use /plainsight seed <seed>."));
 			return 0;

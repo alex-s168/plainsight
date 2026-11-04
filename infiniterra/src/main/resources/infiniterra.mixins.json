@@ -1,0 +1,15 @@
+{
+	"required": true,
+	"package": "dev.infiniterra.mixin",
+	"plugin": "dev.infiniterra.InfiniTerraMixinPlugin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"BlockChangeMixin",
+		"CameraMixin",
+		"CloudRendererMixin",
+		"FogRendererMixin",
+		"GameRendererAccessor",
+		"GameRendererMixin"
+	],
+	"injectors": { "defaultRequire": 1 }
+}

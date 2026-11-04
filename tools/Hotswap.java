@@ -27,7 +27,7 @@ public class Hotswap {
 		long since = Files.exists(stamp) ? Files.getLastModifiedTime(stamp).toMillis() : 0;
 		long now = System.currentTimeMillis();
 		Map<String, Path> changed = new HashMap<>();
-		for (String dir : List.of("build/classes/java/main", "build/classes/java/devbridge")) {
+		for (String dir : List.of("build/classes/java/main", "build/classes/java/devbridge", "infiniterra/build/classes/java/main")) {
 			Path base = root.resolve(dir);
 			if (!Files.isDirectory(base)) continue;
 			try (Stream<Path> files = Files.walk(base)) {

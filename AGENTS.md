@@ -16,6 +16,14 @@ JetBrains Runtime 25, Mesa, headless sway, ImageMagick, Python) with a clean `LD
 `tools/hidden-client.sh` (and so `tools/mc.py start`) re-executes itself through `./dev` when not
 already in the shell. See README.md, "Development", for the full tool list.
 
+## Layout
+
+Two mods: plainsight (`src/`) and InfiniTerra (`infiniterra/`, Gradle subproject, nested in plainsight's
+jar). InfiniTerra owns terrain rendering and LOD mod interop (guessed terrain, worldgen servers, camera
+passes, detached camera, the Voxy/Sodium/Iris mixins for those); plainsight only uses
+`dev.infiniterra.api`, never `dev.infiniterra.impl` or its mixins. Design and plans: issue #48.
+`./dev ./gradlew build` builds and tests both.
+
 ## Testing
 
 * Test only in the hidden client (`tools/mc.py start [gl]`, run-hidden/, bridge :25612), never in the

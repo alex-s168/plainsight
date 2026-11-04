@@ -1,5 +1,7 @@
 package dev.plainsight.guess;
 
+import dev.infiniterra.api.TerrainGuess;
+
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -50,8 +52,8 @@ public final class GuessCommands {
 				.then(LocateCommands.waypoint())
 				.then(LocateCommands.select())
 				.then(literal("guess").then(literal("radius").then(argument("chunks", IntegerArgumentType.integer(4, 128)).executes(c -> {
-					GuessWorld.radius = IntegerArgumentType.getInteger(c, "chunks");
-					c.getSource().sendFeedback(Component.literal("Guessed terrain radius: " + GuessWorld.radius + " chunks"));
+					TerrainGuess.setRadius(IntegerArgumentType.getInteger(c, "chunks"));
+					c.getSource().sendFeedback(Component.literal("Guessed terrain radius: " + TerrainGuess.radius() + " chunks"));
 					return 1;
 				})))));
 	}
@@ -62,7 +64,7 @@ public final class GuessCommands {
 			c.getSource().sendFeedback(Component.literal("No seed known for this world. SeedcrackerX finds it, or use /plainsight seed <seed>."));
 			return 0;
 		}
-		GuessWorld w = GuessWorld.current();
+		TerrainGuess.Status w = TerrainGuess.current();
 		c.getSource().sendFeedback(Component.literal("Seed " + SeedHider.show(seed.getAsLong()) + " (" + SeedStore.source() + ")"
 				+ (w == null ? "" : ", guessed terrain: " + w.state().name().toLowerCase(java.util.Locale.ROOT) + ", " + w.guessedCount() + " chunks")));
 		return 1;

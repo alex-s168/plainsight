@@ -376,7 +376,7 @@ public final class EditorUI {
 					labeledToggle("view_" + m.id(), labels[i], m);
 				}
 				// only once a seed is known (and Voxy can show it)
-				if (dev.plainsight.guess.GuessWorld.current() != null) {
+				if (dev.infiniterra.api.TerrainGuess.current() != null) {
 					ImGui.sameLine(0, 6);
 					labeledToggle("view_" + editor.guessedTerrain.id(), "Guessed terrain", editor.guessedTerrain);
 				}

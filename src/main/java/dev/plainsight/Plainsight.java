@@ -118,12 +118,14 @@ public final class Plainsight implements ClientModInitializer {
 				(dispatcher, context) -> dev.plainsight.guess.GuessCommands.register(dispatcher));
 		net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents.CLIENT_STOPPING.register(
 				client -> {
-					dev.plainsight.guess.GuessWorld.shutdown();
 					dev.plainsight.guess.LocateCommands.shutdown();
 					if (modulesLoaded) dev.plainsight.module.ModuleConfig.save(false);
 					dev.plainsight.compat.BaritoneShutdown.schedule();
 				});
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> Editor.get().onDisconnect()));
+		// InfiniTerra writes seeds in its log as plainsight shows them (hidden when seeds are hidden)
+		dev.infiniterra.api.WorldgenServer.setSeedFormat(dev.plainsight.guess.SeedHider::show);
+		dev.plainsight.minimap.Minimap.init();
 		LOG.info("Plainsight loaded");
 	}
 
@@ -146,11 +148,11 @@ public final class Plainsight implements ClientModInitializer {
 
 	/** Guessed terrain follows the world, the seed and the editor camera; Voxy shows it only in the editor. */
 	private static void guessedTerrainTick() {
-		dev.plainsight.guess.GuessWorld.reconcile();
-		var world = dev.plainsight.guess.GuessWorld.current();
 		Editor editor = Editor.get();
-		boolean show = Editor.isActive() && editor.guessedTerrain.active();
-		if (show) world.tick(editor.camera.pos.x, editor.camera.pos.z);
-		dev.plainsight.guess.VoxyGuess.show(show);
+		var mc = net.minecraft.client.Minecraft.getInstance();
+		dev.infiniterra.api.TerrainGuess.setTint(dev.plainsight.module.GuessedTerrain.tintOpacity, dev.plainsight.module.GuessedTerrain.pulseSeconds);
+		dev.infiniterra.api.TerrainGuess.update(mc.level == null ? null : dev.plainsight.guess.SeedStore.worldKey(),
+				mc.level == null ? java.util.OptionalLong.empty() : dev.plainsight.guess.SeedStore.seed(),
+				Editor.isActive() && editor.guessedTerrain.enabled(), editor.camera.pos.x, editor.camera.pos.z);
 	}
 }

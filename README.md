@@ -148,6 +148,13 @@ at the minimap's size (around 0.5 ms on an integrated GPU in a flat world).
 Requires Nix with flakes. `./dev <cmd>` runs a command in the dev shell (JetBrains Runtime 25 for
 enhanced hot-swap, headless sway, Mesa, ImageMagick).
 
+Two mods are built: **plainsight** (the editor, modules, minimap HUD, commands; `src/`) and
+**InfiniTerra** (`infiniterra/`, a Gradle subproject), a library nested in plainsight's jar that owns
+terrain rendering: guessed terrain and its worldgen servers, extra camera passes of the LOD (the minimap
+and the editor map are drawn with them), the detached-camera fixes (render distance, fog, culling, near
+and far planes) and all Voxy, Sodium and Iris interop for that. Plainsight uses only its API
+(`dev.infiniterra.api`); see #48 for the design.
+
 ```sh
 ./dev ./gradlew build              # mod jar (bundles imgui-java + natives) and unit tests
 ./dev ./gradlew runClient          # visible dev client (run/, bridge :25610) with Voxy, Sodium, SeedcrackerX
@@ -179,17 +186,18 @@ buttons (pixel checks), lit block overlay (day vs night), path overlay, Escape/c
 
 ### Notes
 
-* Sodium is supported through optional mixins (`plainsight.sodium.mixins.json`, applied only when
-  Sodium's classes are present): see-through draws the cut blocks faintly in Sodium's translucent pass
-  (their neighbours see them as air, and the opened space is lit like the open sky), transparent fluids work for water (lava stays opaque; at opacity 0 fluids are not
-  meshed), cave culling is off while the camera is inside rock or outside the loaded chunks, and
-  Sodium's render distance reaches the player's chunks while the camera is away.
+* Sodium is supported through optional mixins, applied only when Sodium's classes are present:
+  plainsight's (`plainsight.sodium.mixins.json`) draw see-through cut blocks faintly in Sodium's
+  translucent pass (their neighbours see them as air, and the opened space is lit like the open sky) and
+  make water transparent (lava stays opaque; at opacity 0 fluids are not meshed); InfiniTerra's
+  (`infiniterra.sodium.mixins.json`) turn cave culling off while the camera is inside rock or outside the
+  loaded chunks, and make Sodium's render distance reach the player's chunks while the camera is away.
 * The render-distance fog is pushed out by the camera-to-player distance in the editor, so the loaded
   chunks stay visible from a distant camera. Vanilla draws nothing at all once the camera is about a
   render distance away from the player, hence the "No LOD mod" hint in the editor: Voxy or Distant
   Horizons (detected by class, not mod id) fills in the terrain beyond.
 * Voxy draws its LOD only where Minecraft drew nothing, which assumes the camera is inside the loaded
-  chunks. With the editor camera outside them (`plainsight.voxy.mixins.json`) Voxy depth-tests its LOD
+  chunks. With the editor camera outside them (`infiniterra.voxy.mixins.json`) Voxy depth-tests its LOD
   against the terrain instead, so the LOD in front of the loaded area no longer leaves a hole there.
   Without an LOD mod the side of the loaded area shows its cut face (cave interiors) from outside.
 

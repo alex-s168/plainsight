@@ -1,0 +1,22 @@
+{
+	"schemaVersion": 1,
+	"id": "infiniterra",
+	"version": "${version}",
+	"name": "InfiniTerra",
+	"description": "Library: terrain beyond the loaded chunks (LOD mods, terrain guessed from the world seed) and views of it from other cameras.",
+	"authors": ["Alexander C. Nutz"],
+	"environment": "client",
+	"entrypoints": {
+		"client": ["dev.infiniterra.InfiniTerraMod"]
+	},
+	"mixins": ["infiniterra.mixins.json", "infiniterra.sodium.mixins.json", "infiniterra.voxy.mixins.json", "infiniterra.iris.mixins.json"],
+	"depends": {
+		"fabricloader": ">=0.20.0",
+		"fabric-api": "*",
+		"minecraft": "~26.3",
+		"java": ">=25"
+	},
+	"custom": {
+		"modmenu": { "badges": ["library"] }
+	}
+}

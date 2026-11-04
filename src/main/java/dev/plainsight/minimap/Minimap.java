@@ -1,8 +1,7 @@
 package dev.plainsight.minimap;
 
-import com.mojang.renderpearl.api.GpuFormat;
-import com.mojang.renderpearl.api.textures.GpuTexture;
 import com.mojang.renderpearl.api.textures.GpuTextureView;
+import dev.infiniterra.api.CameraPass;
 import dev.plainsight.editor.Editor;
 import dev.plainsight.imgui.ImGuiLayer;
 import imgui.ImDrawList;
@@ -15,8 +14,9 @@ import org.joml.Vector4f;
 
 /**
  * A minimap that is Voxy's LOD world seen from above the player, tilted and turned with the player's view
- * ({@link MinimapVoxy} renders it as an extra Voxy pass into {@link #colour}); drawn with ImGui in the top
- * right corner of the HUD. Only with Voxy, and not in the editor (which has its own camera).
+ * (InfiniTerra renders it as a {@link CameraPass}; this class is the pass's camera); drawn with ImGui in the
+ * top right corner of the HUD. Only with Voxy, and not in the editor, where the same pass draws the
+ * editor's map (M) with the editor camera.
  */
 public final class Minimap {
 	/** Pitch of the minimap camera (degrees down from the horizon): a tilted top view. */
@@ -48,43 +48,34 @@ public final class Minimap {
 	private static float yaw = Float.NaN;
 	private static long lastFrame;
 
-	/**
-	 * Render target (colour and depth, GL textures behind them) and its size in framebuffer pixels; with a
-	 * shader pack it stands in for the game's main target while the pack renders the minimap.
-	 */
-	static com.mojang.blaze3d.pipeline.RenderTarget target;
-	static GpuTexture colour, depth;
-	private static GpuTextureView colourView;
+	/** The pass's colour as an ImGui texture (registered again when the pass's target changes). */
+	private static GpuTextureView registeredView;
 	private static long imguiTexture = -1;
-	static int width, height;
 	/** This frame's pass is the editor's map (M; full window, the editor camera) rather than the HUD minimap. */
 	public static boolean editorMap;
-	/** An editor map pass rendered since the last level frame took it (see {@link #takeEditorMap}). */
-	private static boolean editorMapReady;
-	/** This frame's camera: position, rotation (model view) and projection; set by {@link #prepare}. */
+	/** This frame's minimap camera (for drawing the overlays on it). */
 	static final Vector3d cameraPos = new Vector3d();
-	static final Matrix4f modelView = new Matrix4f(), projection = new Matrix4f();
-	/** World height above which the minimap leaves terrain out: the top of the block the player stands in (none: MAX_VALUE). */
-	public static float cutY = Float.MAX_VALUE;
-	/** Frames rendered (tests and debugging), and when the last one was. */
-	public static volatile long rendered;
-	private static long lastRendered;
-	private static boolean throughPack;
-	public static volatile String error = "";
+	static final Matrix4f modelView = new Matrix4f();
 
-	/**
-	 * Loaded chunks where blocks changed. Voxy reads a chunk when it is loaded and unloaded, not while it
-	 * changes (the game draws loaded chunks itself), but the minimap shows them from Voxy: {@link MinimapVoxy}
-	 * gives them to Voxy again.
-	 */
-	static final it.unimi.dsi.fastutil.longs.LongOpenHashSet changed = new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
+	/** The camera of InfiniTerra's pass: the HUD minimap's, or the editor map's. */
+	private static final CameraPass.Source SOURCE = new CameraPass.Source() {
+		@Override
+		public boolean wanted() {
+			return visible() || editorMapWanted();
+		}
 
-	private Minimap() {
+		@Override
+		public boolean prepare(float partialTick, CameraPass.View view) {
+			return Minimap.prepare(partialTick, view);
+		}
+	};
+
+	/** Gives InfiniTerra the pass's camera (at startup). */
+	public static void init() {
+		CameraPass.setSource(SOURCE);
 	}
 
-	/** A block changed in a loaded chunk (client level, render thread). */
-	public static void blockChanged(int cx, int cz) {
-		if (visible() || editorMapWanted()) changed.add(net.minecraft.world.level.ChunkPos.pack(cx, cz));
+	private Minimap() {
 	}
 
 	/** The highest Y shown, or Integer.MAX_VALUE for the top (Ctrl + zoom keys change it, Ctrl + * resets it). */
@@ -142,22 +133,20 @@ public final class Minimap {
 	/** Whether the minimap is shown (and rendered) this frame. */
 	public static boolean visible() {
 		Minecraft mc = Minecraft.getInstance();
-		return enabled && dev.plainsight.guess.VoxyGuess.PRESENT && error.isEmpty() && mc.player != null && mc.level != null
+		return enabled && CameraPass.supported() && CameraPass.error().isEmpty() && mc.player != null && mc.level != null
 				&& !mc.gui.hud.isHidden() && !Editor.isActive();
 	}
 
 	/** Whether the editor shows its map (M) through a minimap pass (needs Voxy). */
 	public static boolean editorMapWanted() {
 		Minecraft mc = Minecraft.getInstance();
-		return Editor.isActive() && Editor.get().map.active() && dev.plainsight.guess.VoxyGuess.PRESENT && error.isEmpty()
+		return Editor.isActive() && Editor.get().map.active() && CameraPass.supported() && CameraPass.error().isEmpty()
 				&& mc.player != null && mc.level != null;
 	}
 
 	/** Whether an editor map pass is ready to be shown in the viewport (once per pass). */
 	public static boolean takeEditorMap() {
-		boolean ready = editorMapReady;
-		editorMapReady = false;
-		return ready;
+		return CameraPass.takeRendered() && editorMap;
 	}
 
 	/** Side of the minimap on screen, in GUI pixels (ImGui display units). */
@@ -166,30 +155,29 @@ public final class Minimap {
 		return Math.round(Math.min(w.getScreenWidth(), w.getScreenHeight()) * 0.3f);
 	}
 
-	/**
-	 * Sets up this frame's camera and render target; false if nothing should be rendered. Render thread,
-	 * from inside Voxy's frame (so before the HUD is drawn).
-	 */
-	static boolean prepare(float partialTick) {
+	/** This frame's camera for the pass; false: no pass. Render thread, from inside Voxy's frame (before the HUD). */
+	static boolean prepare(float partialTick, CameraPass.View view) {
 		Minecraft mc = Minecraft.getInstance();
 		var w = mc.getWindow();
 		editorMap = editorMapWanted();
+		var at = mc.player.getPosition(partialTick);
+		view.maxY = cutFor(at.y);
 		if (editorMap) {
 			// the editor's map: the frame's own camera and projection (made for the viewport), the whole
 			// window's size, so the image lines up with the editor's overlays
-			if (colour == null || w.getWidth() != width || w.getHeight() != height) allocate(w.getWidth(), w.getHeight());
 			var cam = mc.gameRenderer.gameRenderState().levelRenderState.cameraRenderState;
-			cameraPos.set(cam.pos.x, cam.pos.y, cam.pos.z);
-			modelView.set(cam.viewRotationMatrix);
-			projection.set(cam.projectionMatrix);
-			var at = mc.player.getPosition(partialTick);
-			cutY = cutFor(at.y);
+			view.position.set(cam.pos.x, cam.pos.y, cam.pos.z);
+			view.viewRotation.set(cam.viewRotationMatrix);
+			view.frameProjection = true;
+			view.projection.set(cam.projectionMatrix);
+			view.width = w.getWidth();
+			view.height = w.getHeight();
 			return true;
 		}
 		if (!visible()) return false;
 		float scale = w.getWidth() / (float) Math.max(1, w.getScreenWidth());
 		int px = Math.max(64, Math.round(screenSide() * scale));
-		if (colour == null || px != width || px != height) allocate(px, px);
+		view.width = view.height = px;
 
 		long now = System.nanoTime();
 		double dt = lastFrame == 0 ? 0 : Math.min(0.25, (now - lastFrame) / 1e9);
@@ -200,83 +188,30 @@ public final class Minimap {
 		if (Float.isNaN(yaw)) yaw = playerYaw;
 		yaw += (float) (net.minecraft.util.Mth.wrapDegrees(playerYaw - yaw) * (1 - Math.exp(-dt * 10)));
 
-		var at = mc.player.getPosition(partialTick);
-		cutY = cutFor(at.y);
 		double pitch = Math.toRadians(Minimap.pitch), yawR = Math.toRadians(yaw);
 		// view direction (Minecraft: yaw 0 looks towards +Z); the camera sits behind and above the player
 		double dx = -Math.sin(yawR) * Math.cos(pitch), dy = -Math.sin(pitch), dz = Math.cos(yawR) * Math.cos(pitch);
 		cameraPos.set(at.x - dx * distance, at.y + 1 - dy * distance, at.z - dz * distance);
 		modelView.rotation(new Quaternionf().rotationYXZ((float) Math.PI - (float) yawR, -(float) pitch, 0).conjugate());
+		view.position.set(cameraPos);
+		view.viewRotation.set(modelView);
+		view.fovDegrees = FOV;
+		view.near = (float) Math.max(1, distance * 0.05);
+		view.far = 48000;
 		return true;
-	}
-
-	/** The minimap's render target (tests and debugging); null before the first pass. */
-	public static com.mojang.blaze3d.pipeline.RenderTarget target() {
-		return target;
-	}
-
-	/** A pass rendered the minimap this frame (through the shader pack or not). */
-	static void markRendered(boolean pack) {
-		if (editorMap) editorMapReady = true;
-		rendered++;
-		lastRendered = System.nanoTime();
-		throughPack = pack;
-	}
-
-	/** Whether the last pass went through the shader pack (tests and debugging). */
-	public static boolean throughPack() {
-		return throughPack;
-	}
-
-	/**
-	 * The pass's projection: the game's (Voxy makes its own from it) for the editor map, else the minimap
-	 * camera's in Voxy's depth convention.
-	 */
-	static Matrix4f passProjection(boolean reverseZ, boolean zeroToOne) {
-		return editorMap ? new Matrix4f(projection) : new Matrix4f(projection(reverseZ, zeroToOne));
-	}
-
-	/** Projection in Voxy's depth convention (reverse-Z and/or 0..1 like the game's). */
-	static Matrix4f projection(boolean reverseZ, boolean zeroToOne) {
-		float near = (float) Math.max(1, distance * 0.05), far = 48000;
-		float fov = (float) Math.toRadians(FOV);
-		return reverseZ ? projection.setPerspective(fov, 1, far, near, zeroToOne) : projection.setPerspective(fov, 1, near, far, zeroToOne);
-	}
-
-	private static void allocate(int w, int h) {
-		release();
-		target = new com.mojang.blaze3d.pipeline.TextureTarget("plainsight minimap", w, h, GpuFormat.RGBA8_UNORM, GpuFormat.D32_FLOAT);
-		colour = target.getColorTexture();
-		depth = target.getDepthTexture();
-		colourView = target.getColorTextureView();
-		width = w;
-		height = h;
-	}
-
-	/** The pass's colour and depth textures and whether it went through a shader pack (editor map display). */
-	public static GpuTexture colourTexture() {
-		return colour;
-	}
-
-	public static GpuTexture depthTexture() {
-		return depth;
-	}
-
-	private static void release() {
-		if (imguiTexture >= 0 && ImGuiLayer.isInitialized()) ImGuiLayer.get().renderer().releaseTexture(imguiTexture);
-		imguiTexture = -1;
-		if (target != null) target.destroyBuffers();
-		target = null;
-		colourView = null;
-		colour = depth = null;
-		width = height = 0;
 	}
 
 	/** Draws the minimap into the current ImGui frame (HUD, top right). */
 	public static void draw() {
 		// not a stale image when no pass rendered it lately (e.g. a pipeline the minimap cannot render with)
-		if (!visible() || colourView == null || System.nanoTime() - lastRendered > 500_000_000L) return;
-		if (imguiTexture < 0) imguiTexture = ImGuiLayer.get().renderer().registerTexture(colourView, true);
+		GpuTextureView colourView = CameraPass.colourView();
+		if (!visible() || colourView == null || System.nanoTime() - CameraPass.lastRendered() > 500_000_000L) return;
+		if (colourView != registeredView) {
+			// a new target (the pass's size changed)
+			if (imguiTexture >= 0) ImGuiLayer.get().renderer().releaseTexture(imguiTexture);
+			imguiTexture = ImGuiLayer.get().renderer().registerTexture(colourView, true);
+			registeredView = colourView;
+		}
 		Minecraft mc = Minecraft.getInstance();
 		float side = screenSide(), margin = 8;
 		float x0 = mc.getWindow().getScreenWidth() - side - margin, y0 = margin, x1 = x0 + side, y1 = y0 + side;

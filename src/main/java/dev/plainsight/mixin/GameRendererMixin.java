@@ -16,16 +16,6 @@ public abstract class GameRendererMixin {
 		EditorRendering.afterLevel((GameRenderer) (Object) this);
 	}
 
-	/**
-	 * With a shader pack the minimap renders through it as a frame of its own, before the level's (which then
-	 * sets up all the state it needs again; see MinimapIris).
-	 */
-	@Inject(method = "renderLevel", at = @At("HEAD"))
-	private void plainsight$minimapThroughPack(CallbackInfo ci) {
-		if (dev.plainsight.minimap.Minimap.visible() || dev.plainsight.minimap.Minimap.editorMapWanted())
-			dev.plainsight.minimap.MinimapVoxy.throughPack(net.minecraft.client.Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false));
-	}
-
 	/** The editor UI goes below Minecraft's screens (chat, menus) but above the world. */
 	@Inject(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/render/GuiRenderer;render()V"))
 	private void plainsight$ui(CallbackInfo ci) {

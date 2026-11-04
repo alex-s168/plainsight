@@ -1,5 +1,7 @@
 package dev.plainsight.render;
 
+import dev.infiniterra.api.CameraPass;
+import dev.infiniterra.api.TerrainGuess;
 import com.mojang.blaze3d.platform.Window;
 import dev.plainsight.editor.Editor;
 import dev.plainsight.imgui.ImGuiLayer;
@@ -20,8 +22,7 @@ public final class EditorRendering {
 		WaypointMarkers.capture(renderer.gameRenderState().levelRenderState.cameraRenderState);
 		// the editor's map (M): its image (and depth, unless through a shader pack) replaces the level's
 		if (Editor.isActive() && dev.plainsight.minimap.Minimap.takeEditorMap()) {
-			MapBlit.blit(dev.plainsight.minimap.Minimap.colourTexture(), dev.plainsight.minimap.Minimap.throughPack() ? null
-					: dev.plainsight.minimap.Minimap.depthTexture(), renderer.mainRenderTarget(), editor.viewport);
+			MapBlit.blit(CameraPass.colour(), CameraPass.throughPack() ? null : CameraPass.depth(), renderer.mainRenderTarget(), editor.viewport);
 		}
 		// the surface under the cursor, before overlays add their own depth
 		if (Editor.isActive()) DepthPick.afterLevel(renderer.gameRenderState().levelRenderState.cameraRenderState);
@@ -33,9 +34,7 @@ public final class EditorRendering {
 		double t = System.nanoTime() / 1e9;
 		if (show) for (PathOverlay p : PathOverlay.visible()) p.draw(editor.overlay, t);
 		OVERLAY.render(editor.overlay, renderer.gameRenderState().levelRenderState.cameraRenderState);
-		var guess = dev.plainsight.guess.GuessWorld.current();
-		if (Editor.isActive() && guess != null && editor.guessedTerrain.active() && dev.plainsight.guess.VoxyGuess.showing())
-			GuessTint.render(renderer.gameRenderState().levelRenderState.cameraRenderState, guess);
+		if (Editor.isActive() && editor.guessedTerrain.active()) TerrainGuess.drawTint(renderer.gameRenderState().levelRenderState.cameraRenderState);
 	}
 
 	/** HUD outside the editor: an ImGui frame for the minimap and waypoints (no input goes to ImGui here). */

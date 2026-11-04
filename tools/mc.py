@@ -178,7 +178,7 @@ class Client:
 
 def hotswap():
     # tools/build.sh does not wait for the dev shell wrapper, which can linger with a Gradle daemon
-    build = subprocess.run([os.path.join(ROOT, "tools", "build.sh"), "classes", "devbridgeClasses"], cwd=ROOT,
+    build = subprocess.run([os.path.join(ROOT, "tools", "build.sh"), "classes", "devbridgeClasses", ":infiniterra:classes"], cwd=ROOT,
                            capture_output=True, text=True, stdin=subprocess.DEVNULL)
     if build.returncode != 0:
         return "build failed:\n" + build.stdout[-4000:] + build.stderr[-4000:]

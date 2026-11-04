@@ -1,0 +1,22 @@
+{
+	"required": false,
+	"package": "dev.infiniterra.mixin.voxy",
+	"plugin": "dev.infiniterra.InfiniTerraMixinPlugin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"IngestMirrorMixin",
+		"PassPipelineMixin",
+		"PassNormalPipelineMixin",
+		"PassRenderSystemMixin",
+		"PassTerrainCutMixin",
+		"PassViewportMixin",
+		"RenderPipelineAccessor",
+		"RenderPipelineMixin",
+		"RenderSystemNearMixin",
+		"SectionRendererAccessor",
+		"ShaderPatchMixin",
+		"VoxyRenderSystemAccessor",
+		"VoxyShutdownMixin"
+	],
+	"injectors": { "defaultRequire": 1 }
+}

@@ -52,22 +52,6 @@ public final class Editor {
 		return INSTANCE;
 	}
 
-	/** Camera inside solid blocks renders without cave culling, like spectator mode (switchable for tests). */
-	public static volatile boolean spectatorCulling = true;
-	/**
-	 * Set every frame: the editor camera is inside solid blocks or outside the loaded chunks, so cave
-	 * (occlusion) culling must be off (vanilla and Sodium).
-	 */
-	public static volatile boolean disableCaveCulling;
-	/**
-	 * Horizontal distance from the editor camera to the player (0 outside the editor): renderers that
-	 * only draw sections within render distance of the camera must look this much further, or the
-	 * chunks loaded around the player are not drawn while the camera is away.
-	 */
-	public static volatile float cameraToPlayer;
-	/** Whether the editor camera is outside the loaded chunks (false outside the editor). */
-	public static volatile boolean cameraOutsideLoaded;
-
 	public static boolean isActive() {
 		return INSTANCE.active;
 	}
@@ -433,7 +417,6 @@ public final class Editor {
 	/** Called when leaving a world: forget which file the tree belongs to. */
 	public void onDisconnect() {
 		if (active) disable();
-		dev.plainsight.guess.GuessWorld.shutdown();
 		dev.plainsight.guess.LocateCommands.shutdown();
 		saveSelections();
 		storeFile = null;
@@ -553,7 +536,7 @@ public final class Editor {
 		Minecraft mc = Minecraft.getInstance();
 		if (mc.level == null) return false;
 		if (isLoaded(p)) return !mc.level.getBlockState(p).getCollisionShape(mc.level, p).isEmpty();
-		var state = dev.plainsight.guess.VoxyGuess.lodBlock(p.getX(), p.getY(), p.getZ());
+		var state = dev.infiniterra.api.LodTerrain.block(p.getX(), p.getY(), p.getZ());
 		return state != null && state.isSolid();
 	}
 
@@ -777,7 +760,7 @@ public final class Editor {
 		if (hit == null || mc.level == null) return;
 		BlockPos p = hit.getBlockPos();
 		String what = mc.level.getChunkSource().hasChunk(p.getX() >> 4, p.getZ() >> 4) ? mc.level.getBlockState(p).getBlock().getName().getString()
-				: dev.plainsight.guess.GuessWorld.current() != null && dev.plainsight.guess.GuessWorld.current().isGuessed(p.getX() >> 4, p.getZ() >> 4)
+				: dev.infiniterra.api.TerrainGuess.current() != null && dev.infiniterra.api.TerrainGuess.current().isGuessed(p.getX() >> 4, p.getZ() >> 4)
 				? "Guessed terrain" : "Distant terrain (LOD)";
 		setStatus(what + " at " + p.getX() + ", " + p.getY() + ", " + p.getZ());
 	}

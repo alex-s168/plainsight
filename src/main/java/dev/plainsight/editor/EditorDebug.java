@@ -68,22 +68,22 @@ public final class EditorDebug {
 		o.addProperty("overlayBlocksSubmitted", BlockOverlayRenderer.submitted);
 		o.addProperty("lightOverlayFaces", e.lightOverlay.markedFaces());
 		o.addProperty("lodMod", dev.plainsight.LodSupport.present());
-		o.addProperty("cameraToPlayer", Editor.cameraToPlayer);
-		o.addProperty("disableCaveCulling", Editor.disableCaveCulling);
-		o.addProperty("cameraOutsideLoaded", Editor.cameraOutsideLoaded);
-		var guess = dev.plainsight.guess.GuessWorld.current();
+		o.addProperty("cameraToPlayer", dev.infiniterra.api.DetachedCamera.toPlayer());
+		o.addProperty("disableCaveCulling", dev.infiniterra.api.DetachedCamera.caveCullingOff());
+		o.addProperty("cameraOutsideLoaded", dev.infiniterra.api.DetachedCamera.outsideLoaded());
+		var guess = dev.infiniterra.api.TerrainGuess.current();
 		var seed = dev.plainsight.guess.SeedStore.seed();
 		o.addProperty("seed", seed.isPresent() ? Long.toString(seed.getAsLong()) : "");
 		o.addProperty("guessState", guess == null ? "" : guess.state().name() + (guess.error() != null ? ": " + guess.error() : ""));
 		o.addProperty("guessed", guess == null ? 0 : guess.guessedCount());
 		o.addProperty("guessReal", guess == null ? 0 : guess.realCount());
 		o.addProperty("guessPending", guess == null ? 0 : guess.pending());
-		o.addProperty("guessFailed", guess == null ? 0 : guess.failed);
-		o.addProperty("guessCopied", guess == null ? 0 : guess.copiedThisSession);
-		o.addProperty("guessImported", guess == null ? 0 : guess.imported);
-		o.addProperty("guessImportTotal", guess == null ? 0 : guess.importTotal);
-		o.addProperty("guessShowing", dev.plainsight.guess.VoxyGuess.showing());
-		o.addProperty("guessTintDrawn", dev.plainsight.render.GuessTint.drawn);
+		o.addProperty("guessFailed", guess == null ? 0 : guess.failedCount());
+		o.addProperty("guessCopied", guess == null ? 0 : guess.copiedThisSession());
+		o.addProperty("guessImported", guess == null ? 0 : guess.imported());
+		o.addProperty("guessImportTotal", guess == null ? 0 : guess.importTotal());
+		o.addProperty("guessShowing", dev.infiniterra.api.TerrainGuess.showing());
+		o.addProperty("guessTintDrawn", dev.infiniterra.api.TerrainGuess.tintDrawn());
 		var surface = dev.plainsight.render.DepthPick.at(Editor.get().mouseX, Editor.get().mouseY);
 		o.addProperty("surfaceUnderCursor", surface == null ? "" : surface.x + "," + surface.y + "," + surface.z);
 		try {
@@ -242,7 +242,7 @@ public final class EditorDebug {
 	}
 
 	public static String guessChunkIsReal(int cx, int cz) {
-		var g = dev.plainsight.guess.GuessWorld.current();
+		var g = dev.infiniterra.api.TerrainGuess.current();
 		return g == null ? "none" : String.valueOf(g.isReal(cx, cz));
 	}
 
@@ -255,7 +255,7 @@ public final class EditorDebug {
 			for (int z = cz - r; z <= cz + r; z++) {
 				boolean empty = true;
 				for (int y = level.getMinY(); y < level.getMaxY() && empty; y++) {
-					var b = dev.plainsight.guess.VoxyGuess.lodBlock(x * 16 + 8, y, z * 16 + 8);
+					var b = dev.infiniterra.api.LodTerrain.block(x * 16 + 8, y, z * 16 + 8);
 					empty = b == null || b.isAir();
 				}
 				if (empty) {
@@ -317,7 +317,7 @@ public final class EditorDebug {
 	}
 
 	public static String spectatorCulling(String on) {
-		Editor.spectatorCulling = Boolean.parseBoolean(on);
+		dev.infiniterra.api.DetachedCamera.setSpectatorCulling(Boolean.parseBoolean(on));
 		return "ok";
 	}
 
@@ -368,18 +368,18 @@ public final class EditorDebug {
 
 	/** Minimap state: "enabled visible rendered targetDistance error". */
 	public static String minimap() {
-		return dev.plainsight.minimap.Minimap.enabled + " " + dev.plainsight.minimap.Minimap.visible() + " " + dev.plainsight.minimap.Minimap.rendered
-				+ " " + Math.round(dev.plainsight.minimap.Minimap.targetDistance) + " " + (dev.plainsight.minimap.Minimap.error.isEmpty() ? "-" : dev.plainsight.minimap.Minimap.error);
+		return dev.plainsight.minimap.Minimap.enabled + " " + dev.plainsight.minimap.Minimap.visible() + " " + dev.infiniterra.api.CameraPass.rendered()
+				+ " " + Math.round(dev.plainsight.minimap.Minimap.targetDistance) + " " + (dev.infiniterra.api.CameraPass.error().isEmpty() ? "-" : dev.infiniterra.api.CameraPass.error());
 	}
 
 	/** Whether the minimap renders through the shader pack (Iris with Voxy). */
 	public static String minimapThroughPack() {
-		return String.valueOf(dev.plainsight.minimap.Minimap.throughPack());
+		return String.valueOf(dev.infiniterra.api.CameraPass.throughPack());
 	}
 
 	/** Saves the minimap's render target (what the HUD shows) to a PNG; render thread. */
 	public static String minimapShot(String path) {
-		var target = dev.plainsight.minimap.Minimap.target();
+		var target = dev.infiniterra.api.CameraPass.target();
 		if (target == null) return "no minimap target";
 		net.minecraft.client.Screenshot.takeScreenshot(target, image -> {
 			try (image) {

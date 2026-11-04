@@ -1,0 +1,13 @@
+{
+	"required": false,
+	"package": "dev.infiniterra.mixin.iris",
+	"plugin": "dev.infiniterra.InfiniTerraMixinPlugin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"CameraUniformsMixin",
+		"CloudHeightMixin",
+		"IrisRenderingPipelineAccessor",
+		"PipelineManagerAccessor"
+	],
+	"injectors": { "defaultRequire": 1 }
+}

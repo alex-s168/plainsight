@@ -1,0 +1,57 @@
+plugins {
+	id 'net.fabricmc.fabric-loom'
+}
+
+version = rootProject.version
+group = 'dev.infiniterra'
+
+repositories {
+	exclusiveContent {
+		forRepository { maven { name = 'Modrinth'; url = 'https://api.modrinth.com/maven' } }
+		filter { includeGroup 'maven.modrinth' }
+	}
+	mavenCentral()
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${rootProject.minecraft_version}"
+	implementation "net.fabricmc:fabric-loader:${rootProject.loader_version}"
+	implementation "net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_api_version}"
+
+	// the LOD and rendering mods InfiniTerra works with (optional mixins, applied only when present)
+	compileOnly "maven.modrinth:sodium:${rootProject.sodium_version}"
+	compileOnly "maven.modrinth:voxy:${rootProject.voxy_version}"
+	compileOnly "maven.modrinth:iris:${rootProject.iris_version}"
+
+	testImplementation platform("org.junit:junit-bom:${rootProject.junit_version}")
+	testImplementation "org.junit.jupiter:junit-jupiter"
+	testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+test {
+	useJUnitPlatform()
+	testLogging {
+		events "failed"
+		exceptionFormat "full"
+	}
+}
+
+processResources {
+	def version = project.version
+	inputs.property "version", version
+	filesMatching("fabric.mod.json") {
+		expand "version": version
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 25
+	it.options.encoding = 'UTF-8'
+	it.options.compilerArgs += ['-Xlint:unchecked', '-Xlint:deprecation']
+}
+
+java {
+	withSourcesJar()
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
+}
