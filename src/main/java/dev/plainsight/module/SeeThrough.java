@@ -166,6 +166,22 @@ public final class SeeThrough implements Module {
 	}
 
 	@Override
+	public void saveSettings(com.google.gson.JsonObject o) {
+		o.addProperty("radius", radius);
+		o.addProperty("cameraRadius", cameraRadius);
+		o.addProperty("opacity", opacity);
+		o.addProperty("otherPlayers", allPlayers);
+	}
+
+	@Override
+	public void loadSettings(com.google.gson.JsonObject o) {
+		radius = ModuleConfig.getFloat(o, "radius", radius);
+		cameraRadius = ModuleConfig.getFloat(o, "cameraRadius", cameraRadius);
+		opacity = Math.max(0, Math.min(1, ModuleConfig.getFloat(o, "opacity", opacity)));
+		allPlayers = ModuleConfig.getBool(o, "otherPlayers", allPlayers);
+	}
+
+	@Override
 	public void drawIcon(ImDrawList dl, float x, float y, float size, int color) {
 		float cx = x + size / 2, cy = y + size / 2;
 		// an eye

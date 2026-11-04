@@ -51,6 +51,32 @@ public final class MinimapModule implements Module {
 		if (ImGui.checkbox("Mobs", Minimap.showMobs)) Minimap.showMobs = !Minimap.showMobs;
 		EditorUI.track("minimap_mobs");
 		if (ImGui.isItemHovered()) ImGui.setTooltip("Hostile mobs red, others green");
+		if (dev.plainsight.compat.XaeroWaypoints.PRESENT) {
+			if (ImGui.checkbox("Xaero waypoints", Minimap.showWaypoints)) Minimap.showWaypoints = !Minimap.showWaypoints;
+			EditorUI.track("minimap_waypoints");
+			if (ImGui.isItemHovered()) ImGui.setTooltip("Xaero's Minimap's waypoints (on the edge when outside the map)");
+		}
+	}
+
+	@Override
+	public void saveSettings(com.google.gson.JsonObject o) {
+		o.addProperty("layer", Minimap.playerLayer ? "player" : "top");
+		o.addProperty("selections", Minimap.showSelections);
+		o.addProperty("otherPlayers", Minimap.showPlayers);
+		o.addProperty("mobs", Minimap.showMobs);
+		o.addProperty("xaeroWaypoints", Minimap.showWaypoints);
+		o.addProperty("zoomMetres", Math.round(Minimap.targetDistance));
+	}
+
+	@Override
+	public void loadSettings(com.google.gson.JsonObject o) {
+		Minimap.playerLayer = !"top".equals(ModuleConfig.getString(o, "layer", Minimap.playerLayer ? "player" : "top"));
+		Minimap.showSelections = ModuleConfig.getBool(o, "selections", Minimap.showSelections);
+		Minimap.showPlayers = ModuleConfig.getBool(o, "otherPlayers", Minimap.showPlayers);
+		Minimap.showMobs = ModuleConfig.getBool(o, "mobs", Minimap.showMobs);
+		Minimap.showWaypoints = ModuleConfig.getBool(o, "xaeroWaypoints", Minimap.showWaypoints);
+		Minimap.targetDistance = Minimap.distance = Math.clamp(ModuleConfig.getFloat(o, "zoomMetres", (float) Minimap.targetDistance),
+				Minimap.MIN_DISTANCE, Minimap.MAX_DISTANCE);
 	}
 
 	@Override

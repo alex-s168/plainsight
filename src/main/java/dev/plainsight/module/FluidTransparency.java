@@ -73,6 +73,17 @@ public final class FluidTransparency implements Module {
 	}
 
 	@Override
+	public void saveSettings(com.google.gson.JsonObject o) {
+		o.addProperty("opacity", opacity);
+	}
+
+	@Override
+	public void loadSettings(com.google.gson.JsonObject o) {
+		setOpacity(ModuleConfig.getFloat(o, "opacity", opacity));
+		slider[0] = opacity;
+	}
+
+	@Override
 	public void drawIcon(ImDrawList dl, float x, float y, float size, int color) {
 		float cx = x + size / 2, cy = y + size * 0.6f, r = size * 0.24f;
 		dl.addTriangleFilled(cx, y + size * 0.14f, cx - r * 0.92f, cy - r * 0.35f, cx + r * 0.92f, cy - r * 0.35f, color);

@@ -1,0 +1,11 @@
+{
+	"required": false,
+	"package": "dev.plainsight.mixin.xaero",
+	"plugin": "dev.plainsight.SodiumMixinPlugin",
+	"compatibilityLevel": "JAVA_25",
+	"mixins": [
+		"XaeroLibServerMixin",
+		"XaeroMinimapServerMixin"
+	],
+	"injectors": { "defaultRequire": 0 }
+}

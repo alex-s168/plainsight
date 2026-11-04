@@ -15,8 +15,8 @@ import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.argument;
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.literal;
 
 /**
- * {@code /plainsight seed [<seed>|clear|world|hide <true|false>]} and {@code /plainsight guess radius <chunks>}: client-side
- * commands for the editor's guessed terrain.
+ * {@code /plainsight seed [<seed>|clear|world|hide <true|false>]}, {@code /plainsight guess radius <chunks>} and
+ * {@code /plainsight locate ...} ({@link LocateCommands}): client-side commands around the world seed.
  */
 public final class GuessCommands {
 	private GuessCommands() {
@@ -46,6 +46,8 @@ public final class GuessCommands {
 							}
 							return set(c, seed.getAsLong(), "command");
 						})))
+				.then(LocateCommands.locate())
+				.then(LocateCommands.waypoint())
 				.then(literal("guess").then(literal("radius").then(argument("chunks", IntegerArgumentType.integer(4, 128)).executes(c -> {
 					GuessWorld.radius = IntegerArgumentType.getInteger(c, "chunks");
 					c.getSource().sendFeedback(Component.literal("Guessed terrain radius: " + GuessWorld.radius + " chunks"));

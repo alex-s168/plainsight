@@ -15,6 +15,7 @@ public final class Plainsight implements ClientModInitializer {
 	public static final String ID = "plainsight";
 	public static final Logger LOG = LoggerFactory.getLogger(ID);
 	public static final KeyMapping.Category CATEGORY = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(ID, "main"));
+	private static boolean modulesLoaded;
 	private static KeyMapping toggleEditor, overlaysInGame, minimap, minimapZoomIn, minimapZoomOut;
 
 	public static KeyMapping toggleEditor() {
@@ -36,6 +37,12 @@ public final class Plainsight implements ClientModInitializer {
 		minimapZoomIn = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.plainsight.minimap_zoom_in", InputConstants.KEY_EQUALS, CATEGORY));
 		minimapZoomOut = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.plainsight.minimap_zoom_out", InputConstants.KEY_MINUS, CATEGORY));
 		ClientTickEvents.END_CLIENT_TICK.register(mc -> {
+			if (!modulesLoaded) {
+				// once the game runs (the editor's modules touch the game when they are switched)
+				modulesLoaded = true;
+				dev.plainsight.module.ModuleConfig.load(Editor.get().allModules());
+			}
+			dev.plainsight.module.ModuleConfig.tick();
 			while (overlaysInGame.consumeClick()) Editor.get().toggleOverlaysInGame();
 			while (minimap.consumeClick()) dev.plainsight.minimap.Minimap.enabled = !dev.plainsight.minimap.Minimap.enabled;
 			while (minimapZoomIn.consumeClick()) dev.plainsight.minimap.Minimap.zoom(1);
@@ -45,7 +52,11 @@ public final class Plainsight implements ClientModInitializer {
 		net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback.EVENT.register(
 				(dispatcher, context) -> dev.plainsight.guess.GuessCommands.register(dispatcher));
 		net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents.CLIENT_STOPPING.register(
-				client -> dev.plainsight.guess.GuessWorld.shutdown());
+				client -> {
+					dev.plainsight.guess.GuessWorld.shutdown();
+					dev.plainsight.guess.LocateCommands.shutdown();
+					if (modulesLoaded) dev.plainsight.module.ModuleConfig.save(false);
+				});
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> Editor.get().onDisconnect()));
 		LOG.info("Plainsight loaded");
 	}

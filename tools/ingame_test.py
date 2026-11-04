@@ -1297,6 +1297,105 @@ def test_minimap_tool_button_and_options():
     ed("setMinimapOptions", "true", "true", "true", "false")
 
 
+def wait_chat(text, timeout=120, lines=6):
+    """Waits until one of the last chat lines contains text; returns those lines."""
+    end = time.time() + timeout
+    shown = ""
+    while time.time() < end:
+        shown = ed("chatShown", lines)
+        if text in shown:
+            return shown
+        time.sleep(0.5)
+    raise AssertionError("no %r in chat within %ds: %s" % (text, timeout, shown))
+
+
+def test_module_settings_persist():
+    """Each module's state and settings are saved in config/plainsight/modules/<id>.json and read back."""
+    editor_on()
+    folder = os.path.join(c.run_dir, "config", "plainsight", "modules")
+    brightness_was = state()["modules"]["editor_brightness"]
+    ed("setModule", "light_overlay", "true")
+    ed("setModule", "editor_brightness", "true")
+    ed("brightnessLevel", 0.6, 1)
+    ed("setMinimapOptions", "true", "true", "false", "true")
+    try:
+        time.sleep(2)  # written about once a second
+
+        def read(mid):
+            with open(os.path.join(folder, mid + ".json")) as f:
+                return json.load(f)
+
+        check(read("light_overlay")["enabled"] is True, "light overlay saved as on: %s" % read("light_overlay"))
+        b = read("editor_brightness")
+        check(b["enabled"] is True and abs(b["level"] - 0.6) < 1e-6, "editor brightness level saved: %s" % b)
+        m = read("minimap")
+        check(m["layer"] == "player" and m["otherPlayers"] is False and m["mobs"] is True, "minimap options saved: %s" % m)
+        # edited by hand, read again (as at the next game start)
+        m["layer"], m["mobs"] = "top", False
+        with open(os.path.join(folder, "minimap.json"), "w") as f:
+            json.dump(m, f)
+        lo = read("light_overlay")
+        lo["enabled"] = False
+        with open(os.path.join(folder, "light_overlay.json"), "w") as f:
+            json.dump(lo, f)
+        ed("reloadModuleConfig")
+        check(ed("minimapOptions") == "false true false false", "minimap options read back: %s" % ed("minimapOptions"))
+        check(not state()["modules"]["light_overlay"], "light overlay read back as off")
+    finally:
+        ed("setModule", "light_overlay", "false")
+        ed("setModule", "editor_brightness", str(brightness_was).lower())
+        ed("brightnessLevel", 0.2, 1)
+        ed("setMinimapOptions", "true", "true", "true", "false")
+
+
+def test_locate_from_seed():
+    """/plainsight locate runs vanilla's locate on the seed's worldgen server; with Xaero's Minimap the
+    result offers a waypoint."""
+    editor_off()
+    c.command("plainsight seed 12345")
+    try:
+        c.command("plainsight locate biome minecraft:plains", wait=0.2)
+        shown = wait_chat("The nearest minecraft:plains is at")
+        check("(from the seed)" in shown, "marked as from the seed: %s" % shown)
+        c.command("plainsight locate structure minecraft:village_plains", wait=0.2)
+        shown = wait_chat("The nearest minecraft:village_plains is at")
+        m = re.search(r"village_plains is at \[(-?\d+), ~, (-?\d+)\] \((\d+) blocks away\)", shown)
+        check(m, "coordinates and distance as vanilla shows them: %s" % shown)
+        c.command("plainsight locate structure #minecraft:village", wait=0.2)
+        wait_chat("The nearest #minecraft:village (minecraft:village_")
+        c.command("plainsight locate structure minecraft:no_such_thing", wait=0.2)
+        wait_chat('There is no structure with type "minecraft:no_such_thing"', timeout=30)
+        if ed("xaeroWaypoints") != "none":
+            check("[+ Waypoint]" in shown, "a waypoint button with Xaero's Minimap: %s" % shown)
+            c.command("plainsight waypoint 10 70 20 Plainsight Test", wait=0.5)
+            check("Plainsight Test@10,70,20" in ed("xaeroWaypoints"), "the waypoint is added in Xaero: %s" % ed("xaeroWaypoints"))
+            ed("removeXaeroWaypoint", "Plainsight Test")
+        else:
+            check("[+ Waypoint]" not in shown, "no waypoint button without Xaero's Minimap")
+    finally:
+        c.command("plainsight seed clear")
+
+
+def test_minimap_shows_xaero_waypoints():
+    """With Xaero's Minimap installed, its waypoints are on plainsight's minimap (option)."""
+    if not state()["lodMod"] or not state()["sodium"] or ed("xaeroWaypoints") == "none":
+        print("      (needs Voxy and Xaero's Minimap, skipped)")
+        return
+    editor_off()
+    cmd("tp @s 0.5 -60 0.5 0 30")
+    c.command("plainsight waypoint 4 -60 12 Plainsight Test", wait=0.5)
+    try:
+        time.sleep(0.5)
+        check(int(ed("xaeroWaypoints").split("drawn=")[1]) >= 1, "the waypoint is on the minimap: %s" % ed("xaeroWaypoints"))
+        shot("minimap-xaero-waypoint")
+        ed("minimapWaypoints", "false")
+        time.sleep(0.3)
+        check(ed("xaeroWaypoints").endswith("drawn=0"), "not with the option off")
+    finally:
+        ed("minimapWaypoints", "true")
+        ed("removeXaeroWaypoint", "Plainsight Test")
+
+
 def test_seedcracker_seed_is_taken():
     """A world seed SeedcrackerX prints (cracked, or found in its database) becomes this world's seed,
     if it matches the server's hashed seed."""

@@ -10,7 +10,7 @@
 		"client": ["dev.plainsight.Plainsight"],
 		"seedcrackerx": ["dev.plainsight.guess.SeedCrackerHook"]
 	},
-	"mixins": ["plainsight.mixins.json", "plainsight.sodium.mixins.json", "plainsight.voxy.mixins.json", "plainsight.iris.mixins.json", "plainsight.seedcracker.mixins.json"],
+	"mixins": ["plainsight.mixins.json", "plainsight.sodium.mixins.json", "plainsight.voxy.mixins.json", "plainsight.iris.mixins.json", "plainsight.xaero.mixins.json", "plainsight.seedcracker.mixins.json"],
 	"depends": {
 		"fabricloader": ">=0.20.0",
 		"fabric-api": "*",

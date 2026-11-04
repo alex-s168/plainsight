@@ -101,6 +101,13 @@ public final class Editor {
 	public final dev.plainsight.module.GuessedTerrain guessedTerrain = new dev.plainsight.module.GuessedTerrain();
 	public final List<Module> viewModules = List.of(fluids, seeThrough, blockOverlayDemo, pathDemo, guessedTerrain);
 
+	/** All modules: the tool bar's and the viewport's (their settings are kept, see ModuleConfig). */
+	public List<Module> allModules() {
+		var all = new java.util.ArrayList<>(modules);
+		all.addAll(viewModules);
+		return all;
+	}
+
 	/** Mouse position in window coordinates (ImGui's coordinate space). */
 	public double mouseX, mouseY;
 	private double pressX, pressY;
@@ -341,6 +348,7 @@ public final class Editor {
 	public void onDisconnect() {
 		if (active) disable();
 		dev.plainsight.guess.GuessWorld.shutdown();
+		dev.plainsight.guess.LocateCommands.shutdown();
 		saveSelections();
 		storeFile = null;
 		tree.clear();

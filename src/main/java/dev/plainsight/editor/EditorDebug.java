@@ -435,6 +435,29 @@ public final class EditorDebug {
 		return p.getX() + "," + p.getY() + "," + p.getZ();
 	}
 
+	/** Reads the module settings files again (as at game start). */
+	public static String reloadModuleConfig() {
+		dev.plainsight.module.ModuleConfig.load(Editor.get().allModules());
+		return "ok";
+	}
+
+	/** Xaero's waypoints in this dimension, "name@x,y,z;..." ("none" without Xaero), and how many the minimap drew last. */
+	public static String xaeroWaypoints() {
+		if (!dev.plainsight.compat.XaeroWaypoints.PRESENT) return "none";
+		StringBuilder sb = new StringBuilder();
+		for (var w : dev.plainsight.compat.XaeroWaypoints.current()) sb.append(w.name()).append('@').append(w.x()).append(',').append(w.y()).append(',').append(w.z()).append(';');
+		return sb + " drawn=" + dev.plainsight.minimap.Minimap.waypointsDrawn;
+	}
+
+	public static String removeXaeroWaypoint(String name) {
+		return String.valueOf(dev.plainsight.compat.XaeroWaypoints.removeNamed(name));
+	}
+
+	public static String minimapWaypoints(String on) {
+		dev.plainsight.minimap.Minimap.showWaypoints = Boolean.parseBoolean(on);
+		return "ok";
+	}
+
 	public static String clearTree() {
 		Editor.get().boxTool.stopEditing();
 		Editor.get().tree.clear();

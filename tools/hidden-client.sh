@@ -22,6 +22,10 @@ mkdir -p "$STATE" "$RUN"
 LOG="$PWD/$RUN/hidden-client.log"
 rm -f "$STATE/exit"
 
+# the test client starts with plainsight's default module settings (tests expect them; they are saved
+# while it runs)
+[ "$NAME" = main ] && rm -rf "$RUN/config/plainsight/modules"
+
 # headless-friendly defaults (narrator/audio would need a sound server)
 OPTS=$RUN/options.txt
 touch "$OPTS"

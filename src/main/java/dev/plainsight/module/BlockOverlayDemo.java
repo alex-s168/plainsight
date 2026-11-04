@@ -115,6 +115,24 @@ public final class BlockOverlayDemo implements Module {
 		if (ImGui.checkbox("Outline", outline)) overlay.outlineColor = outline ? 0 : 0xFF60C0FF;
 	}
 
+	/** A demo placed in front of the player when switched on: not switched on at game start. */
+	@Override
+	public boolean persistEnabled() {
+		return false;
+	}
+
+	@Override
+	public void saveSettings(com.google.gson.JsonObject o) {
+		o.addProperty("opacity", overlay.opacity);
+		o.addProperty("outline", overlay.outlineColor != 0);
+	}
+
+	@Override
+	public void loadSettings(com.google.gson.JsonObject o) {
+		overlay.opacity = Math.max(0.1f, Math.min(1f, ModuleConfig.getFloat(o, "opacity", overlay.opacity)));
+		overlay.outlineColor = ModuleConfig.getBool(o, "outline", overlay.outlineColor != 0) ? 0xFF60C0FF : 0;
+	}
+
 	@Override
 	public void drawIcon(ImDrawList dl, float x, float y, float size, int color) {
 		float cx = x + size / 2, s = size * 0.3f;

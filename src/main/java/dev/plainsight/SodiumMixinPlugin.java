@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Applies the compatibility mixins for other mods (Sodium, Voxy) only when their target class is present
+ * Applies the compatibility mixins for other mods (Sodium, Voxy, Iris, Xaero) only when their target class is present
  * (and plainsight is enabled).
  */
 public final class SodiumMixinPlugin implements IMixinConfigPlugin {

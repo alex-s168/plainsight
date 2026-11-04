@@ -65,6 +65,16 @@ public final class Brightness implements Module {
 	}
 
 	@Override
+	public void saveSettings(com.google.gson.JsonObject o) {
+		o.addProperty("level", level);
+	}
+
+	@Override
+	public void loadSettings(com.google.gson.JsonObject o) {
+		level = Math.max(0.05f, Math.min(1f, ModuleConfig.getFloat(o, "level", level)));
+	}
+
+	@Override
 	public void drawIcon(ImDrawList dl, float x, float y, float size, int color) {
 		float cx = x + size / 2, cy = y + size / 2;
 		dl.addCircleFilled(cx, cy, size * 0.16f, color, 16);

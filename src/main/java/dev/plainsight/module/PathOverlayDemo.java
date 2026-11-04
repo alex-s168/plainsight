@@ -113,6 +113,24 @@ public final class PathOverlayDemo implements Module {
 		if (ImGui.checkbox("Show through terrain", path.seeThrough)) path.seeThrough = !path.seeThrough;
 	}
 
+	/** A demo walked from the player's feet when switched on: not switched on at game start. */
+	@Override
+	public boolean persistEnabled() {
+		return false;
+	}
+
+	@Override
+	public void saveSettings(com.google.gson.JsonObject o) {
+		o.addProperty("length", length);
+		o.addProperty("animate", animate);
+	}
+
+	@Override
+	public void loadSettings(com.google.gson.JsonObject o) {
+		length = ModuleConfig.getInt(o, "length", length);
+		animate = ModuleConfig.getBool(o, "animate", animate);
+	}
+
 	@Override
 	public void drawIcon(ImDrawList dl, float x, float y, float size, int color) {
 		float[][] pts = {{0.15f, 0.8f}, {0.35f, 0.6f}, {0.55f, 0.65f}, {0.75f, 0.35f}};

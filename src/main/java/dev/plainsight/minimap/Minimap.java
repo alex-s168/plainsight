@@ -30,6 +30,10 @@ public final class Minimap {
 	public static boolean playerLayer = true;
 	/** Options: the selection tree's shown boxes and entities, other players, mobs. */
 	public static boolean showSelections = true, showPlayers = true, showMobs = false;
+	/** Options: Xaero's Minimap's waypoints (when it is installed). */
+	public static boolean showWaypoints = true;
+	/** Waypoints drawn in the last frame (tests). */
+	public static volatile int waypointsDrawn;
 	/** Camera distance from the player that zooming aims at, and the current (smoothed) one. */
 	public static double targetDistance = 160, distance = 160;
 	private static float yaw = Float.NaN;
@@ -179,6 +183,8 @@ public final class Minimap {
 		try {
 			if (showSelections) drawSelections(dl, x0, y0, side);
 			if (showPlayers || showMobs) drawEntities(dl, mc, x0, y0, side);
+			if (showWaypoints && dev.plainsight.compat.XaeroWaypoints.PRESENT) drawWaypoints(dl, x0, y0, side);
+			else waypointsDrawn = 0;
 		} finally {
 			dl.popClipRect();
 		}
@@ -257,6 +263,51 @@ public final class Minimap {
 		dl.addCircleFilled(s[0], s[1], 3.5f, color, 12);
 		dl.addCircle(s[0], s[1], 3.5f, 0xC0000000, 12, 1f);
 		if (label != null) dl.addText(s[0] + 5, s[1] - ImGui.getTextLineHeight() / 2, color, label);
+	}
+
+	/**
+	 * Xaero's Minimap's waypoints: a diamond in the waypoint's colour with its initials; ones outside the
+	 * map sit on its edge in their direction.
+	 */
+	private static void drawWaypoints(ImDrawList dl, float x0, float y0, float side) {
+		float cx = x0 + side / 2, cy = y0 + side / 2, edge = side / 2 - 9;
+		int drawn = 0;
+		for (var w : dev.plainsight.compat.XaeroWaypoints.current()) {
+			float[] s = project(w.x() + 0.5, w.y(), w.z() + 0.5, x0, y0, side);
+			float dx, dy;
+			if (s != null) {
+				dx = s[0] - cx;
+				dy = s[1] - cy;
+			} else {
+				// behind the camera (far behind the player): on the edge in its direction, as the map is turned
+				double yr = Math.toRadians(yaw), ox = w.x() + 0.5 - cameraPos.x, oz = w.z() + 0.5 - cameraPos.z;
+				double forward = -Math.sin(yr) * ox + Math.cos(yr) * oz, right = -Math.cos(yr) * ox - Math.sin(yr) * oz;
+				dx = (float) right;
+				dy = (float) -forward;
+				if (dx == 0 && dy == 0) continue;
+				float big = edge * 1000 / Math.max(Math.abs(dx), Math.abs(dy));
+				dx *= big;
+				dy *= big;
+			}
+			drawn++;
+			float out = Math.max(Math.abs(dx), Math.abs(dy)) / edge;
+			boolean inside = out <= 1;
+			if (!inside) {
+				dx /= out;
+				dy /= out;
+			}
+			float px = cx + dx, py = cy + dy, r = inside ? 6 : 4.5f;
+			int color = 0xFF000000 | (w.rgb() & 0xFF) << 16 | (w.rgb() & 0xFF00) | (w.rgb() >> 16) & 0xFF;
+			dl.addQuadFilled(px, py - r, px + r, py, px, py + r, px - r, py, color);
+			dl.addQuad(px, py - r, px + r, py, px, py + r, px - r, py, 0xD0000000, 1.2f);
+			if (inside) {
+				String t = w.initials();
+				float tw = ImGui.calcTextSizeX(t);
+				dl.addText(px - tw / 2 + 1, py - r - ImGui.getTextLineHeight() + 1, 0xC0000000, t);
+				dl.addText(px - tw / 2, py - r - ImGui.getTextLineHeight(), 0xFFFFFFFF, t);
+			}
+		}
+		waypointsDrawn = drawn;
 	}
 
 	/** ARGB (the world overlay's colours) to ImGui's ABGR. */

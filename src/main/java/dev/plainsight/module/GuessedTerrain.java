@@ -87,6 +87,20 @@ public final class GuessedTerrain implements Module {
 	}
 
 	@Override
+	public void saveSettings(com.google.gson.JsonObject o) {
+		o.addProperty("radiusChunks", GuessWorld.radius);
+		o.addProperty("tintOpacity", tintOpacity);
+		o.addProperty("fadeCycleSeconds", pulseSeconds);
+	}
+
+	@Override
+	public void loadSettings(com.google.gson.JsonObject o) {
+		GuessWorld.radius = Math.max(4, Math.min(128, ModuleConfig.getInt(o, "radiusChunks", GuessWorld.radius)));
+		tintOpacity = Math.max(0.02f, Math.min(0.4f, ModuleConfig.getFloat(o, "tintOpacity", tintOpacity)));
+		pulseSeconds = Math.max(2f, Math.min(30f, ModuleConfig.getFloat(o, "fadeCycleSeconds", pulseSeconds)));
+	}
+
+	@Override
 	public void drawIcon(ImDrawList dl, float x, float y, float size, int color) {
 		// a hill with a question mark: terrain that is guessed
 		dl.addTriangleFilled(x + size * 0.12f, y + size * 0.84f, x + size * 0.42f, y + size * 0.42f, x + size * 0.72f, y + size * 0.84f, color);

@@ -127,6 +127,18 @@ public final class LightOverlay implements Module {
 	}
 
 	@Override
+	public void saveSettings(com.google.gson.JsonObject o) {
+		o.addProperty("threshold", threshold);
+		o.addProperty("radius", radius);
+	}
+
+	@Override
+	public void loadSettings(com.google.gson.JsonObject o) {
+		threshold = ModuleConfig.getInt(o, "threshold", threshold);
+		radius = ModuleConfig.getInt(o, "radius", radius);
+	}
+
+	@Override
 	public void drawIcon(ImDrawList dl, float x, float y, float size, int color) {
 		// a light bulb
 		float cx = x + size / 2, cy = y + size * 0.42f;
