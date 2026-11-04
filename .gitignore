@@ -44,3 +44,6 @@ run-axiom/
 .mcsrc/
 run-hidden/
 __pycache__/
+
+# logs the unit tests write (Minecraft's logging setup)
+infiniterra/logs/

@@ -69,10 +69,10 @@ public final class GuessTint {
 	public static void render(CameraRenderState camera, GuessWorld world) {
 		var device = RenderSystem.getDevice();
 		if (mask == null) {
-			mask = device.createTexture("plainsight guess mask", GpuTexture.USAGE_TEXTURE_BINDING | GpuTexture.USAGE_COPY_DST,
+			mask = device.createTexture("infiniterra guess mask", GpuTexture.USAGE_TEXTURE_BINDING | GpuTexture.USAGE_COPY_DST,
 					GpuFormat.RGBA8_UNORM, SIZE, SIZE, 1, 1);
 			maskView = device.createTextureView(mask);
-			ubo = new MappableRingBuffer(() -> "plainsight guess tint", GpuBuffer.USAGE_MAP_WRITE | GpuBuffer.USAGE_UNIFORM, UBO_SIZE);
+			ubo = new MappableRingBuffer(() -> "infiniterra guess tint", GpuBuffer.USAGE_MAP_WRITE | GpuBuffer.USAGE_UNIFORM, UBO_SIZE);
 		}
 		var cam = camera.pos;
 		int ox = ((int) Math.floor(cam.x) >> 4) - SIZE / 2, oz = ((int) Math.floor(cam.z) >> 4) - SIZE / 2;
@@ -102,7 +102,7 @@ public final class GuessTint {
 		Minecraft mc = Minecraft.getInstance();
 		RenderTarget target = mc.gameRenderer.mainRenderTarget();
 		var nearest = RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST);
-		try (RenderPass pass = device.createCommandEncoder().createRenderPass(() -> "plainsight guess tint", target.getColorTextureView(), Optional.empty())) {
+		try (RenderPass pass = device.createCommandEncoder().createRenderPass(() -> "infiniterra guess tint", target.getColorTextureView(), Optional.empty())) {
 			RenderSystem.bindDefaultUniforms(pass);
 			pass.setPipeline(RenderSystem.getCompiledPipeline(PIPELINE));
 			pass.setUniform("InSampler", target.getDepthTextureView(), nearest);

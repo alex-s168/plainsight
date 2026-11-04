@@ -33,12 +33,12 @@ public abstract class ShaderPatchMixin {
 		if (!id.getPath().endsWith("hierarchical/screenspace.glsl")) return;
 		String src = cir.getReturnValue();
 		String patched = src
-				.replace("bool _frustumCulled = false;", "bool _frustumCulled = false;\nbool _plainsightNear = false;")
-				.replace("vec4 P111 = Axis[1] + P101;", "vec4 P111 = Axis[1] + P101;\n    _plainsightNear = min(min(min(P000.w, P100.w), min(P001.w, P101.w)),"
+				.replace("bool _frustumCulled = false;", "bool _frustumCulled = false;\nbool _infiniterraNear = false;")
+				.replace("vec4 P111 = Axis[1] + P101;", "vec4 P111 = Axis[1] + P101;\n    _infiniterraNear = min(min(min(P000.w, P100.w), min(P001.w, P101.w)),"
 						+ " min(min(P010.w, P110.w), min(P011.w, P111.w))) < 1.0;")
-				.replace("_screenSize = ssize;", "_screenSize = _plainsightNear ? 1e30 : ssize;")
-				.replace("bool isCulledByHiz() {", "bool isCulledByHiz() {\n    if (_plainsightNear) return false;");
-		if (patched.equals(src) || !patched.contains("if (_plainsightNear) return false;") || !patched.contains("_plainsightNear = min(")) {
+				.replace("_screenSize = ssize;", "_screenSize = _infiniterraNear ? 1e30 : ssize;")
+				.replace("bool isCulledByHiz() {", "bool isCulledByHiz() {\n    if (_infiniterraNear) return false;");
+		if (patched.equals(src) || !patched.contains("if (_infiniterraNear) return false;") || !patched.contains("_infiniterraNear = min(")) {
 			dev.infiniterra.InfiniTerraMod.LOG.warn("Could not patch Voxy's {} (changed?): near-camera LOD may be culled", id);
 			return;
 		}
@@ -61,9 +61,9 @@ public abstract class ShaderPatchMixin {
 		}
 		int lineEnd = src.indexOf('\n', at);
 		String patch = "\n    {\n"
-				+ "        vec3 plainsightMin = vec3(pos) + (vec3(aabbOffset) - EXPANSION) * float(1 << detail);\n"
-				+ "        vec3 plainsightMax = plainsightMin + (vec3(size) + 2.0 * EXPANSION) * float(1 << detail);\n"
-				+ "        if (all(greaterThanEqual(cameraSubPos, plainsightMin - 4.0)) && all(lessThanEqual(cameraSubPos, plainsightMax + 4.0))) {\n"
+				+ "        vec3 infiniterraMin = vec3(pos) + (vec3(aabbOffset) - EXPANSION) * float(1 << detail);\n"
+				+ "        vec3 infiniterraMax = infiniterraMin + (vec3(size) + 2.0 * EXPANSION) * float(1 << detail);\n"
+				+ "        if (all(greaterThanEqual(cameraSubPos, infiniterraMin - 4.0)) && all(lessThanEqual(cameraSubPos, infiniterraMax + 4.0))) {\n"
 				+ "            visibilityData[sid] = value;\n"
 				+ "        }\n"
 				+ "    }\n";
@@ -89,9 +89,9 @@ public abstract class ShaderPatchMixin {
 				.replace("f16vec4 gl_Position;", "f16vec4 gl_Position;\n    float gl_ClipDistance[1];")
 				.replace(main, "\n" + CUT_UNIFORM + main)
 				.replace(anchor, anchor + "\n    {\n"
-						+ "        vec2 plainsightMask = vec2((cornerId>>1)&1u, cornerId&1u)*quad.lodScale;\n"
-						+ "        vec3 plainsightPoint = quad.basePoint + swizzelDataAxis(quad.axis, vec3(quad.quadSizeAddin*plainsightMask, 0));\n"
-						+ "        gl_ClipDistance[0] = infiniterraCutY - (plainsightPoint.y + float(baseSectionPos.y<<5));\n"
+						+ "        vec2 infiniterraMask = vec2((cornerId>>1)&1u, cornerId&1u)*quad.lodScale;\n"
+						+ "        vec3 infiniterraPoint = quad.basePoint + swizzelDataAxis(quad.axis, vec3(quad.quadSizeAddin*infiniterraMask, 0));\n"
+						+ "        gl_ClipDistance[0] = infiniterraCutY - (infiniterraPoint.y + float(baseSectionPos.y<<5));\n"
 						+ "    }"));
 	}
 

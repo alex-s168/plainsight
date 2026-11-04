@@ -45,7 +45,7 @@ public final class GuessWorld {
 	final ResourceKey<Level> dimension;
 	final long seed;
 	private final Path stateDir;
-	/** The seed's worldgen server (shared with /plainsight locate). */
+	/** The seed's worldgen server (shared with hosts, e.g. for locating structures). */
 	private final SeedServer seedServer;
 	private volatile State state = State.STARTING;
 	private volatile String error;
@@ -63,7 +63,7 @@ public final class GuessWorld {
 	public volatile boolean reloadView;
 	/** Copies real LOD in the background (one column at a time; reads Voxy storage). */
 	private final java.util.concurrent.ExecutorService lodCopier = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
-		Thread t = new Thread(r, "Plainsight LOD copy");
+		Thread t = new Thread(r, "InfiniTerra LOD copy");
 		t.setDaemon(true);
 		t.setPriority(Thread.NORM_PRIORITY - 1);
 		return t;
@@ -79,8 +79,7 @@ public final class GuessWorld {
 		this.worldKey = worldKey;
 		this.dimension = dimension;
 		this.seed = seed;
-		Path root = Minecraft.getInstance().gameDirectory.toPath().resolve("plainsight/guess");
-		this.stateDir = root.resolve("state").resolve(sanitize(worldKey)).resolve(sanitize(dimension.identifier().toString()) + "-" + Long.toHexString(seed));
+		this.stateDir = dev.infiniterra.impl.DataDirs.guessState(worldKey, dimension.identifier().toString(), seed);
 		// v5: which sections are real is known per chunk and 16-block section (v3 had it per 32-block LOD
 		// section, which left holes where only part of one was real; v4 copied air Voxy had no data for on
 		// top of terrain)
@@ -118,10 +117,6 @@ public final class GuessWorld {
 			current = null;
 			currentKey = null;
 		}
-	}
-
-	private static String sanitize(String s) {
-		return s.replaceAll("[^A-Za-z0-9._-]", "_");
 	}
 
 	public static GuessWorld current() {
@@ -381,7 +376,7 @@ public final class GuessWorld {
 			save();
 			// whatever Voxy missed meanwhile: it re-reads the world once
 			if (todo.length > 0) reloadView = true;
-		}, "Plainsight LOD import");
+		}, "InfiniTerra LOD import");
 		t.setDaemon(true);
 		t.setPriority(Thread.MIN_PRIORITY);
 		t.start();

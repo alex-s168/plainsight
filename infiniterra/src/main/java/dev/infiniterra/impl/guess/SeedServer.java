@@ -31,13 +31,13 @@ public final class SeedServer {
 
 	private SeedServer(long seed) {
 		this.seed = seed;
-		this.dir = Minecraft.getInstance().gameDirectory.toPath().resolve("plainsight/guess/worlds").resolve(Long.toHexString(seed));
-		Thread starter = new Thread(this::start, "Plainsight worldgen startup");
+		this.dir = dev.infiniterra.impl.DataDirs.worldgen(seed);
+		Thread starter = new Thread(this::start, "InfiniTerra worldgen startup");
 		starter.setDaemon(true);
 		starter.start();
 	}
 
-	/** Whether {@code server} is one of plainsight's worldgen servers (other mods' server hooks should skip it). */
+	/** Whether {@code server} is one of InfiniTerra's worldgen servers (other mods' server hooks should skip it). */
 	public static boolean isWorldgenServer(Object server) {
 		return server instanceof GuessServer;
 	}
@@ -115,7 +115,7 @@ public final class SeedServer {
 			} finally {
 				STOPPING.remove(dir, Thread.currentThread());
 			}
-		}, "Plainsight worldgen shutdown");
+		}, "InfiniTerra worldgen shutdown");
 		stopper.setDaemon(true);
 		STOPPING.put(dir, stopper);
 		stopper.start();

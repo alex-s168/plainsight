@@ -47,7 +47,7 @@ final class VoxyGuessImpl {
 		WorldIdentifier real = WorldIdentifier.of(mc.level);
 		if (real == null) return;
 		Identifier id = Identifier.fromNamespaceAndPath(InfiniTerraMod.ID, "guess/" + w.dimension.identifier().getNamespace() + "/"
-				+ w.dimension.identifier().getPath() + "/" + Long.toHexString(w.seed));
+				+ w.dimension.identifier().getPath() + "/" + dev.infiniterra.impl.DataDirs.seedKey(w.seed));
 		WorldEngine engine = instance.getOrCreate(new WorldIdentifier(ResourceKey.create(Registries.DIMENSION, id), real.biomeSeed, real.dimension));
 		if (engine == null) return;
 		engine.acquireRef();

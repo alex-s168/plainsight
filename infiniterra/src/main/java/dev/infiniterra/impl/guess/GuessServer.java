@@ -60,7 +60,7 @@ final class GuessServer extends MinecraftServer {
 		LevelStorageSource.LevelStorageAccess access = LevelStorageSource.createDefault(dir).createAccess("world");
 		try {
 			PackRepository packs = ServerPacksSource.createPackRepository(access);
-			LevelSettings settings = new LevelSettings("plainsight guess", GameType.SPECTATOR,
+			LevelSettings settings = new LevelSettings("infiniterra guess", GameType.SPECTATOR,
 					new LevelSettings.DifficultySettings(Difficulty.PEACEFUL, false, false), false, WorldDataConfiguration.DEFAULT);
 			WorldOptions options = new WorldOptions(seed, true, false);
 			WorldLoader.InitConfig config = new WorldLoader.InitConfig(new WorldLoader.PackConfig(packs, WorldDataConfiguration.DEFAULT, false, false),
@@ -76,7 +76,7 @@ final class GuessServer extends MinecraftServer {
 			access.saveDataTag(stem.worldDataAndGenSettings().data());
 			Minecraft mc = Minecraft.getInstance();
 			GuessServer server = MinecraftServer.spin(t -> new GuessServer(t, access, packs, stem, mc.getFixerUpper(), mc.services()));
-			server.getRunningThread().setName("Plainsight worldgen server");
+			server.getRunningThread().setName("InfiniTerra worldgen server");
 			server.getRunningThread().setPriority(Thread.NORM_PRIORITY - 1);
 			return server;
 		} catch (Exception | Error e) {
@@ -120,7 +120,7 @@ final class GuessServer extends MinecraftServer {
 
 	@Override
 	public SystemReport fillServerSystemReport(SystemReport report) {
-		report.setDetail("Type", "Plainsight worldgen server");
+		report.setDetail("Type", "InfiniTerra worldgen server");
 		return report;
 	}
 
