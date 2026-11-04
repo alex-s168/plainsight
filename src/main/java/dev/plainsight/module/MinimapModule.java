@@ -22,7 +22,7 @@ public final class MinimapModule implements Module {
 
 	@Override
 	public String description() {
-		return "A map of the world around the player in the top right corner of the game (needs Voxy); N switches it, = and - zoom, "
+		return "A map of the world around the player in the top right corner of the game (needs Voxy); N switches it, numpad + and - zoom, "
 				+ "with Ctrl they move the shown layer up and down (Ctrl + * resets it). "
 				+ "Right-click for what it shows.";
 	}
@@ -79,6 +79,7 @@ public final class MinimapModule implements Module {
 		o.addProperty("xaeroWaypoints", Minimap.showWaypoints);
 		o.addProperty("zoomMetres", Math.round(Minimap.targetDistance));
 		o.addProperty("tiltDegrees", Math.round(Minimap.pitch * 10) / 10.0);
+		o.addProperty("zoomKeysNumpad", true);
 		o.addProperty("editorMapYaw", Math.round(dev.plainsight.editor.MapMode.yaw * 10) / 10.0);
 	}
 
@@ -93,6 +94,10 @@ public final class MinimapModule implements Module {
 		Minimap.showWaypoints = ModuleConfig.getBool(o, "xaeroWaypoints", Minimap.showWaypoints);
 		Minimap.pitch = Math.clamp(ModuleConfig.getFloat(o, "tiltDegrees", Minimap.pitch), dev.plainsight.editor.MapMode.MIN_PITCH, dev.plainsight.editor.MapMode.MAX_PITCH);
 		dev.plainsight.editor.MapMode.yaw = ModuleConfig.getFloat(o, "editorMapYaw", dev.plainsight.editor.MapMode.yaw);
+		if (!ModuleConfig.getBool(o, "zoomKeysNumpad", false)) {
+			dev.plainsight.Plainsight.moveZoomKeysToNumpad();
+			ModuleConfig.markChanged(id());
+		}
 		Minimap.targetDistance = Minimap.distance = Math.clamp(ModuleConfig.getFloat(o, "zoomMetres", (float) Minimap.targetDistance),
 				Minimap.MIN_DISTANCE, Minimap.MAX_DISTANCE);
 	}

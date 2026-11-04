@@ -1517,6 +1517,18 @@ def test_switch_to_axiom():
     c.key(K["RSHIFT"])
     time.sleep(1.0)
     check(state()["active"], "and afterwards opens this editor again")
+    # with Axiom's editor key unbound: still Axiom's editor, not whatever else is unbound (a screen)
+    if ed("setAxiomEditorKey", -1) == "ok":
+        try:
+            c.click(*widget("view_axiom"), b=1)
+            time.sleep(1.0)
+            check(not state()["active"] and "screen=none" in c.status(), "unbound: no other screen opens: %s" % c.status().splitlines()[0])
+            shot("axiom-editor-unbound")
+        finally:
+            # bound again, Right Shift closes Axiom's editor
+            ed("setAxiomEditorKey", K["RSHIFT"])
+            c.key(K["RSHIFT"])
+            time.sleep(1.0)
 
 
 def test_map_mode_camera():
@@ -1558,7 +1570,7 @@ def test_map_mode_camera():
 
 
 def test_map_turn_and_tilt():
-    """Ctrl + RMB drag in the map: left/right turns it around the view's centre, down tilts it towards
+    """Ctrl + LMB drag in the map (as the arcball): left/right turns it around the view's centre, down tilts it towards
     top-down (as the arcball), 10 degrees at least; the minimap takes the tilt; both are kept."""
     editor_on()
     fresh_tree()
@@ -1570,11 +1582,11 @@ def test_map_turn_and_tilt():
         c.move(*points[0])
         time.sleep(0.05)
         c.key(K["LCTRL"], "press")
-        c.button(3, "press")
+        c.button(1, "press")
         for p in points[1:]:
             c.move(*p)
             time.sleep(0.02)
-        c.button(3, "release")
+        c.button(1, "release")
         c.key(K["LCTRL"], "release")
         time.sleep(0.2)
 
@@ -1587,7 +1599,7 @@ def test_map_turn_and_tilt():
         check(state()["camera"]["pos"] == p, "moving the mouse alone does not turn the map")
         ctrl_drag([(800, 450)] + [(800 + 10 * (i + 1), 450) for i in range(10)])
         t = state()["camera"]
-        check(abs(t["yaw"] - (s["camera"]["yaw"] + 30)) < 1, "Ctrl + RMB drag right turns the map: %s -> %s" % (s["camera"]["yaw"], t["yaw"]))
+        check(abs(t["yaw"] - (s["camera"]["yaw"] + 30)) < 1, "Ctrl + LMB drag right turns the map: %s -> %s" % (s["camera"]["yaw"], t["yaw"]))
         check(abs(t["pitch"] - s["camera"]["pitch"]) < 1e-3, "without tilting it")
         ctrl_drag([(900, 150)] + [(900, 150 + 30 * (i + 1)) for i in range(20)])
         t = state()["camera"]
@@ -1619,29 +1631,31 @@ def test_minimap_layer_keys():
     cmd("tp @s 0.5 -60 0.5 0 0")
     ed("setMinimapOptions", "true", "true", "true", "false")
     time.sleep(0.3)
+    # the keys bound now (the hidden client's options may keep older bindings)
+    up, down, reset = (int(v) for v in ed("minimapKeys").split())
     try:
         check(ed("minimapLayer") == "Y: -60", "the player's layer: %s" % ed("minimapLayer"))
         c.key(K["LCTRL"], "press")
-        c.key(K["EQUALS"])
+        c.key(up)
         time.sleep(0.2)
         check(ed("minimapLayer") == "Y: -59", "Ctrl + zoom in: one block up: %s" % ed("minimapLayer"))
-        c.key(K["MINUS"])
+        c.key(down)
         time.sleep(0.15)
-        c.key(K["MINUS"])
+        c.key(down)
         time.sleep(0.2)
         check(ed("minimapLayer") == "Y: -61", "two presses: two blocks down: %s" % ed("minimapLayer"))
         # (up: the flat world ends 3 blocks below)
-        c.key(K["EQUALS"], "press")
+        c.key(up, "press")
         time.sleep(0.25)
         short = int(ed("minimapLayer").split()[1])
         time.sleep(1.5)
-        c.key(K["EQUALS"], "release")
+        c.key(up, "release")
         long_ = int(ed("minimapLayer").split()[1])
         check(short <= -59 and long_ > short + 15, "held: one block at first, then many: %d then %d" % (short, long_))
-        c.key(K["KP_MULTIPLY"])
+        c.key(reset)
         time.sleep(0.2)
         check(ed("minimapLayer") == "Y: -60", "Ctrl + *: back to the player's level: %s" % ed("minimapLayer"))
-        c.key(K["KP_MULTIPLY"])
+        c.key(reset)
         time.sleep(0.2)
         check(ed("minimapLayer") == "Y: top", "and again: the top: %s" % ed("minimapLayer"))
         c.key(K["LCTRL"], "release")
@@ -1650,15 +1664,15 @@ def test_minimap_layer_keys():
         time.sleep(0.5)
         check(state()["map"], "M opens the editor map")
         h0 = state()["mapHeight"]
-        c.key(K["EQUALS"])
+        c.key(up)
         time.sleep(0.3)
         check(state()["mapHeight"] < h0, "the zoom key zooms the map like the wheel: %s -> %s" % (h0, state()["mapHeight"]))
         check(ed("minimapLayer") == "Y: top", "without changing the layer")
         c.key(K["LCTRL"], "press")
-        c.key(K["MINUS"])
+        c.key(down)
         time.sleep(0.2)
         check(ed("minimapLayer") == "Y: -61", "Ctrl + zoom out in the map: from the top to one below the player: %s" % ed("minimapLayer"))
-        c.key(K["KP_MULTIPLY"])
+        c.key(reset)
         time.sleep(0.2)
         check(ed("minimapLayer") == "Y: -60", "Ctrl + * in the map")
         c.key(K["LCTRL"], "release")
@@ -1806,14 +1820,14 @@ def test_minimap():
     check(e and v and err == "-", "the minimap is on and shown: %s" % ed("minimap"))
     time.sleep(0.5)
     check(mm()[2] > r0, "and rendered every frame")
-    c.key(K["EQUALS"])
+    c.key(int(ed("minimapKeys").split()[0]))
     time.sleep(0.3)
     check(mm()[3] < d0, "= zooms in: %d -> %d" % (d0, mm()[3]))
-    c.key(K["MINUS"])
-    c.key(K["MINUS"])
+    c.key(int(ed("minimapKeys").split()[1]))
+    c.key(int(ed("minimapKeys").split()[1]))
     time.sleep(0.3)
     check(mm()[3] > d0, "- zooms out: %d -> %d" % (d0, mm()[3]))
-    c.key(K["MINUS"])
+    c.key(int(ed("minimapKeys").split()[1]))
     shot("minimap")
     c.key(K["N"])
     time.sleep(0.3)
@@ -1834,10 +1848,10 @@ def test_minimap():
 def minimap_zoom_182():
     """A known minimap zoom (other tests change it): all the way in (24 m), then 5 steps out (182 m)."""
     for _ in range(12):
-        c.key(K["EQUALS"])
+        c.key(int(ed("minimapKeys").split()[0]))
         time.sleep(0.1)
     for _ in range(5):
-        c.key(K["MINUS"])
+        c.key(int(ed("minimapKeys").split()[1]))
         time.sleep(0.1)
     time.sleep(0.5)
     check(ed("minimap").split(" ")[3] == "182", "zoom set: %s" % ed("minimap"))

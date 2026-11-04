@@ -711,7 +711,7 @@ public final class Editor {
 		if (!down) {
 			boolean lookClick = button == 1 && (camera.drag() == EditorCamera.Drag.LOOK || map.dragging()) && !movedSincePress;
 			if (button == 1) map.endDrag();
-			if (button == 3 && map.rotating()) {
+			if (button == 1 && map.rotating()) {
 				map.endRotate();
 				return;
 			}
@@ -729,8 +729,9 @@ public final class Editor {
 		movedSincePress = false;
 		if (map.active()) {
 			// the map only zooms and moves: LMB drags it (unless the tool grabs a handle), RMB uses the tool
-			if (button == 1 && !tool.leftPressed()) map.beginDrag(this, mouseRay());
-			else if (button == 3 && ctrl) map.beginRotate();
+			// Ctrl + LMB turns and tilts it (as the arcball camera)
+			if (button == 1 && ctrl) map.beginRotate();
+			else if (button == 1 && !tool.leftPressed()) map.beginDrag(this, mouseRay());
 			else if (button == 3) tool.rightPressed();
 			else if (button == 2) pickBlock();
 			return;

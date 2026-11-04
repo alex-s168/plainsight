@@ -138,9 +138,9 @@ public final class EditorUI {
 		ImGui.bulletText("Ctrl + RMB drag: pan   Scroll: move to/from the point under the cursor");
 		ImGui.bulletText("Follow an entity: right-click it in the tree; arcball then orbits it");
 		ImGui.bulletText("WASD: fly, Space / Shift: up / down, hold Ctrl: faster");
-		ImGui.bulletText(dev.plainsight.Plainsight.mapKeyName() + ": map (like the minimap, north up): scroll to zoom, LMB drag to move, Ctrl + RMB drag to turn and tilt; selections move across it");
+		ImGui.bulletText(dev.plainsight.Plainsight.mapKeyName() + ": map (like the minimap, north up): scroll to zoom, LMB drag to move, Ctrl + LMB drag to turn and tilt; selections move across it");
 		ImGui.bulletText("  in the game, " + dev.plainsight.Plainsight.mapKeyName() + " opens the editor on the map");
-		ImGui.bulletText("  = / -: zoom; Ctrl + = / -: the shown layer up / down; Ctrl + *: the player's level or the top");
+		ImGui.bulletText("  numpad + / -: zoom; with Ctrl: the shown layer up / down; Ctrl + *: the player's level or the top");
 		ImGui.textDisabled("Modules");
 		ImGui.bulletText("RMB: use tool   MMB: pick block");
 		ImGui.bulletText("Modules (light overlay, brightness, minimap, waypoints, hide seeds): click to switch, right-click for options");
@@ -425,7 +425,7 @@ public final class EditorUI {
 				}
 				dl.addText(tx, a.y + (h - ImGui.getTextLineHeight()) / 2, 0xFFFFFFFF, "Axiom");
 				rect("view_axiom");
-				tooltip("Switch to Axiom", "Closes this editor and opens Axiom's (" + dev.plainsight.compat.Axiom.editorKeyName() + " there).");
+				tooltip("Switch to Axiom", "Closes this editor and opens Axiom's (its editor key: " + dev.plainsight.compat.Axiom.editorKeyName() + ").");
 				if (clicked) deferred = dev.plainsight.compat.Axiom::switchTo;
 			});
 		} finally {
@@ -838,7 +838,7 @@ public final class EditorUI {
 	private void statusContents(float w) {
 		boolean ctrl = editor.ctrl;
 		String[] hints = editor.map.active()
-				? new String[]{"LMB - Move Map", "Scroll - Zoom", "Ctrl + RMB - Turn / Tilt", dev.plainsight.Plainsight.mapKeyName() + " - 3D View", editor.tool().hints()}
+				? new String[]{"LMB - Move Map", "Scroll - Zoom", "Ctrl + LMB - Turn / Tilt", dev.plainsight.Plainsight.mapKeyName() + " - 3D View", editor.tool().hints()}
 				: ctrl
 				? new String[]{"Ctrl+LMB - Arcball Camera", "Ctrl+Shift+LMB - Arcball through rock", "Ctrl+RMB - Pan Camera"}
 				: new String[]{"LMB - Rotate Camera", "MMB - Pick Block", editor.tool().hints()};

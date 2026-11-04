@@ -49,7 +49,15 @@ public final class ModuleConfig {
 			}
 		}
 		// what is in effect now counts as written (no rewrite of untouched files)
-		for (Module m : all) written.put(m.id(), serialize(m));
+		for (Module m : all) if (!rewrite.remove(m.id())) written.put(m.id(), serialize(m));
+	}
+
+	private static final java.util.Set<String> rewrite = new java.util.HashSet<>();
+
+	/** A module's settings file is to be written again (its settings were migrated while loading). */
+	public static void markChanged(String id) {
+		rewrite.add(id);
+		written.remove(id);
 	}
 
 	/** Saves modules whose settings changed; call regularly (client tick). */

@@ -17,6 +17,8 @@ public final class Plainsight implements ClientModInitializer {
 	public static final KeyMapping.Category CATEGORY = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(ID, "main"));
 	private static boolean modulesLoaded;
 	private static KeyMapping toggleEditor, editorMap, overlaysInGame, minimap, minimapZoomIn, minimapZoomOut, minimapLayer;
+	/** Numpad minus (no InputConstants name; "key.keyboard.keypad.subtract"). */
+	private static final int KEY_NUMPAD_SUBTRACT = 86;
 	/** Ctrl + the zoom keys in the game: the minimap's layer up and down (see {@link #minimapKeys}). */
 	private static final dev.plainsight.minimap.HoldRepeat layerUp = layerRepeat(), layerDown = layerRepeat();
 
@@ -39,6 +41,26 @@ public final class Plainsight implements ClientModInitializer {
 	}
 
 	private static boolean leftCtrl, rightCtrl;
+
+	/**
+	 * The zoom keys moved from = and - to numpad + and -: bindings still at the old defaults move along
+	 * (once, see MinimapModule's settings).
+	 */
+	public static void moveZoomKeysToNumpad() {
+		boolean changed = false;
+		if (KeyMappingHelper.getBoundKeyOf(minimapZoomIn).getValue() == InputConstants.KEY_EQUALS) {
+			minimapZoomIn.setKey(minimapZoomIn.getDefaultKey());
+			changed = true;
+		}
+		if (KeyMappingHelper.getBoundKeyOf(minimapZoomOut).getValue() == InputConstants.KEY_MINUS) {
+			minimapZoomOut.setKey(minimapZoomOut.getDefaultKey());
+			changed = true;
+		}
+		if (!changed) return;
+		KeyMapping.resetMapping();
+		net.minecraft.client.Minecraft.getInstance().options.save();
+		LOG.info("Minimap zoom keys moved to numpad + and -");
+	}
 
 	/** Whether a Ctrl key is held, from the key events (KeyboardHandlerMixin). */
 	public static boolean ctrlDown() {
@@ -77,8 +99,8 @@ public final class Plainsight implements ClientModInitializer {
 		editorMap = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.plainsight.editor_map", InputConstants.KEY_M, CATEGORY));
 		overlaysInGame = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.plainsight.overlays_in_game", InputConstants.KEY_J, CATEGORY));
 		minimap = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.plainsight.minimap", InputConstants.KEY_N, CATEGORY));
-		minimapZoomIn = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.plainsight.minimap_zoom_in", InputConstants.KEY_EQUALS, CATEGORY));
-		minimapZoomOut = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.plainsight.minimap_zoom_out", InputConstants.KEY_MINUS, CATEGORY));
+		minimapZoomIn = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.plainsight.minimap_zoom_in", InputConstants.KEY_ADD, CATEGORY));
+		minimapZoomOut = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.plainsight.minimap_zoom_out", KEY_NUMPAD_SUBTRACT, CATEGORY));
 		minimapLayer = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.plainsight.minimap_layer", InputConstants.KEY_MULTIPLY, CATEGORY));
 		ClientTickEvents.END_CLIENT_TICK.register(mc -> {
 			if (!modulesLoaded) {

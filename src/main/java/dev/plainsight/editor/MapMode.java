@@ -7,7 +7,7 @@ import org.joml.Vector3dc;
 /**
  * The editor's map (M): the camera looks down at the minimap's angle, north up, through a narrow field
  * of view (a slightly 3D map, like the minimap's); the wheel zooms towards the point under the cursor
- * and dragging moves the map. Ctrl + RMB drag turns the map and tilts it (the minimap takes the tilt); both are kept. With Voxy the view is drawn like the minimap (the player's layer, daylight;
+ * and dragging moves the map. Ctrl + LMB drag turns the map and tilts it (the minimap takes the tilt); both are kept. With Voxy the view is drawn like the minimap (the player's layer, daylight;
  * see Minimap's editor map pass). The 3D camera comes back when the map is left. Zoom and drag work on a
  * horizontal plane at the player's height.
  */
@@ -75,7 +75,7 @@ public final class MapMode {
 		Vector3d dir = dev.plainsight.editor.EditorCamera.direction(yaw, pitch, new Vector3d());
 		// from above (at the map's height) and behind the point, in the map's direction
 		c.set(new Vector3d(at.x, planeY, at.z).fma(-height / Math.sin(Math.toRadians(pitch)), dir), yaw, pitch);
-		editor.setStatus("Map: scroll to zoom, drag to move, Ctrl + RMB drag to turn and tilt, " + dev.plainsight.Plainsight.mapKeyName() + " for the 3D view");
+		editor.setStatus("Map: scroll to zoom, drag to move, Ctrl + drag to turn and tilt, " + dev.plainsight.Plainsight.mapKeyName() + " for the 3D view");
 	}
 
 	public void exit(Editor editor) {
@@ -95,7 +95,7 @@ public final class MapMode {
 		return rotating;
 	}
 
-	/** Ctrl + RMB drag: turning and tilting the map (see {@link #rotate}). */
+	/** Ctrl + LMB drag: turning and tilting the map (see {@link #rotate}). */
 	public void beginRotate() {
 		rotating = true;
 	}
@@ -105,7 +105,7 @@ public final class MapMode {
 	}
 
 	/**
-	 * Ctrl + RMB drag: turns the map around the up axis through the point at the view's centre (left/right)
+	 * Ctrl + LMB drag: turns the map around the up axis through the point at the view's centre (left/right)
 	 * and tilts it slowly (down: towards top-down, as dragging the arcball camera). The minimap takes the tilt.
 	 */
 	public void rotate(Editor editor, double dx, double dy) {
