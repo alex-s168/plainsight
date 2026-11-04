@@ -403,12 +403,12 @@ public final class EditorDebug {
 
 	/** Minimap options: "playerLayer showSelections showPlayers showMobs". */
 	public static String minimapOptions() {
-		return dev.plainsight.minimap.Minimap.playerLayer + " " + dev.plainsight.minimap.Minimap.showSelections + " "
+		return (dev.plainsight.minimap.Minimap.layer == dev.plainsight.minimap.Minimap.Layer.PLAYER) + " " + dev.plainsight.minimap.Minimap.showSelections + " "
 				+ dev.plainsight.minimap.Minimap.showPlayers + " " + dev.plainsight.minimap.Minimap.showMobs;
 	}
 
 	public static String setMinimapOptions(String playerLayer, String selections, String players, String mobs) {
-		dev.plainsight.minimap.Minimap.playerLayer = Boolean.parseBoolean(playerLayer);
+		dev.plainsight.minimap.Minimap.layer = Boolean.parseBoolean(playerLayer) ? dev.plainsight.minimap.Minimap.Layer.PLAYER : dev.plainsight.minimap.Minimap.Layer.TOP;
 		dev.plainsight.minimap.Minimap.showSelections = Boolean.parseBoolean(selections);
 		dev.plainsight.minimap.Minimap.showPlayers = Boolean.parseBoolean(players);
 		dev.plainsight.minimap.Minimap.showMobs = Boolean.parseBoolean(mobs);
@@ -481,6 +481,16 @@ public final class EditorDebug {
 	/** The minimap's tilt (degrees down from the horizon), set by the editor map. */
 	public static String minimapTilt() {
 		return Float.toString(dev.plainsight.minimap.Minimap.pitch);
+	}
+
+	/** Whether the minimap's zoom-out key is held (key mapping state) and Ctrl (tests). */
+	public static String zoomOutDown() {
+		return dev.plainsight.Plainsight.minimapZoomOut().isDown() + " " + dev.plainsight.Plainsight.ctrlDown();
+	}
+
+	/** The minimap's layer text ("Y: 64", "Y: top"). */
+	public static String minimapLayer() {
+		return dev.plainsight.minimap.Minimap.layerText();
 	}
 
 	public static String setMapYaw(float yaw) {

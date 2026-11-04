@@ -140,6 +140,7 @@ public final class EditorUI {
 		ImGui.bulletText("WASD: fly, Space / Shift: up / down, hold Ctrl: faster");
 		ImGui.bulletText(dev.plainsight.Plainsight.mapKeyName() + ": map (like the minimap, north up): scroll to zoom, LMB drag to move, Ctrl + RMB drag to turn and tilt; selections move across it");
 		ImGui.bulletText("  in the game, " + dev.plainsight.Plainsight.mapKeyName() + " opens the editor on the map");
+		ImGui.bulletText("  = / -: zoom; Ctrl + = / -: the shown layer up / down; Ctrl + *: the player's level or the top");
 		ImGui.textDisabled("Modules");
 		ImGui.bulletText("RMB: use tool   MMB: pick block");
 		ImGui.bulletText("Modules (light overlay, brightness, minimap, waypoints, hide seeds): click to switch, right-click for options");
@@ -304,7 +305,10 @@ public final class EditorUI {
 		try {
 			dev.plainsight.render.WaypointMarkers.draw(dl, vp.x, vp.y, vp.x + vp.width, vp.y + vp.height, width, height,
 					(float) editor.mouseX, (float) editor.mouseY);
-			if (editor.map.active()) playerArrow(dl, width, height);
+			if (editor.map.active()) {
+				playerArrow(dl, width, height);
+				mapStats(dl);
+			}
 		} finally {
 			dl.popClipRect();
 		}
@@ -330,6 +334,18 @@ public final class EditorUI {
 		float rx = s[0] - fx * r * 0.6f + fy * r * 0.7f, ry = s[1] - fy * r * 0.6f - fx * r * 0.7f;
 		dl.addTriangleFilled(tx, ty, lx, ly, rx, ry, 0xFFFFFFFF);
 		dl.addTriangle(tx, ty, lx, ly, rx, ry, 0xFF000000, 1.5f);
+	}
+
+	/** The map's layer (Y level) and zoom, at the bottom of the viewport like on the minimap. */
+	private void mapStats(ImDrawList dl) {
+		var vp = editor.viewport;
+		String y = dev.plainsight.minimap.Minimap.layerText(), zoom = Math.round(editor.map.viewDistance()) + " m";
+		float h = ImGui.getTextLineHeight(), by = vp.y + vp.height - h - 8;
+		float zx = vp.x + vp.width - ImGui.calcTextSizeX(zoom) - 10;
+		dl.addRectFilled(vp.x + 4, by - 3, vp.x + ImGui.calcTextSizeX(y) + 16, by + h + 3, 0x90000000, 3);
+		dl.addText(vp.x + 10, by, 0xE0FFFFFF, y);
+		dl.addRectFilled(zx - 6, by - 3, vp.x + vp.width - 4, by + h + 3, 0x90000000, 3);
+		dl.addText(zx, by, 0xE0FFFFFF, zoom);
 	}
 
 	// -- viewport buttons -------------------------------------------------------------------------------------

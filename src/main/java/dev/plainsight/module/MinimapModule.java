@@ -8,7 +8,7 @@ import imgui.type.ImInt;
 
 /** The HUD minimap ({@link Minimap}) as a tool bar toggle, with what it shows as options. */
 public final class MinimapModule implements Module {
-	private static final String[] LAYERS = {"Top (everything)", "Player's layer"};
+	private static final String[] LAYERS = {"Top (everything)", "Player's layer", "Fixed Y"};
 
 	@Override
 	public String id() {
@@ -22,7 +22,8 @@ public final class MinimapModule implements Module {
 
 	@Override
 	public String description() {
-		return "A map of the world around the player in the top right corner of the game (needs Voxy); N switches it, = and - zoom. "
+		return "A map of the world around the player in the top right corner of the game (needs Voxy); N switches it, = and - zoom, "
+				+ "with Ctrl they move the shown layer up and down (Ctrl + * resets it). "
 				+ "Right-click for what it shows.";
 	}
 
@@ -38,11 +39,21 @@ public final class MinimapModule implements Module {
 
 	@Override
 	public void options() {
-		ImInt layer = new ImInt(Minimap.playerLayer ? 1 : 0);
+		ImInt layer = new ImInt(Minimap.layer.ordinal());
 		ImGui.setNextItemWidth(160);
-		if (ImGui.combo("Layer", layer, LAYERS)) Minimap.playerLayer = layer.get() == 1;
+		if (ImGui.combo("Layer", layer, LAYERS)) {
+			if (layer.get() == Minimap.Layer.FIXED.ordinal() && Minimap.layer != Minimap.Layer.FIXED) Minimap.fixedY = Minimap.layerY() == Integer.MAX_VALUE ? Minimap.fixedY : Minimap.layerY();
+			Minimap.layer = Minimap.Layer.values()[layer.get()];
+		}
 		EditorUI.track("minimap_layer");
-		if (ImGui.isItemHovered()) ImGui.setTooltip("Player's layer: the terrain above the player is left out (caves, rooms)");
+		if (ImGui.isItemHovered()) ImGui.setTooltip("Player's layer: the terrain above the player is left out (caves, rooms).\n"
+				+ "Ctrl + the zoom keys move the layer up and down, Ctrl + * goes back to the player's level or the top.");
+		if (Minimap.layer == Minimap.Layer.FIXED) {
+			ImInt y = new ImInt(Minimap.fixedY);
+			ImGui.setNextItemWidth(160);
+			if (ImGui.inputInt("Y", y)) Minimap.fixedY = y.get();
+			EditorUI.track("minimap_fixed_y");
+		}
 		if (ImGui.checkbox("Selections", Minimap.showSelections)) Minimap.showSelections = !Minimap.showSelections;
 		EditorUI.track("minimap_selections");
 		if (ImGui.isItemHovered()) ImGui.setTooltip("The boxes and entities of the selection tree (not the hidden ones)");
@@ -60,7 +71,8 @@ public final class MinimapModule implements Module {
 
 	@Override
 	public void saveSettings(com.google.gson.JsonObject o) {
-		o.addProperty("layer", Minimap.playerLayer ? "player" : "top");
+		o.addProperty("layer", Minimap.layer.name().toLowerCase(java.util.Locale.ROOT));
+		o.addProperty("fixedY", Minimap.fixedY);
 		o.addProperty("selections", Minimap.showSelections);
 		o.addProperty("otherPlayers", Minimap.showPlayers);
 		o.addProperty("mobs", Minimap.showMobs);
@@ -72,7 +84,9 @@ public final class MinimapModule implements Module {
 
 	@Override
 	public void loadSettings(com.google.gson.JsonObject o) {
-		Minimap.playerLayer = !"top".equals(ModuleConfig.getString(o, "layer", Minimap.playerLayer ? "player" : "top"));
+		String layer = ModuleConfig.getString(o, "layer", Minimap.layer.name().toLowerCase(java.util.Locale.ROOT));
+		for (Minimap.Layer l : Minimap.Layer.values()) if (l.name().equalsIgnoreCase(layer)) Minimap.layer = l;
+		Minimap.fixedY = ModuleConfig.getInt(o, "fixedY", Minimap.fixedY);
 		Minimap.showSelections = ModuleConfig.getBool(o, "selections", Minimap.showSelections);
 		Minimap.showPlayers = ModuleConfig.getBool(o, "otherPlayers", Minimap.showPlayers);
 		Minimap.showMobs = ModuleConfig.getBool(o, "mobs", Minimap.showMobs);

@@ -23,6 +23,7 @@ public abstract class KeyboardHandlerMixin {
 
 	@Inject(method = "keyPress", at = @At("HEAD"), cancellable = true)
 	private void plainsight$key(long handle, int action, KeyEvent event, CallbackInfo ci) {
+		Plainsight.ctrlEvent(event.key(), action);
 		if (handle != minecraft.getWindow().handle() || minecraft.gui.screen() != null || minecraft.gui.overlay() != null
 				|| dev.plainsight.compat.Axiom.passing()) return;
 		if (dev.plainsight.compat.Axiom.editorOpen()) {

@@ -1612,6 +1612,65 @@ def test_map_turn_and_tilt():
             time.sleep(0.4)
 
 
+def test_minimap_layer_keys():
+    """Ctrl + the minimap zoom keys move the shown layer one block per press and many while held; Ctrl + *
+    goes back to the player's level or the top; the same in the editor map, where the zoom keys alone zoom."""
+    editor_off()
+    cmd("tp @s 0.5 -60 0.5 0 0")
+    ed("setMinimapOptions", "true", "true", "true", "false")
+    time.sleep(0.3)
+    try:
+        check(ed("minimapLayer") == "Y: -60", "the player's layer: %s" % ed("minimapLayer"))
+        c.key(K["LCTRL"], "press")
+        c.key(K["EQUALS"])
+        time.sleep(0.2)
+        check(ed("minimapLayer") == "Y: -59", "Ctrl + zoom in: one block up: %s" % ed("minimapLayer"))
+        c.key(K["MINUS"])
+        time.sleep(0.15)
+        c.key(K["MINUS"])
+        time.sleep(0.2)
+        check(ed("minimapLayer") == "Y: -61", "two presses: two blocks down: %s" % ed("minimapLayer"))
+        # (up: the flat world ends 3 blocks below)
+        c.key(K["EQUALS"], "press")
+        time.sleep(0.25)
+        short = int(ed("minimapLayer").split()[1])
+        time.sleep(1.5)
+        c.key(K["EQUALS"], "release")
+        long_ = int(ed("minimapLayer").split()[1])
+        check(short <= -59 and long_ > short + 15, "held: one block at first, then many: %d then %d" % (short, long_))
+        c.key(K["KP_MULTIPLY"])
+        time.sleep(0.2)
+        check(ed("minimapLayer") == "Y: -60", "Ctrl + *: back to the player's level: %s" % ed("minimapLayer"))
+        c.key(K["KP_MULTIPLY"])
+        time.sleep(0.2)
+        check(ed("minimapLayer") == "Y: top", "and again: the top: %s" % ed("minimapLayer"))
+        c.key(K["LCTRL"], "release")
+        # the editor map: the same keys
+        c.key(K["M"])
+        time.sleep(0.5)
+        check(state()["map"], "M opens the editor map")
+        h0 = state()["mapHeight"]
+        c.key(K["EQUALS"])
+        time.sleep(0.3)
+        check(state()["mapHeight"] < h0, "the zoom key zooms the map like the wheel: %s -> %s" % (h0, state()["mapHeight"]))
+        check(ed("minimapLayer") == "Y: top", "without changing the layer")
+        c.key(K["LCTRL"], "press")
+        c.key(K["MINUS"])
+        time.sleep(0.2)
+        check(ed("minimapLayer") == "Y: -61", "Ctrl + zoom out in the map: from the top to one below the player: %s" % ed("minimapLayer"))
+        c.key(K["KP_MULTIPLY"])
+        time.sleep(0.2)
+        check(ed("minimapLayer") == "Y: -60", "Ctrl + * in the map")
+        c.key(K["LCTRL"], "release")
+        shot("map-stats")
+        c.key(K["M"])
+        time.sleep(0.3)
+    finally:
+        c.key(K["LCTRL"], "release")
+        ed("setMinimapOptions", "true", "true", "true", "false")
+        editor_off()
+
+
 def test_point_select():
     """The point tool selects a block position with RMB (also in the map); it copies as "X Y Z" only."""
     editor_on()

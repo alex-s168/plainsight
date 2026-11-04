@@ -16,7 +16,39 @@ public final class Plainsight implements ClientModInitializer {
 	public static final Logger LOG = LoggerFactory.getLogger(ID);
 	public static final KeyMapping.Category CATEGORY = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(ID, "main"));
 	private static boolean modulesLoaded;
-	private static KeyMapping toggleEditor, editorMap, overlaysInGame, minimap, minimapZoomIn, minimapZoomOut;
+	private static KeyMapping toggleEditor, editorMap, overlaysInGame, minimap, minimapZoomIn, minimapZoomOut, minimapLayer;
+	/** Ctrl + the zoom keys in the game: the minimap's layer up and down (see {@link #minimapKeys}). */
+	private static final dev.plainsight.minimap.HoldRepeat layerUp = layerRepeat(), layerDown = layerRepeat();
+
+	/** Y level keys: one block per press; held, many blocks, faster over time. */
+	public static dev.plainsight.minimap.HoldRepeat layerRepeat() {
+		return new dev.plainsight.minimap.HoldRepeat(0.35, 8, 40, 160);
+	}
+
+	/** The minimap's zoom keys and the layer reset key (Ctrl + it): also the editor map's. */
+	public static KeyMapping minimapZoomIn() {
+		return minimapZoomIn;
+	}
+
+	public static KeyMapping minimapZoomOut() {
+		return minimapZoomOut;
+	}
+
+	public static KeyMapping minimapLayer() {
+		return minimapLayer;
+	}
+
+	private static boolean leftCtrl, rightCtrl;
+
+	/** Whether a Ctrl key is held, from the key events (KeyboardHandlerMixin). */
+	public static boolean ctrlDown() {
+		return leftCtrl || rightCtrl;
+	}
+
+	public static void ctrlEvent(int key, int action) {
+		if (key == InputConstants.KEY_LCONTROL) leftCtrl = action != 0;
+		if (key == InputConstants.KEY_RCONTROL) rightCtrl = action != 0;
+	}
 
 	public static KeyMapping toggleEditor() {
 		return toggleEditor;
@@ -47,6 +79,7 @@ public final class Plainsight implements ClientModInitializer {
 		minimap = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.plainsight.minimap", InputConstants.KEY_N, CATEGORY));
 		minimapZoomIn = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.plainsight.minimap_zoom_in", InputConstants.KEY_EQUALS, CATEGORY));
 		minimapZoomOut = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.plainsight.minimap_zoom_out", InputConstants.KEY_MINUS, CATEGORY));
+		minimapLayer = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.plainsight.minimap_layer", InputConstants.KEY_MULTIPLY, CATEGORY));
 		ClientTickEvents.END_CLIENT_TICK.register(mc -> {
 			if (!modulesLoaded) {
 				// once the game runs (the editor's modules touch the game when they are switched)
@@ -56,8 +89,7 @@ public final class Plainsight implements ClientModInitializer {
 			dev.plainsight.module.ModuleConfig.tick();
 			while (overlaysInGame.consumeClick()) Editor.get().toggleOverlaysInGame();
 			while (minimap.consumeClick()) dev.plainsight.minimap.Minimap.enabled = !dev.plainsight.minimap.Minimap.enabled;
-			while (minimapZoomIn.consumeClick()) dev.plainsight.minimap.Minimap.zoom(1);
-			while (minimapZoomOut.consumeClick()) dev.plainsight.minimap.Minimap.zoom(-1);
+			minimapKeys();
 			guessedTerrainTick();
 		});
 		net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback.EVENT.register(
@@ -71,6 +103,23 @@ public final class Plainsight implements ClientModInitializer {
 				});
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> Editor.get().onDisconnect()));
 		LOG.info("Plainsight loaded");
+	}
+
+	/** The minimap's keys in the game: zoom; with Ctrl the layer's Y level, and Ctrl + * resets it. */
+	private static void minimapKeys() {
+		int in = 0, out = 0, reset = 0;
+		while (minimapZoomIn.consumeClick()) in++;
+		while (minimapZoomOut.consumeClick()) out++;
+		while (minimapLayer.consumeClick()) reset++;
+		if (!ctrlDown()) {
+			layerUp.reset();
+			layerDown.reset();
+			if (in - out != 0) dev.plainsight.minimap.Minimap.zoom(in - out);
+			return;
+		}
+		int dy = layerUp.update(in, minimapZoomIn.isDown(), 0.05) - layerDown.update(out, minimapZoomOut.isDown(), 0.05);
+		if (dy != 0) dev.plainsight.minimap.Minimap.moveLayer(dy);
+		if (reset % 2 == 1) dev.plainsight.minimap.Minimap.toggleLayer();
 	}
 
 	/** Guessed terrain follows the world, the seed and the editor camera; Voxy shows it only in the editor. */

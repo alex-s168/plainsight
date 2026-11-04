@@ -210,6 +210,58 @@ public final class Editor {
 		Plainsight.LOG.info("Editor enabled at {} (camera was {})", start, cam.position());
 	}
 
+	// -- the minimap's keys in the map: zoom (like the wheel), with Ctrl the layer's Y level, Ctrl + * resets it
+
+	private boolean mapZoomInDown, mapZoomOutDown;
+	private int mapZoomInPresses, mapZoomOutPresses;
+	private final dev.plainsight.minimap.HoldRepeat mapZoomIn = new dev.plainsight.minimap.HoldRepeat(0.35, 6, 6, 15),
+			mapZoomOut = new dev.plainsight.minimap.HoldRepeat(0.35, 6, 6, 15),
+			mapLayerUp = Plainsight.layerRepeat(), mapLayerDown = Plainsight.layerRepeat();
+
+	private static int boundKey(KeyMapping k) {
+		return k == null ? InputConstants.UNKNOWN.getValue() : KeyMappingHelper.getBoundKeyOf(k).getValue();
+	}
+
+	/** A key event in the map: whether it is one of the minimap's keys (taken). */
+	private boolean mapKey(int key, boolean down) {
+		if (key == boundKey(Plainsight.minimapZoomIn())) {
+			mapZoomInDown = down;
+			if (down) mapZoomInPresses++;
+			return true;
+		}
+		if (key == boundKey(Plainsight.minimapZoomOut())) {
+			mapZoomOutDown = down;
+			if (down) mapZoomOutPresses++;
+			return true;
+		}
+		if (key == boundKey(Plainsight.minimapLayer())) {
+			if (down && ctrl) dev.plainsight.minimap.Minimap.toggleLayer();
+			return true;
+		}
+		return false;
+	}
+
+	private void mapKeys(double dt) {
+		int in = mapZoomInPresses, out = mapZoomOutPresses;
+		mapZoomInPresses = mapZoomOutPresses = 0;
+		if (!map.active()) {
+			mapZoomInDown = mapZoomOutDown = false;
+			return;
+		}
+		if (ctrl) {
+			mapZoomIn.reset();
+			mapZoomOut.reset();
+			int dy = mapLayerUp.update(in, mapZoomInDown, dt) - mapLayerDown.update(out, mapZoomOutDown, dt);
+			if (dy != 0) dev.plainsight.minimap.Minimap.moveLayer(dy);
+		} else {
+			mapLayerUp.reset();
+			mapLayerDown.reset();
+			int n = mapZoomIn.update(in, mapZoomInDown, dt) - mapZoomOut.update(out, mapZoomOutDown, dt);
+			// towards the view's centre, as the wheel towards the cursor
+			if (n != 0) map.zoom(this, n, camera.forward(new Vector3d()));
+		}
+	}
+
 	/** Opens the editor on the map, centred on the player (the map key in the game). */
 	public void openMap() {
 		enable();
@@ -255,6 +307,7 @@ public final class Editor {
 		}
 		if (mc.gui.screen() != null) camera.stopMovement();
 		camera.update(dt);
+		mapKeys(dt);
 		trackEntities();
 		Entity f = followed();
 		if (f != null) {
@@ -747,10 +800,12 @@ public final class Editor {
 		boolean typing = ImGuiLayer.get().wantsTextInput();
 		if (!down) {
 			setMovementKey(scancode, false);
+			mapKey(scancode, false);
 			return true;
 		}
 		if (typing) return true;
 		if (setMovementKey(scancode, true)) return true;
+		if (map.active() && mapKey(scancode, true)) return true;
 		if (tool.keyPressed(scancode)) return true;
 		if (scancode == KeyMappingHelper.getBoundKeyOf(Plainsight.editorMap()).getValue()) {
 			map.toggle(this);

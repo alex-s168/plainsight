@@ -28,8 +28,15 @@ public final class Minimap {
 	public static final double MIN_DISTANCE = 24, MAX_DISTANCE = 6000;
 
 	public static boolean enabled = true;
-	/** Options (the Minimap module): only the player's layer (terrain above it left out) or everything from the top. */
-	public static boolean playerLayer = true;
+	/**
+	 * The layer shown (the Minimap module; also the editor map): everything from the top, the player's
+	 * layer (terrain above the block the player stands in left out), or up to a fixed Y.
+	 */
+	public enum Layer {TOP, PLAYER, FIXED}
+
+	public static Layer layer = Layer.PLAYER;
+	/** Highest Y shown with {@link Layer#FIXED}. */
+	public static int fixedY = 64;
 	/** Options: the selection tree's shown boxes and entities, other players, mobs. */
 	public static boolean showSelections = true, showPlayers = true, showMobs = false;
 	/** Options: Xaero's Minimap's waypoints (when it is installed). */
@@ -80,6 +87,54 @@ public final class Minimap {
 		if (visible() || editorMapWanted()) changed.add(net.minecraft.world.level.ChunkPos.pack(cx, cz));
 	}
 
+	/** The highest Y shown, or Integer.MAX_VALUE for the top (Ctrl + zoom keys change it, Ctrl + * resets it). */
+	public static int layerY() {
+		var player = Minecraft.getInstance().player;
+		return switch (layer) {
+			case TOP -> Integer.MAX_VALUE;
+			case PLAYER -> player == null ? fixedY : (int) Math.floor(player.getY() + 1e-3);
+			case FIXED -> fixedY;
+		};
+	}
+
+	/** "Y: 64" or "Y: top". */
+	public static String layerText() {
+		int y = layerY();
+		return y == Integer.MAX_VALUE ? "Y: top" : "Y: " + y;
+	}
+
+	/** Moves the layer up or down by {@code dy} blocks (from the top: starting at the player's level); above the world: the top. */
+	public static void moveLayer(int dy) {
+		var level = Minecraft.getInstance().level;
+		int from = layer == Layer.TOP ? layerYOfPlayer() : layerY();
+		int y = from + dy;
+		if (level != null && y > level.getMaxY()) {
+			layer = Layer.TOP;
+			return;
+		}
+		fixedY = level != null ? Math.max(level.getMinY(), y) : y;
+		layer = Layer.FIXED;
+	}
+
+	private static int layerYOfPlayer() {
+		var player = Minecraft.getInstance().player;
+		return player == null ? fixedY : (int) Math.floor(player.getY() + 1e-3);
+	}
+
+	/** Ctrl + *: back to the player's level, or (at the player's level) the top. */
+	public static void toggleLayer() {
+		layer = layer == Layer.PLAYER ? Layer.TOP : Layer.PLAYER;
+	}
+
+	/** Height above which terrain is left out for the current layer (none: MAX_VALUE). */
+	private static float cutFor(double playerY) {
+		return switch (layer) {
+			case TOP -> Float.MAX_VALUE;
+			case PLAYER -> (float) Math.floor(playerY + 1e-3) + 1;
+			case FIXED -> fixedY + 1;
+		};
+	}
+
 	public static void zoom(int steps) {
 		targetDistance = Math.clamp(targetDistance * Math.pow(1.5, -steps), MIN_DISTANCE, MAX_DISTANCE);
 	}
@@ -128,7 +183,7 @@ public final class Minimap {
 			modelView.set(cam.viewRotationMatrix);
 			projection.set(cam.projectionMatrix);
 			var at = mc.player.getPosition(partialTick);
-			cutY = playerLayer ? (float) Math.floor(at.y + 1e-3) + 1 : Float.MAX_VALUE;
+			cutY = cutFor(at.y);
 			return true;
 		}
 		if (!visible()) return false;
@@ -146,7 +201,7 @@ public final class Minimap {
 		yaw += (float) (net.minecraft.util.Mth.wrapDegrees(playerYaw - yaw) * (1 - Math.exp(-dt * 10)));
 
 		var at = mc.player.getPosition(partialTick);
-		cutY = playerLayer ? (float) Math.floor(at.y + 1e-3) + 1 : Float.MAX_VALUE;
+		cutY = cutFor(at.y);
 		double pitch = Math.toRadians(Minimap.pitch), yawR = Math.toRadians(yaw);
 		// view direction (Minecraft: yaw 0 looks towards +Z); the camera sits behind and above the player
 		double dx = -Math.sin(yawR) * Math.cos(pitch), dy = -Math.sin(pitch), dz = Math.cos(yawR) * Math.cos(pitch);
@@ -264,6 +319,7 @@ public final class Minimap {
 		}
 		String zoom = Math.round(distance) + " m";
 		dl.addText(x1 - ImGui.calcTextSizeX(zoom) - 4, y1 - ImGui.getTextLineHeight() - 2, 0xC0FFFFFF, zoom);
+		dl.addText(x0 + 4, y1 - ImGui.getTextLineHeight() - 2, 0xC0FFFFFF, layerText());
 	}
 
 	/** The selection tree's shown boxes (outlines) and entities (dots), as in the world. */

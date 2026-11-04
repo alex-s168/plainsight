@@ -3,7 +3,8 @@
 	"key.plainsight.editor_map": "Open Editor Map (in the editor: Map / 3D)",
 	"key.plainsight.overlays_in_game": "Show Editor Overlays In Game",
 	"key.plainsight.minimap": "Toggle Minimap",
-	"key.plainsight.minimap_zoom_in": "Minimap Zoom In",
-	"key.plainsight.minimap_zoom_out": "Minimap Zoom Out",
+	"key.plainsight.minimap_zoom_in": "Minimap Zoom In (with Ctrl: Layer Up)",
+	"key.plainsight.minimap_zoom_out": "Minimap Zoom Out (with Ctrl: Layer Down)",
+	"key.plainsight.minimap_layer": "Minimap Layer: Player / Top (with Ctrl)",
 	"key.category.plainsight.main": "Plainsight"
 }

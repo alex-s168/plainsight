@@ -38,6 +38,11 @@ public final class MapMode {
 		return dragging;
 	}
 
+	/** Distance from the camera to the map's plane along the view (the "zoom", in metres, as the minimap's). */
+	public double viewDistance() {
+		return height / Math.sin(Math.toRadians(tilt()));
+	}
+
 	/** Height of the camera above the player's level (tests). */
 	public double height() {
 		return height;

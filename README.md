@@ -129,6 +129,10 @@ puts the box down (hides its handles). Tool options show name, centre, size and 
 A minimap in the top right of the HUD that is Voxy's LOD world seen from a second camera: above and
 behind the player, tilted 60 degrees down (the editor map's tilt: Ctrl + right-drag up/down there, from
 top-down to 10 degrees) and turned with the player's view, so terrain and builds show in 3D. <kbd>N</kbd> switches it off and on, <kbd>=</kbd> / <kbd>-</kbd> zoom (24 m to 6 km, gliding).
+With <kbd>Ctrl</kbd> they move the shown layer up and down instead (a press: one block; held: many,
+faster over time), and <kbd>Ctrl</kbd> + <kbd>*</kbd> (numpad, rebindable) goes back to the player's level or
+the top. The layer's Y level shows at the bottom left, the zoom at the bottom right; the editor map
+(<kbd>M</kbd>) shows both too and takes the same keys (there the zoom keys zoom like the wheel).
 An arrow marks the player, a red N the north. Hidden in the editor and with F1.
 
 How: right after Voxy's own frame it renders once more, through an extra Voxy viewport (as for
