@@ -488,6 +488,23 @@ public final class EditorDebug {
 		return dev.plainsight.Plainsight.minimapZoomOut().isDown() + " " + dev.plainsight.Plainsight.ctrlDown();
 	}
 
+	/** Key codes bound to the minimap's zoom in, zoom out and layer keys (tests). */
+	public static String minimapKeys() {
+		var h = (java.util.function.Function<net.minecraft.client.KeyMapping, Integer>) k -> net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper.getBoundKeyOf(k).getValue();
+		return h.apply(dev.plainsight.Plainsight.minimapZoomIn()) + " " + h.apply(dev.plainsight.Plainsight.minimapZoomOut()) + " " + h.apply(dev.plainsight.Plainsight.minimapLayer());
+	}
+
+	/** Binds Axiom's editor key mapping to {@code key} (-1: unbinds it); "none" without that mapping (tests). */
+	public static String setAxiomEditorKey(int key) {
+		for (var k : Minecraft.getInstance().options.keyMappings) {
+			if (!k.getName().equals("axiom.keybind.toggle_editor_ui")) continue;
+			k.setKey(key < 0 ? com.mojang.blaze3d.platform.InputConstants.UNKNOWN : com.mojang.blaze3d.platform.InputConstants.Type.KEYBOARD.getOrCreate(key));
+			net.minecraft.client.KeyMapping.resetMapping();
+			return "ok";
+		}
+		return "none";
+	}
+
 	/** The minimap's layer text ("Y: 64", "Y: top"). */
 	public static String minimapLayer() {
 		return dev.plainsight.minimap.Minimap.layerText();
