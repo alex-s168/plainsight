@@ -114,7 +114,7 @@ public final class GuessTint {
 
 	/** The tint now: a slow fade between a quarter of the set strength and all of it. */
 	static float strength(long now) {
-		float period = Math.max(0.5f, dev.plainsight.module.GuessedTerrain.pulseSeconds) * 1000f;
+		float period = Math.max(dev.plainsight.module.GuessedTerrain.MIN_PULSE, dev.plainsight.module.GuessedTerrain.pulseSeconds) * 1000f;
 		double phase = (now % (long) period) / period;
 		float wave = (float) (0.5 - 0.5 * Math.cos(phase * 2 * Math.PI));
 		return dev.plainsight.module.GuessedTerrain.tintOpacity * (0.25f + 0.75f * wave);

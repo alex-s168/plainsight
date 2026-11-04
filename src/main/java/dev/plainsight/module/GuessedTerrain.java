@@ -7,16 +7,17 @@ import imgui.ImGui;
 
 /**
  * Shows terrain generated from the world seed wherever no real chunks have been seen (editor only, with
- * Voxy), with a faint blue tint that slowly fades in and out so guesses are never mistaken for the real
+ * Voxy), with a faint blue tint that fades in and out so guesses are never mistaken for the real
  * world.
  */
 public final class GuessedTerrain implements Module {
 	private boolean enabled = true;
 	private final int[] radius = {GuessWorld.radius};
 	/** Strongest blue tint of guessed chunks (it fades down to a quarter of this and back). */
-	public static volatile float tintOpacity = 0.12f;
+	public static volatile float tintOpacity = 0.2f;
 	/** Seconds for one fade cycle. */
-	public static volatile float pulseSeconds = 6f;
+	public static volatile float pulseSeconds = 0.5f;
+	public static final float MIN_PULSE = 0.2f, MAX_PULSE = 5f;
 	private final float[] opacity = {tintOpacity}, pulse = {pulseSeconds};
 
 	@Override
@@ -31,7 +32,7 @@ public final class GuessedTerrain implements Module {
 
 	@Override
 	public String description() {
-		return "Terrain generated from the world seed where you have not been, with a slowly fading blue tint. Right-click for settings.";
+		return "Terrain generated from the world seed where you have not been, with a fading blue tint. Right-click for settings.";
 	}
 
 	@Override
@@ -79,7 +80,7 @@ public final class GuessedTerrain implements Module {
 		if (ImGui.sliderFloat("Tint", opacity, 0.02f, 0.4f, "%.2f")) tintOpacity = opacity[0];
 		pulse[0] = pulseSeconds;
 		ImGui.setNextItemWidth(160);
-		if (ImGui.sliderFloat("Fade cycle", pulse, 2f, 30f, "%.0f s")) pulseSeconds = pulse[0];
+		if (ImGui.sliderFloat("Fade cycle", pulse, MIN_PULSE, MAX_PULSE, "%.1f s")) pulseSeconds = pulse[0];
 		radius[0] = GuessWorld.radius;
 		ImGui.setNextItemWidth(160);
 		if (ImGui.sliderInt("Radius (chunks)", radius, 4, 128)) GuessWorld.radius = radius[0];
@@ -96,8 +97,13 @@ public final class GuessedTerrain implements Module {
 	@Override
 	public void loadSettings(com.google.gson.JsonObject o) {
 		GuessWorld.radius = Math.max(4, Math.min(128, ModuleConfig.getInt(o, "radiusChunks", GuessWorld.radius)));
-		tintOpacity = Math.max(0.02f, Math.min(0.4f, ModuleConfig.getFloat(o, "tintOpacity", tintOpacity)));
-		pulseSeconds = Math.max(2f, Math.min(30f, ModuleConfig.getFloat(o, "fadeCycleSeconds", pulseSeconds)));
+		float tint = ModuleConfig.getFloat(o, "tintOpacity", tintOpacity);
+		float pulse = ModuleConfig.getFloat(o, "fadeCycleSeconds", pulseSeconds);
+		// the old defaults (0.12, 6 s) were saved as settings: they take the new ones
+		if (tint == 0.12f) tint = tintOpacity;
+		if (pulse == 6f) pulse = pulseSeconds;
+		tintOpacity = Math.max(0.02f, Math.min(0.4f, tint));
+		pulseSeconds = Math.max(MIN_PULSE, Math.min(MAX_PULSE, pulse));
 	}
 
 	@Override

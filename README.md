@@ -51,12 +51,12 @@ what the tool is doing and closes ImGui popups.
   players in it, is lit with the sky light around the camera instead of the darkness of a closed room.
 * **Guessed terrain** (with Voxy, once the world seed is known): terrain generated from the seed wherever
   no real chunks have been seen, so the camera can go anywhere. Guessed chunks get a faint blue tint
-  that slowly fades in and out, and they are shown only in the editor; the normal game keeps the normal LOD. The seed comes from
+  that fades in and out, and they are shown only in the editor; the normal game keeps the normal LOD. The seed comes from
   SeedcrackerX (as soon as it cracks it or finds it in its database) or `/plainsight seed <seed>` (`/plainsight seed world` in
   singleplayer, `/plainsight seed clear`); a given seed is checked against the server's hashed seed.
   Seeds are hidden on screen by default (for screen sharing): chat lines (SeedcrackerX, `/seed`), titles
-  and this mod show them as dots; toggle in the editor's Tools menu or with `/plainsight seed hide <true|false>`.
-  Settings: tint strength, fade cycle (seconds), radius around the camera (default 32 chunks, also `/plainsight guess radius <n>`).
+  and this mod show them as dots; toggle with the editor's Hide seeds module or with `/plainsight seed hide <true|false>`.
+  Settings: tint strength, fade cycle (0.2 to 5 s, default 0.5 s), radius around the camera (default 32 chunks, also `/plainsight guess radius <n>`).
 
   How: a private, headless vanilla server with that seed generates chunks around the editor camera
   (full worldgen: terrain, caves, features, structures; nothing is saved) and hands them to a second
