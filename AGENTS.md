@@ -38,3 +38,13 @@ over the old jar (atomic rename).
 
 `sed`/`cat` are BSD-like (no `cat -A`, `head -0` fails); use Python for non-trivial edits.
 Unzip wildcard extraction is unreliable; use Python's zipfile.
+
+## Issues and commits
+
+Work is tracked as GitHub issues in alex-s168/plainsight (`gh issue list`, `gh issue view N`).
+
+* A new request from the user: create an issue for each item first (`gh issue create`), then work on
+  them one at a time. Items the user wants recorded but not done yet get the `later` label.
+* One commit per issue where practical, referencing it (`Fixes #N` closes it when pushed to main).
+* Before closing an issue, test the change (unit tests and, for anything in game, the hidden client).
+* Push to `origin main` (https://github.com/alex-s168/plainsight) once the work is on main.
