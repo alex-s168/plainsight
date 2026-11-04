@@ -21,6 +21,7 @@ import dev.plainsight.render.Overlay;
 import dev.plainsight.render.SelectionRenderer;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.KeyMapping;
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
@@ -207,6 +208,14 @@ public final class Editor {
 		KeyMapping.releaseAll();
 		mc.mouseHandler.releaseMouse();
 		Plainsight.LOG.info("Editor enabled at {} (camera was {})", start, cam.position());
+	}
+
+	/** Opens the editor on the map, centred on the player (the map key in the game). */
+	public void openMap() {
+		enable();
+		var player = Minecraft.getInstance().player;
+		if (!active || player == null) return;
+		map.enter(this, new Vector3d(player.getX(), player.getY(), player.getZ()));
 	}
 
 	public void disable() {
@@ -736,7 +745,7 @@ public final class Editor {
 		if (typing) return true;
 		if (setMovementKey(scancode, true)) return true;
 		if (tool.keyPressed(scancode)) return true;
-		if (scancode == InputConstants.KEY_M) {
+		if (scancode == KeyMappingHelper.getBoundKeyOf(Plainsight.editorMap()).getValue()) {
 			map.toggle(this);
 			return true;
 		}

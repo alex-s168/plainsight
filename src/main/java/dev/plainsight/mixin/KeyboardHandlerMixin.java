@@ -30,7 +30,13 @@ public abstract class KeyboardHandlerMixin {
 			ci.cancel();
 			return;
 		}
-		if (!active) return;
+		if (!active) {
+			if (action == 1 && Plainsight.editorMap().matches(event)) {
+				Editor.get().openMap();
+				ci.cancel();
+			}
+			return;
+		}
 		boolean down = action != 0;
 		ImGuiLayer.get().key(event.key(), down);
 		if (action == 2) {

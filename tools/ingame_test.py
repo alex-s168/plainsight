@@ -1479,6 +1479,26 @@ def test_selection_waypoint_markers():
         fresh_tree()
 
 
+def test_map_key_opens_editor_on_map():
+    """In the game the map key (M) opens the editor on the map, centred on the player; there it switches
+    to the 3D view and back."""
+    editor_off()
+    cmd("tp @s 0.5 -60 0.5 0 0")
+    time.sleep(0.5)
+    c.key(K["M"])
+    time.sleep(0.6)
+    s = state()
+    try:
+        check(s["active"] and s["map"], "M in the game opens the editor's map: active=%s map=%s" % (s["active"], s["map"]))
+        cx, cz = s["camera"]["pos"][0], s["camera"]["pos"][2]
+        check(abs(cx - 0.5) < 1 and cz > 0.5, "looking at the player from the south: %s" % s["camera"]["pos"])
+        c.key(K["M"])
+        time.sleep(0.4)
+        check(state()["active"] and not state()["map"], "M in the editor: the 3D view")
+    finally:
+        editor_off()
+
+
 def test_map_mode_camera():
     """M switches the editor to the map: tilted like the minimap, north up; the wheel zooms towards the cursor, LMB
     drags it, the movement keys do nothing; M again brings the 3D camera back."""

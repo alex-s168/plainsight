@@ -137,7 +137,8 @@ public final class EditorUI {
 		ImGui.bulletText("Ctrl + RMB drag: pan   Scroll: move to/from the point under the cursor");
 		ImGui.bulletText("Follow an entity: right-click it in the tree; arcball then orbits it");
 		ImGui.bulletText("WASD: fly, Space / Shift: up / down, hold Ctrl: faster");
-		ImGui.bulletText("M: map (like the minimap, north up): scroll to zoom, LMB drag to move; selections move across it");
+		ImGui.bulletText(dev.plainsight.Plainsight.mapKeyName() + ": map (like the minimap, north up): scroll to zoom, LMB drag to move; selections move across it");
+		ImGui.bulletText("  in the game, " + dev.plainsight.Plainsight.mapKeyName() + " opens the editor on the map");
 		ImGui.textDisabled("Modules");
 		ImGui.bulletText("RMB: use tool   MMB: pick block");
 		ImGui.bulletText("Modules (light overlay, brightness, minimap, waypoints, hide seeds): click to switch, right-click for options");
@@ -344,7 +345,7 @@ public final class EditorUI {
 			guarded("viewport buttons", () -> {
 				boolean map = editor.map.active();
 				if (map) ImGui.pushStyleColor(ImGuiCol.Button, 0xFFB06A33);
-				if (ImGui.button(map ? "Map (M)" : "3D (M)", 0, 30)) editor.map.toggle(editor);
+				if (ImGui.button((map ? "Map (" : "3D (") + dev.plainsight.Plainsight.mapKeyName() + ")###mapswitch", 0, 30)) editor.map.toggle(editor);
 				if (map) ImGui.popStyleColor();
 				rect("view_map");
 				tooltip(map ? "Map" : "3D view", "M switches between the 3D view (fly, look, arcball) and the map (tilted like the minimap, north up: "

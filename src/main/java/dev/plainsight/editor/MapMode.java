@@ -45,6 +45,13 @@ public final class MapMode {
 
 	public void enter(Editor editor) {
 		if (active) return;
+		// looking at what the 3D camera looked at
+		enter(editor, editor.pointUnderCursor(64));
+	}
+
+	/** Enters the map looking at {@code at}, from the south and above, north up. */
+	public void enter(Editor editor, Vector3d at) {
+		if (active) return;
 		var c = editor.camera;
 		saved.set(c.pos);
 		savedYaw = c.yaw;
@@ -52,12 +59,10 @@ public final class MapMode {
 		editor.follow(null);
 		var player = Minecraft.getInstance().player;
 		planeY = player != null ? player.getY() : c.pos.y - 64;
-		// looking at what the 3D camera looked at, from the south and above, north up
-		Vector3d at = editor.pointUnderCursor(64);
 		active = true;
 		c.stopMovement();
 		c.set(new Vector3d(at.x, planeY + height, at.z + height / Math.tan(Math.toRadians(PITCH))), 180, PITCH);
-		editor.setStatus("Map: scroll to zoom, drag to move, M for the 3D view");
+		editor.setStatus("Map: scroll to zoom, drag to move, " + dev.plainsight.Plainsight.mapKeyName() + " for the 3D view");
 	}
 
 	public void exit(Editor editor) {

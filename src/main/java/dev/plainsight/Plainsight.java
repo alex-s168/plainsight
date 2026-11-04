@@ -16,10 +16,20 @@ public final class Plainsight implements ClientModInitializer {
 	public static final Logger LOG = LoggerFactory.getLogger(ID);
 	public static final KeyMapping.Category CATEGORY = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(ID, "main"));
 	private static boolean modulesLoaded;
-	private static KeyMapping toggleEditor, overlaysInGame, minimap, minimapZoomIn, minimapZoomOut;
+	private static KeyMapping toggleEditor, editorMap, overlaysInGame, minimap, minimapZoomIn, minimapZoomOut;
 
 	public static KeyMapping toggleEditor() {
 		return toggleEditor;
+	}
+
+	/** Name of the map key (M by default), for hints. */
+	public static String mapKeyName() {
+		return editorMap == null ? "M" : KeyMappingHelper.getBoundKeyOf(editorMap).getDisplayName().getString();
+	}
+
+	/** Opens the editor on the map; in the editor it switches between the map and the 3D view. */
+	public static KeyMapping editorMap() {
+		return editorMap;
 	}
 
 	/** -Dplainsight.disabled=true turns the mod off (used by the Axiom study client). */
@@ -32,6 +42,7 @@ public final class Plainsight implements ClientModInitializer {
 			return;
 		}
 		toggleEditor = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.plainsight.editor", InputConstants.KEY_RSHIFT, CATEGORY));
+		editorMap = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.plainsight.editor_map", InputConstants.KEY_M, CATEGORY));
 		overlaysInGame = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.plainsight.overlays_in_game", InputConstants.KEY_J, CATEGORY));
 		minimap = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.plainsight.minimap", InputConstants.KEY_N, CATEGORY));
 		minimapZoomIn = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.plainsight.minimap_zoom_in", InputConstants.KEY_EQUALS, CATEGORY));

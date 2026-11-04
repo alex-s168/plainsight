@@ -9,6 +9,8 @@ any SMP, with every automatic-playing feature switchable off. **This first miles
 <kbd>Right Shift</kbd> (rebindable: *Controls → Plainsight → Toggle Editor*) opens an Axiom-style
 editor in **any game mode**. It is purely client-side: the camera is a detached free camera, nothing
 is sent to the server, and the player stands still where they were (and is drawn, third person).
+<kbd>M</kbd> (*Open Editor Map*, rebindable) opens it on the map, centred on the player; in the editor
+the same key switches between the map and the 3D view.
 
 <kbd>J</kbd> (*Show Editor Overlays In Game*, rebindable) draws the editor's overlays in the normal game
 as well: the selection tree's boxes and entity outlines, the light overlay, and enabled block and path
