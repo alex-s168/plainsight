@@ -1499,6 +1499,26 @@ def test_map_key_opens_editor_on_map():
         editor_off()
 
 
+def test_switch_to_axiom():
+    """With Axiom installed, the button at the top right of the viewport closes this editor and opens
+    Axiom's; Right Shift there is Axiom's (closes it), and then opens this editor again."""
+    editor_on()
+    if "view_axiom" not in state()["widgets"]:
+        print("      (needs Axiom, skipped)")
+        return
+    box = widget("view_axiom")
+    c.click(*box, b=1)
+    time.sleep(1.0)
+    check(not state()["active"], "the Axiom button closes this editor")
+    shot("axiom-editor")
+    c.key(K["RSHIFT"])
+    time.sleep(1.0)
+    check(not state()["active"], "Right Shift in Axiom's editor is Axiom's")
+    c.key(K["RSHIFT"])
+    time.sleep(1.0)
+    check(state()["active"], "and afterwards opens this editor again")
+
+
 def test_map_mode_camera():
     """M switches the editor to the map: tilted like the minimap, north up; the wheel zooms towards the cursor, LMB
     drags it, the movement keys do nothing; M again brings the 3D camera back."""

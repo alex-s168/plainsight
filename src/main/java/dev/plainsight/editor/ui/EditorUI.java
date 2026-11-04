@@ -65,6 +65,7 @@ public final class EditorUI {
 		statusBar(0, bottom, width, statusHeight);
 		editor.viewport.set(LEFT_WIDTH, top, width - LEFT_WIDTH - RIGHT_WIDTH, bottom - top, width, height);
 		viewportButtons();
+		if (dev.plainsight.compat.Axiom.PRESENT) axiomButton();
 		waypointMarkers(width, height);
 		shortcuts();
 		if (deferred != null) {
@@ -378,6 +379,37 @@ public final class EditorUI {
 				modulePopup();
 			});
 			viewportButtonsBottom = ImGui.getWindowPosY() + ImGui.getWindowHeight();
+		} finally {
+			ImGui.end();
+		}
+	}
+
+	/** With Axiom installed: switches to Axiom's editor (top right of the viewport). */
+	private void axiomButton() {
+		var vp = editor.viewport;
+		ImGui.setNextWindowPos(vp.x + vp.width - 8, vp.y + 8, ImGuiCond.Always, 1, 0);
+		ImGui.setNextWindowBgAlpha(0.55f);
+		ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 4, 4);
+		ImGui.begin("##axiom", ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoSavedSettings
+				| ImGuiWindowFlags.NoFocusOnAppearing | ImGuiWindowFlags.NoNav);
+		ImGui.popStyleVar();
+		try {
+			guarded("axiom button", () -> {
+				long icon = dev.plainsight.compat.Axiom.icon();
+				boolean clicked;
+				if (icon >= 0) {
+					clicked = ImGui.button("##axiom_switch", 96, 30);
+					var dl = ImGui.getWindowDrawList();
+					float x = ImGui.getItemRectMinX(), y = ImGui.getItemRectMinY();
+					dl.addImage(icon, x + 6, y + 4, x + 28, y + 26);
+					dl.addText(x + 36, y + (30 - ImGui.getTextLineHeight()) / 2, 0xFFFFFFFF, "Axiom");
+				} else {
+					clicked = ImGui.button("Axiom", 0, 30);
+				}
+				rect("view_axiom");
+				tooltip("Switch to Axiom", "Closes this editor and opens Axiom's (" + dev.plainsight.compat.Axiom.editorKeyName() + " there).");
+				if (clicked) deferred = dev.plainsight.compat.Axiom::switchTo;
+			});
 		} finally {
 			ImGui.end();
 		}

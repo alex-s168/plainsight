@@ -23,7 +23,12 @@ public abstract class KeyboardHandlerMixin {
 
 	@Inject(method = "keyPress", at = @At("HEAD"), cancellable = true)
 	private void plainsight$key(long handle, int action, KeyEvent event, CallbackInfo ci) {
-		if (handle != minecraft.getWindow().handle() || minecraft.gui.screen() != null || minecraft.gui.overlay() != null) return;
+		if (handle != minecraft.getWindow().handle() || minecraft.gui.screen() != null || minecraft.gui.overlay() != null
+				|| dev.plainsight.compat.Axiom.passing()) return;
+		if (dev.plainsight.compat.Axiom.editorOpen()) {
+			if (action == 1) dev.plainsight.compat.Axiom.keyInAxiom(event);
+			return;
+		}
 		boolean active = Editor.isActive();
 		if (action == 1 && Plainsight.toggleEditor().matches(event) && !(active && ImGuiLayer.get().wantsTextInput())) {
 			Editor.get().toggle();

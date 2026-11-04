@@ -10,7 +10,8 @@ any SMP, with every automatic-playing feature switchable off. **This first miles
 editor in **any game mode**. It is purely client-side: the camera is a detached free camera, nothing
 is sent to the server, and the player stands still where they were (and is drawn, third person).
 <kbd>M</kbd> (*Open Editor Map*, rebindable) opens it on the map, centred on the player; in the editor
-the same key switches between the map and the 3D view.
+the same key switches between the map and the 3D view. With Axiom installed (same default key), the
+*Axiom* button at the top right of the viewport switches to Axiom's editor; Right Shift there closes it.
 
 <kbd>J</kbd> (*Show Editor Overlays In Game*, rebindable) draws the editor's overlays in the normal game
 as well: the selection tree's boxes and entity outlines, the light overlay, and enabled block and path
