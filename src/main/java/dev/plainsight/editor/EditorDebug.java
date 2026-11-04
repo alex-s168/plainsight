@@ -478,6 +478,12 @@ public final class EditorDebug {
 		return dev.plainsight.render.WaypointMarkers.drawn + " " + dev.plainsight.render.WaypointMarkers.nameAlpha + " " + dev.plainsight.render.WaypointMarkers.nameShown;
 	}
 
+	/** Sets the waypoint diamonds' size (the Waypoints module's slider). */
+	public static String waypointScale(float scale) {
+		dev.plainsight.render.WaypointMarkers.scale = scale;
+		return "ok";
+	}
+
 	/** Marks the selection called {@code name} as a waypoint (or not). */
 	public static String setWaypoint(String name, String on) {
 		for (var n : dev.plainsight.editor.selection.SelectionTree.leaves(Editor.get().tree.root())) {

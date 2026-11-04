@@ -99,7 +99,8 @@ public final class Editor {
 	public final dev.plainsight.module.LightOverlay lightOverlay = new dev.plainsight.module.LightOverlay();
 	public final dev.plainsight.module.MinimapModule minimap = new dev.plainsight.module.MinimapModule();
 	public final dev.plainsight.module.SeedHiding seedHiding = new dev.plainsight.module.SeedHiding();
-	public final List<Module> modules = List.of(lightOverlay, editorBrightness, ingameBrightness, minimap, seedHiding);
+	public final dev.plainsight.module.WaypointsModule waypoints = new dev.plainsight.module.WaypointsModule();
+	public final List<Module> modules = List.of(lightOverlay, editorBrightness, ingameBrightness, minimap, waypoints, seedHiding);
 	/** The viewport's buttons: view options and overlay demos. */
 	public final dev.plainsight.module.GuessedTerrain guessedTerrain = new dev.plainsight.module.GuessedTerrain();
 	public final List<Module> viewModules = List.of(fluids, seeThrough, blockOverlayDemo, pathDemo, guessedTerrain);

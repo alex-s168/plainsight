@@ -23,6 +23,10 @@ import java.util.List;
 public final class WaypointMarkers {
 	/** Where the name starts to show, and where it is fully shown (pixels from the diamond). */
 	private static final float NAME_FAR = 90, NAME_NEAR = 30;
+	/** The module (on by default) and the diamonds' size (1 = the smallest). */
+	public static volatile boolean enabled = true;
+	public static volatile float scale = 1;
+	public static final float MAX_SCALE = 3;
 	private static final Matrix4f viewProjection = new Matrix4f(), viewRotation = new Matrix4f();
 	private static final Vector3d cameraPos = new Vector3d();
 	private static boolean captured;
@@ -55,7 +59,7 @@ public final class WaypointMarkers {
 
 	/** Whether any shown selection is a waypoint. */
 	public static boolean any() {
-		return any(Editor.get().tree.root());
+		return enabled && any(Editor.get().tree.root());
 	}
 
 	private static boolean any(SelectionNode n) {
@@ -71,7 +75,7 @@ public final class WaypointMarkers {
 	 */
 	public static void draw(ImDrawList dl, float x0, float y0, float x1, float y1, float screenW, float screenH, float focusX, float focusY) {
 		List<Marker> markers = new ArrayList<>();
-		collect(Editor.get(), Editor.get().tree.root(), markers);
+		if (enabled) collect(Editor.get(), Editor.get().tree.root(), markers);
 		int count = 0;
 		float best = 0;
 		String bestName = "";
@@ -102,10 +106,11 @@ public final class WaypointMarkers {
 					}
 				}
 				count++;
-				float r = onScreen ? 7 : 5.5f;
+				float r = (onScreen ? 7 : 5.5f) * scale;
 				dl.addQuadFilled(sx, sy - r, sx + r, sy, sx, sy + r, sx - r, sy, m.color);
-				dl.addQuad(sx, sy - r, sx + r, sy, sx, sy + r, sx - r, sy, 0xE0000000, 1.5f);
-				float d = (float) Math.hypot(sx - focusX, sy - focusY);
+				dl.addQuad(sx, sy - r, sx + r, sy, sx, sy + r, sx - r, sy, 0xE0000000, 1.5f * (float) Math.sqrt(scale));
+				// the name fades in from the edge of a big diamond as from a small one
+				float d = Math.max(0, (float) Math.hypot(sx - focusX, sy - focusY) - (r - 7));
 				float alpha = onScreen ? Math.max(0, Math.min(1, (NAME_FAR - d) / (NAME_FAR - NAME_NEAR))) : 0;
 				if (alpha > 0) {
 					String text = m.name + "  " + Math.round(rel.length()) + " m";

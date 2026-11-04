@@ -80,6 +80,17 @@ def avg_color(path, x, y, w, h):
     return tuple(int(v) for v in m.groups())
 
 
+def changed_pixels(a, b, x, y, w, h):
+    """Number of pixels in a rectangle that differ (by more than 10%) between two PNGs."""
+    crop = "[%dx%d+%d+%d]" % (w, h, x, y)
+    r = subprocess.run([os.path.join(ROOT, "dev"), "magick", "compare", "-metric", "AE", "-fuzz", "10%", a + crop, b + crop, "null:"],
+                       cwd=ROOT, capture_output=True, text=True)
+    m = re.search(r"^\s*([\d.e+]+)", r.stderr.strip().splitlines()[-1] if r.stderr.strip() else "")
+    if not m:
+        raise AssertionError("magick compare failed: " + r.stderr[-500:])
+    return int(float(m.group(1)))
+
+
 def color_dist(a, b):
     return math.sqrt(sum((x - y) ** 2 for x, y in zip(a, b)))
 
@@ -1432,6 +1443,22 @@ def test_selection_waypoint_markers():
         time.sleep(0.4)
         check(float(ed("waypointMarkers").split()[1]) == 0, "not away from it")
         shot("waypoint-editor")
+        # the Waypoints module: switched off there are no diamonds; its slider makes them bigger
+        c.click(*widget("module_waypoints"), b=1)
+        time.sleep(0.4)
+        check(ed("waypointMarkers").split()[0] == "0", "the Waypoints module switches them off: %s" % ed("waypointMarkers"))
+        c.click(*widget("module_waypoints"), b=1)
+        time.sleep(0.4)
+        check(ed("waypointMarkers").split()[0] == "1", "and on again: %s" % ed("waypointMarkers"))
+        ed("waypointScale", 1)
+        time.sleep(0.3)
+        small = shot("waypoint-size-1")
+        ed("waypointScale", 3)
+        time.sleep(0.4)
+        big = shot("waypoint-size-3")
+        ed("waypointScale", 1)
+        changed = changed_pixels(small, big, int(x) - 30, int(y) - 30, 60, 60)
+        check(changed > 300, "a bigger diamond at size 3: %d pixels changed" % changed)
         editor_off()
         cmd("tp @s 0.5 -60 0.5 0 0")
         time.sleep(0.6)

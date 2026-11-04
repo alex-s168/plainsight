@@ -140,7 +140,7 @@ public final class EditorUI {
 		ImGui.bulletText("M: map (like the minimap, north up): scroll to zoom, LMB drag to move; selections move across it");
 		ImGui.textDisabled("Modules");
 		ImGui.bulletText("RMB: use tool   MMB: pick block");
-		ImGui.bulletText("Modules (light overlay, brightness, minimap, hide seeds): click to switch, right-click for options");
+		ImGui.bulletText("Modules (light overlay, brightness, minimap, waypoints, hide seeds): click to switch, right-click for options");
 		ImGui.bulletText("Box: LMB on a handle selects it; drag gizmo arrows, squares, rings");
 		ImGui.bulletText("Enter, a click on empty space or Done: put the box down");
 		ImGui.bulletText("Esc: cancel   Del: delete   Arrows / PgUp / PgDn: nudge");
