@@ -133,7 +133,11 @@ public final class EditorCamera {
 		if (left) wish.sub(flatRight);
 		if (up) wish.y += 1;
 		if (down) wish.y -= 1;
-		if (wish.lengthSquared() > 0) wish.normalize().mul(BASE_SPEED * speed * (fast ? 3 : 1));
+		if (wish.lengthSquared() > 0) {
+			wish.normalize().mul(BASE_SPEED * speed * (fast ? 3 : 1));
+			// flying turns no longer towards the pivot (that would circle around it)
+			if (drag != Drag.ORBIT) centering = false;
+		}
 		// exponential approach gives a short, smooth acceleration and stop
 		double k = 1 - Math.exp(-dt * 14);
 		velocity.lerp(wish, k);
@@ -184,6 +188,8 @@ public final class EditorCamera {
 
 	public void endDrag() {
 		drag = Drag.NONE;
+		// the turn towards the pivot belongs to the drag: flying afterwards must not keep turning to it
+		centering = false;
 	}
 
 	public boolean isCentering() {
