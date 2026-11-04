@@ -67,6 +67,7 @@ public final class MinimapModule implements Module {
 		o.addProperty("xaeroWaypoints", Minimap.showWaypoints);
 		o.addProperty("zoomMetres", Math.round(Minimap.targetDistance));
 		o.addProperty("tiltDegrees", Math.round(Minimap.pitch * 10) / 10.0);
+		o.addProperty("editorMapYaw", Math.round(dev.plainsight.editor.MapMode.yaw * 10) / 10.0);
 	}
 
 	@Override
@@ -77,6 +78,7 @@ public final class MinimapModule implements Module {
 		Minimap.showMobs = ModuleConfig.getBool(o, "mobs", Minimap.showMobs);
 		Minimap.showWaypoints = ModuleConfig.getBool(o, "xaeroWaypoints", Minimap.showWaypoints);
 		Minimap.pitch = Math.clamp(ModuleConfig.getFloat(o, "tiltDegrees", Minimap.pitch), dev.plainsight.editor.MapMode.MIN_PITCH, dev.plainsight.editor.MapMode.MAX_PITCH);
+		dev.plainsight.editor.MapMode.yaw = ModuleConfig.getFloat(o, "editorMapYaw", dev.plainsight.editor.MapMode.yaw);
 		Minimap.targetDistance = Minimap.distance = Math.clamp(ModuleConfig.getFloat(o, "zoomMetres", (float) Minimap.targetDistance),
 				Minimap.MIN_DISTANCE, Minimap.MAX_DISTANCE);
 	}

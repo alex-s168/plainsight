@@ -643,7 +643,7 @@ public final class Editor {
 		mouseX = x;
 		mouseY = y;
 		if (map.dragging()) map.dragTo(this, mouseRay());
-		else if (map.active() && ctrl && !ImGuiLayer.get().wantsMouse() && viewport.contains(x, y)) map.rotate(this, x - lastX, y - lastY);
+		else if (map.rotating()) map.rotate(this, x - lastX, y - lastY);
 		if (camera.drag() != EditorCamera.Drag.NONE) {
 			camera.dragBy(x - lastDragX, y - lastDragY, viewport.worldPerPixel(fov()));
 			lastDragX = x;
@@ -658,6 +658,10 @@ public final class Editor {
 		if (!down) {
 			boolean lookClick = button == 1 && (camera.drag() == EditorCamera.Drag.LOOK || map.dragging()) && !movedSincePress;
 			if (button == 1) map.endDrag();
+			if (button == 3 && map.rotating()) {
+				map.endRotate();
+				return;
+			}
 			if (camera.drag() != EditorCamera.Drag.NONE && (button == 1 || button == 3)) camera.endDrag();
 			tool.mouseReleased(button);
 			// a plain click on nothing (no handle, no drag) deselects, like clicking empty space elsewhere
@@ -673,6 +677,7 @@ public final class Editor {
 		if (map.active()) {
 			// the map only zooms and moves: LMB drags it (unless the tool grabs a handle), RMB uses the tool
 			if (button == 1 && !tool.leftPressed()) map.beginDrag(this, mouseRay());
+			else if (button == 3 && ctrl) map.beginRotate();
 			else if (button == 3) tool.rightPressed();
 			else if (button == 2) pickBlock();
 			return;

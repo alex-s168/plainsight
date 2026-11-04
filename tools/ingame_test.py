@@ -1558,53 +1558,58 @@ def test_map_mode_camera():
 
 
 def test_map_turn_and_tilt():
-    """Ctrl + mouse in the map: left/right turns it around the view's centre, up/down tilts it (top-down at
-    most, 10 degrees at least); the minimap takes the tilt."""
+    """Ctrl + RMB drag in the map: left/right turns it around the view's centre, down tilts it towards
+    top-down (as the arcball), 10 degrees at least; the minimap takes the tilt; both are kept."""
     editor_on()
     fresh_tree()
     cam(2, -50, -6, 0, 30)
     c.key(K["M"])
     time.sleep(0.4)
+
+    def ctrl_drag(points):
+        c.move(*points[0])
+        time.sleep(0.05)
+        c.key(K["LCTRL"], "press")
+        c.button(3, "press")
+        for p in points[1:]:
+            c.move(*p)
+            time.sleep(0.02)
+        c.button(3, "release")
+        c.key(K["LCTRL"], "release")
+        time.sleep(0.2)
+
     try:
         s = state()
+        p = s["camera"]["pos"]
         c.move(800, 450)
-        time.sleep(0.1)
-        c.key(K["LCTRL"], "press")
-        for i in range(10):
-            c.move(800 + 10 * (i + 1), 450)
-            time.sleep(0.03)
+        c.move(900, 450)
         time.sleep(0.2)
+        check(state()["camera"]["pos"] == p, "moving the mouse alone does not turn the map")
+        ctrl_drag([(800, 450)] + [(800 + 10 * (i + 1), 450) for i in range(10)])
         t = state()["camera"]
-        check(abs(t["yaw"] - (s["camera"]["yaw"] + 30)) < 1, "moving right turns the map: %s -> %s" % (s["camera"]["yaw"], t["yaw"]))
+        check(abs(t["yaw"] - (s["camera"]["yaw"] + 30)) < 1, "Ctrl + RMB drag right turns the map: %s -> %s" % (s["camera"]["yaw"], t["yaw"]))
         check(abs(t["pitch"] - s["camera"]["pitch"]) < 1e-3, "without tilting it")
-        for i in range(10):
-            c.move(900, 450 - 30 * (i + 1))
-            time.sleep(0.03)
-        time.sleep(0.2)
+        ctrl_drag([(900, 150)] + [(900, 150 + 30 * (i + 1)) for i in range(20)])
         t = state()["camera"]
-        check(abs(t["pitch"] - 90) < 1e-3, "moving up tilts it to top-down, no further: %s" % t["pitch"])
-        check(abs(float(c.static("dev.plainsight.editor.EditorDebug", "minimapTilt")) - 90) < 1e-3, "the minimap takes the tilt")
+        check(abs(t["pitch"] - 90) < 1e-3, "dragging down tilts it to top-down, no further: %s" % t["pitch"])
+        check(abs(float(ed("minimapTilt")) - 90) < 1e-3, "the minimap takes the tilt")
         for _ in range(2):
-            # down the viewport twice (Ctrl up while going back to the top)
-            c.key(K["LCTRL"], "release")
-            c.move(900, 150)
-            time.sleep(0.05)
-            c.key(K["LCTRL"], "press")
-            for i in range(20):
-                c.move(900, 150 + 30 * (i + 1))
-                time.sleep(0.02)
-        time.sleep(0.2)
-        check(abs(state()["camera"]["pitch"] - 10) < 1e-3, "and down to 10 degrees at most: %s" % state()["camera"]["pitch"])
-        c.key(K["LCTRL"], "release")
-        p = state()["camera"]["pos"]
-        c.move(500, 300)
-        time.sleep(0.2)
-        check(state()["camera"]["pos"] == p, "without Ctrl the mouse does not turn it")
+            ctrl_drag([(900, 850)] + [(900, 850 - 30 * (i + 1)) for i in range(20)])
+        check(abs(state()["camera"]["pitch"] - 10) < 1e-3, "and up to 10 degrees at most: %s" % state()["camera"]["pitch"])
+        yaw = state()["camera"]["yaw"]
+        c.key(K["M"])
+        time.sleep(0.3)
+        c.key(K["M"])
+        time.sleep(0.3)
+        t = state()["camera"]
+        check(abs(t["yaw"] - yaw) < 1e-3 and abs(t["pitch"] - 10) < 1e-3, "the map keeps its rotation and tilt: %s" % t)
     finally:
         c.key(K["LCTRL"], "release")
         ed("setMinimapTilt", 60)
-        c.key(K["M"])
-        time.sleep(0.4)
+        ed("setMapYaw", 180)
+        if state()["map"]:
+            c.key(K["M"])
+            time.sleep(0.4)
 
 
 def test_point_select():

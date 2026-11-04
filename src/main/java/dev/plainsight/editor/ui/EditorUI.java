@@ -138,7 +138,7 @@ public final class EditorUI {
 		ImGui.bulletText("Ctrl + RMB drag: pan   Scroll: move to/from the point under the cursor");
 		ImGui.bulletText("Follow an entity: right-click it in the tree; arcball then orbits it");
 		ImGui.bulletText("WASD: fly, Space / Shift: up / down, hold Ctrl: faster");
-		ImGui.bulletText(dev.plainsight.Plainsight.mapKeyName() + ": map (like the minimap, north up): scroll to zoom, LMB drag to move, Ctrl + mouse to turn and tilt; selections move across it");
+		ImGui.bulletText(dev.plainsight.Plainsight.mapKeyName() + ": map (like the minimap, north up): scroll to zoom, LMB drag to move, Ctrl + RMB drag to turn and tilt; selections move across it");
 		ImGui.bulletText("  in the game, " + dev.plainsight.Plainsight.mapKeyName() + " opens the editor on the map");
 		ImGui.textDisabled("Modules");
 		ImGui.bulletText("RMB: use tool   MMB: pick block");
@@ -822,7 +822,7 @@ public final class EditorUI {
 	private void statusContents(float w) {
 		boolean ctrl = editor.ctrl;
 		String[] hints = editor.map.active()
-				? new String[]{"LMB - Move Map", "Scroll - Zoom", "Ctrl + Mouse - Turn / Tilt", dev.plainsight.Plainsight.mapKeyName() + " - 3D View", editor.tool().hints()}
+				? new String[]{"LMB - Move Map", "Scroll - Zoom", "Ctrl + RMB - Turn / Tilt", dev.plainsight.Plainsight.mapKeyName() + " - 3D View", editor.tool().hints()}
 				: ctrl
 				? new String[]{"Ctrl+LMB - Arcball Camera", "Ctrl+Shift+LMB - Arcball through rock", "Ctrl+RMB - Pan Camera"}
 				: new String[]{"LMB - Rotate Camera", "MMB - Pick Block", editor.tool().hints()};

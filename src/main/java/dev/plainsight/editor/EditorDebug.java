@@ -483,6 +483,11 @@ public final class EditorDebug {
 		return Float.toString(dev.plainsight.minimap.Minimap.pitch);
 	}
 
+	public static String setMapYaw(float yaw) {
+		dev.plainsight.editor.MapMode.yaw = yaw;
+		return "ok";
+	}
+
 	public static String setMinimapTilt(float degrees) {
 		dev.plainsight.minimap.Minimap.pitch = degrees;
 		return "ok";
