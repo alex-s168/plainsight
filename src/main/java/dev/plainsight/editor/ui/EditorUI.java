@@ -395,17 +395,19 @@ public final class EditorUI {
 		ImGui.popStyleVar();
 		try {
 			guarded("axiom button", () -> {
+				// grey like the view buttons when they are off
 				long icon = dev.plainsight.compat.Axiom.icon();
-				boolean clicked;
+				float h = 30, w = (icon >= 0 ? h + 2 : 10) + ImGui.calcTextSizeX("Axiom") + 12;
+				boolean clicked = ImGui.invisibleButton("##axiom_switch", w, h);
+				ImVec2 a = ImGui.getItemRectMin();
+				ImDrawList dl = ImGui.getWindowDrawList();
+				dl.addRectFilled(a.x, a.y, a.x + w, a.y + h, ImGui.isItemHovered() ? 0xFF4D4D4D : 0xFF333333, 3f);
+				float tx = a.x + 10;
 				if (icon >= 0) {
-					clicked = ImGui.button("##axiom_switch", 96, 30);
-					var dl = ImGui.getWindowDrawList();
-					float x = ImGui.getItemRectMinX(), y = ImGui.getItemRectMinY();
-					dl.addImage(icon, x + 6, y + 4, x + 28, y + 26);
-					dl.addText(x + 36, y + (30 - ImGui.getTextLineHeight()) / 2, 0xFFFFFFFF, "Axiom");
-				} else {
-					clicked = ImGui.button("Axiom", 0, 30);
+					dl.addImage(icon, a.x + 5, a.y + 4, a.x + h - 3, a.y + h - 4);
+					tx = a.x + h + 2;
 				}
+				dl.addText(tx, a.y + (h - ImGui.getTextLineHeight()) / 2, 0xFFFFFFFF, "Axiom");
 				rect("view_axiom");
 				tooltip("Switch to Axiom", "Closes this editor and opens Axiom's (" + dev.plainsight.compat.Axiom.editorKeyName() + " there).");
 				if (clicked) deferred = dev.plainsight.compat.Axiom::switchTo;
