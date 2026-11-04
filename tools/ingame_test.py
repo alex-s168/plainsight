@@ -1576,6 +1576,23 @@ def test_minimap_shows_xaero_waypoints():
         ed("removeXaeroWaypoint", "Plainsight Test")
 
 
+def test_seed_kept_in_world_folder():
+    """A singleplayer world's seed is kept in its own folder (plainsight/seed.json), not by world name
+    in the shared store: new worlds are all called "New World"."""
+    key = c.static("dev.plainsight.guess.SeedStore", "worldKey")
+    check(key.startswith("singleplayer:"), "singleplayer world: %s" % key)
+    f = os.path.join(ROOT, "run-hidden", "saves", key[len("singleplayer:"):], "plainsight", "seed.json")
+    c.command("plainsight seed 4242424242")
+    time.sleep(0.3)
+    check(os.path.exists(f) and json.load(open(f)).get("seed") == "4242424242", "seed in %s" % f)
+    shared = os.path.join(ROOT, "run-hidden", "config", "plainsight", "seeds.properties")
+    folder = key[len("singleplayer:"):].replace(" ", "\\ ")
+    check(not os.path.exists(shared) or ("singleplayer\\:%s=" % folder) not in open(shared).read(), "and not in seeds.properties")
+    c.command("plainsight seed clear")
+    time.sleep(0.3)
+    check(not os.path.exists(f), "clear removes it")
+
+
 def test_seedcracker_seed_is_taken():
     """A world seed SeedcrackerX prints (cracked, or found in its database) becomes this world's seed,
     if it matches the server's hashed seed."""

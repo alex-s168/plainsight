@@ -56,6 +56,7 @@ public final class Plainsight implements ClientModInitializer {
 					dev.plainsight.guess.GuessWorld.shutdown();
 					dev.plainsight.guess.LocateCommands.shutdown();
 					if (modulesLoaded) dev.plainsight.module.ModuleConfig.save(false);
+					dev.plainsight.compat.BaritoneShutdown.schedule();
 				});
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> Editor.get().onDisconnect()));
 		LOG.info("Plainsight loaded");

@@ -444,6 +444,12 @@ public final class EditorDebug {
 		return p.getX() + "," + p.getY() + "," + p.getZ();
 	}
 
+	/** Quits the game as the Quit button does (shutdown tests). */
+	public static String quit() {
+		Minecraft.getInstance().stop();
+		return "ok";
+	}
+
 	/** Reads the module settings files again (as at game start). */
 	public static String reloadModuleConfig() {
 		dev.plainsight.module.ModuleConfig.load(Editor.get().allModules());
