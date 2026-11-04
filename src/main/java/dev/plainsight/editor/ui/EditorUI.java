@@ -138,7 +138,7 @@ public final class EditorUI {
 		ImGui.bulletText("Follow an entity: right-click it in the tree; arcball then orbits it");
 		ImGui.bulletText("WASD: fly, Space / Shift: up / down, hold Ctrl: faster");
 		ImGui.bulletText("M: map (like the minimap, north up): scroll to zoom, LMB drag to move; selections move across it");
-		ImGui.textDisabled("Tools");
+		ImGui.textDisabled("Modules");
 		ImGui.bulletText("RMB: use tool   MMB: pick block");
 		ImGui.bulletText("Modules (light overlay, brightness, minimap, hide seeds): click to switch, right-click for options");
 		ImGui.bulletText("Box: LMB on a handle selects it; drag gizmo arrows, squares, rings");
@@ -148,7 +148,7 @@ public final class EditorUI {
 		ImGui.bulletText("Transparent fluids, see-through to players; right-click for settings");
 	}
 
-	// -- left: tools and tool options -------------------------------------------------------------------------
+	// -- left: modules (tools and switchable modules) and options -------------------------------------------------------------------------
 
 	private void leftPanel(float x, float y, float w, float h) {
 		ImGui.setNextWindowPos(x, y);
@@ -163,7 +163,7 @@ public final class EditorUI {
 
 	private void toolsPanel(float w) {
 		ImGui.setNextItemOpen(true, ImGuiCond.FirstUseEver);
-		if (ImGui.collapsingHeader("Tools")) {
+		if (ImGui.collapsingHeader("Modules")) {
 			float size = 40;
 			int perRow = Math.max(1, (int) ((w - 16) / (size + 4)));
 			int i = 0;
