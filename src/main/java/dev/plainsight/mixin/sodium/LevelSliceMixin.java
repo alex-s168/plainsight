@@ -2,6 +2,7 @@ package dev.plainsight.mixin.sodium;
 
 import dev.plainsight.module.CutawayRegion;
 import dev.plainsight.module.SeeThrough;
+import dev.plainsight.render.CutMeshing;
 import net.caffeinemc.mods.sodium.client.world.LevelSlice;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.LightLayer;
@@ -16,8 +17,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * See-through with Sodium: its mesher reads blocks, shading and light from the {@link LevelSlice}, so cut
- * blocks are reported as air (hidden, neighbours keep their faces, no ambient occlusion from them) and
- * the opened space gets the sky light around the camera. Unlike vanilla, cut blocks are not drawn faintly.
+ * blocks are reported as air to their neighbours (they keep their faces, no ambient occlusion from cut
+ * blocks) and the opened space gets the sky light around the camera. The cut blocks themselves are
+ * meshed faintly with the real world around them ({@link CutMeshing#raw()}, see MeshingTaskMixin).
  */
 @Mixin(value = LevelSlice.class, remap = false)
 public abstract class LevelSliceMixin {
@@ -26,19 +28,19 @@ public abstract class LevelSliceMixin {
 	@Inject(method = "getBlockState(III)Lnet/minecraft/world/level/block/state/BlockState;", at = @At("HEAD"), cancellable = true)
 	private void plainsight$cutXyz(int x, int y, int z, CallbackInfoReturnable<BlockState> cir) {
 		CutawayRegion cut = SeeThrough.region();
-		if (!cut.isEmpty() && cut.contains(x, y, z)) cir.setReturnValue(AIR);
+		if (!cut.isEmpty() && !CutMeshing.raw() && cut.contains(x, y, z)) cir.setReturnValue(AIR);
 	}
 
 	@Inject(method = "getBlockState(Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/level/block/state/BlockState;", at = @At("HEAD"), cancellable = true)
 	private void plainsight$cutPos(BlockPos pos, CallbackInfoReturnable<BlockState> cir) {
 		CutawayRegion cut = SeeThrough.region();
-		if (!cut.isEmpty() && cut.contains(pos.getX(), pos.getY(), pos.getZ())) cir.setReturnValue(AIR);
+		if (!cut.isEmpty() && !CutMeshing.raw() && cut.contains(pos.getX(), pos.getY(), pos.getZ())) cir.setReturnValue(AIR);
 	}
 
 	@Inject(method = "getFluidState", at = @At("HEAD"), cancellable = true)
 	private void plainsight$cutFluid(BlockPos pos, CallbackInfoReturnable<FluidState> cir) {
 		CutawayRegion cut = SeeThrough.region();
-		if (!cut.isEmpty() && cut.contains(pos.getX(), pos.getY(), pos.getZ())) cir.setReturnValue(Fluids.EMPTY.defaultFluidState());
+		if (!cut.isEmpty() && !CutMeshing.raw() && cut.contains(pos.getX(), pos.getY(), pos.getZ())) cir.setReturnValue(Fluids.EMPTY.defaultFluidState());
 	}
 
 	@Inject(method = "getBrightness", at = @At("RETURN"), cancellable = true)

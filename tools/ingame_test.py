@@ -2040,6 +2040,31 @@ def test_see_through_players_button():
     time.sleep(0.5)
 
 
+def test_see_through_opacity():
+    """The cut blocks are drawn with the set opacity (vanilla and Sodium), not just hidden."""
+    editor_on()
+    fresh_tree()
+    ed("setModule", "see_through", "false")
+    cmd("tp @s -8.5 -59 -8.5")
+    time.sleep(1.0)
+    cam(-8.5, -50, -16, 0, 45)
+    ed("setModule", "see_through", "true")
+    ed("seeThroughOpacity", 0.0)
+    time.sleep(2.5)
+    # the inside of the hut's back wall through the cut roof
+    x, y = map(float, ed("project", -10.5, -57, -6.9).split(","))
+    open_ = avg_color(shot("seethrough-opacity-0"), int(x) - 6, int(y) - 6, 12, 12)
+    ed("seeThroughOpacity", 0.6)
+    time.sleep(2.5)
+    faint = avg_color(shot("seethrough-opacity-60"), int(x) - 6, int(y) - 6, 12, 12)
+    ed("seeThroughOpacity", 0.15)
+    ed("setModule", "see_through", "false")
+    cmd("tp @s 0.5 -60 0.5 0 0")
+    print("      cut roof at opacity 0 / 0.6:", open_, faint)
+    check(color_dist(open_, faint) > 12, "the cut blocks show faintly at opacity 0.6: %s vs %s" % (open_, faint))
+    time.sleep(0.5)
+
+
 def test_see_through_from_below():
     editor_on()
     fresh_tree()

@@ -4,6 +4,7 @@
 	"plugin": "dev.plainsight.SodiumMixinPlugin",
 	"compatibilityLevel": "JAVA_25",
 	"client": [
+		"BlockRendererMixin",
 		"LevelSliceMixin",
 		"MeshBufferMixin",
 		"MeshingTaskMixin",

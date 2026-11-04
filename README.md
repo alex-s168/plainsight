@@ -173,8 +173,8 @@ buttons (pixel checks), lit block overlay (day vs night), path overlay, Escape/c
 ### Notes
 
 * Sodium is supported through optional mixins (`plainsight.sodium.mixins.json`, applied only when
-  Sodium's classes are present): see-through hides the cut blocks in Sodium's chunk meshes (lit like
-  the open sky), transparent fluids work for water (lava stays opaque; at opacity 0 fluids are not
+  Sodium's classes are present): see-through draws the cut blocks faintly in Sodium's translucent pass
+  (their neighbours see them as air, and the opened space is lit like the open sky), transparent fluids work for water (lava stays opaque; at opacity 0 fluids are not
   meshed), cave culling is off while the camera is inside rock or outside the loaded chunks, and
   Sodium's render distance reaches the player's chunks while the camera is away.
 * The render-distance fog is pushed out by the camera-to-player distance in the editor, so the loaded
