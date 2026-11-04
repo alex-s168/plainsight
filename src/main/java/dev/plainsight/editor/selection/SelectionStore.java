@@ -41,6 +41,7 @@ public final class SelectionStore {
 		o.addProperty("defaultName", n.defaultName);
 		if (n.customName() != null) o.addProperty("name", n.customName());
 		if (!n.visible) o.addProperty("visible", false);
+		if (n.waypoint) o.addProperty("waypoint", true);
 		switch (n) {
 			case GroupNode g -> {
 				o.addProperty("type", "group");
@@ -116,6 +117,7 @@ public final class SelectionStore {
 		};
 		if (o.has("name")) n.rename(o.get("name").getAsString());
 		if (o.has("visible")) n.visible = o.get("visible").getAsBoolean();
+		if (o.has("waypoint")) n.waypoint = o.get("waypoint").getAsBoolean();
 		String def = o.has("defaultName") ? o.get("defaultName").getAsString() : "";
 		tree.setDefaultName(n, def);
 		int space = def.lastIndexOf(' ');

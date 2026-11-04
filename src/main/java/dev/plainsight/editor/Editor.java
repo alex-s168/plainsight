@@ -227,6 +227,12 @@ public final class Editor {
 		if (!active) {
 			// the see-through cut is an editor view option: never in the normal game
 			seeThrough.frame();
+			// the world's selections are there in the normal game too (waypoints, /plainsight select)
+			if (mc.level != null && now - lastSaveCheck > 1_000_000_000L) {
+				lastSaveCheck = now;
+				loadSelections();
+				if (tree.version() != savedVersion) saveSelections();
+			}
 			return;
 		}
 		if (mc.player == null || mc.level == null) {
@@ -297,6 +303,19 @@ public final class Editor {
 			}
 		}
 		pathDemo.render(overlay);
+	}
+
+	/**
+	 * Adds a box selection over the blocks x1..x2, y1..y2, z1..z2 (inclusive) to this world's selections and
+	 * selects it ({@code /plainsight select}, e.g. from /plainsight locate). Render thread.
+	 */
+	public BoxNode selectBlocks(int x1, int y1, int z1, int x2, int y2, int z2, @Nullable String name) {
+		loadSelections();
+		BoxNode b = tree.add(new BoxNode(dev.plainsight.editor.math.OrientedBox.ofBlocks(x1, y1, z1, x2, y2, z2)), targetGroup(), -1);
+		if (name != null) tree.rename(b, name);
+		boxTool.stopEditing();
+		tree.select(b, false);
+		return b;
 	}
 
 	public void setStatus(String s) {

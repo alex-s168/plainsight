@@ -54,6 +54,7 @@ public final class EntityNode extends SelectionNode {
 		EntityNode e = new EntityNode(entity, type, entityName);
 		e.rename(customName());
 		e.visible = visible;
+		e.waypoint = waypoint;
 		return e;
 	}
 }

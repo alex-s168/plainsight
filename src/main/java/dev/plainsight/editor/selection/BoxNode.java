@@ -60,6 +60,7 @@ public final class BoxNode extends SelectionNode {
 		b.startCorner = startCorner;
 		b.rename(customName());
 		b.visible = visible;
+		b.waypoint = waypoint;
 		return b;
 	}
 }

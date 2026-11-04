@@ -24,6 +24,7 @@
 		"MouseHandlerMixin",
 		"PictureInPictureRendererMixin",
 		"SectionCompilerMixin",
+		"TemplateStructurePieceAccessor",
 		"WindowMixin"
 	],
 	"injectors": { "defaultRequire": 1 }

@@ -28,7 +28,10 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.TagKey;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.chunk.status.ChunkStatus;
+import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.Structure;
+import net.minecraft.world.level.levelgen.structure.StructureStart;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Locale;
@@ -102,6 +105,26 @@ public final class LocateCommands {
 					c.getSource().sendFeedback(Component.literal("Waypoint \"" + name + "\" added at " + x + " " + y + " " + z + "."));
 					return 1;
 				})))));
+	}
+
+	/** {@code /plainsight select x1 y1 z1 x2 y2 z2 name}: a box selection over those blocks, selected in the editor. */
+	public static LiteralArgumentBuilder<FabricClientCommandSource> select() {
+		var name = argument("name", StringArgumentType.greedyString()).executes(c -> select(c, StringArgumentType.getString(c, "name")));
+		return literal("select").then(argument("x1", IntegerArgumentType.integer()).then(argument("y1", IntegerArgumentType.integer())
+				.then(argument("z1", IntegerArgumentType.integer()).then(argument("x2", IntegerArgumentType.integer())
+						.then(argument("y2", IntegerArgumentType.integer()).then(argument("z2", IntegerArgumentType.integer())
+								.executes(c -> select(c, null)).then(name)))))));
+	}
+
+	private static int select(CommandContext<FabricClientCommandSource> c, @Nullable String name) {
+		int[] v = new int[6];
+		String[] args = {"x1", "y1", "z1", "x2", "y2", "z2"};
+		for (int i = 0; i < 6; i++) v[i] = IntegerArgumentType.getInteger(c, args[i]);
+		var editor = dev.plainsight.editor.Editor.get();
+		var node = editor.selectBlocks(v[0], v[1], v[2], v[3], v[4], v[5], name);
+		c.getSource().sendFeedback(Component.literal("Selection \"" + node.name() + "\" created (" + node.label().replaceAll(".*\\(|\\)$", "")
+				+ ") and selected" + (dev.plainsight.editor.Editor.isActive() ? "." : "; open the editor (Right Shift) to see it.")));
+		return 1;
 	}
 
 	/** Stops using the seed's server (leaving the world). Render thread. */
@@ -199,12 +222,34 @@ public final class LocateCommands {
 		// structures are found by chunk: their height for a waypoint is the generated surface there
 		int y = includeY ? pos.getY() : level.getChunkSource().getGenerator().getBaseHeight(pos.getX(), pos.getZ(), Heightmap.Types.WORLD_SURFACE_WG,
 				level, level.getChunkSource().randomState());
-		String name = tag ? input + " (" + found.getSecond().getRegisteredName() + ")" : id.toString();
-		return message(kind, name, origin, pos, y, includeY, found.getSecond().getRegisteredName());
+		String foundId = found.getSecond().getRegisteredName();
+		// a structure's pieces: its bounds (for a selection) and what it is exactly
+		StructureStart start = kind == Kind.STRUCTURE ? start(level, (Structure) found.getSecond().value(), pos) : null;
+		String details = start == null ? null : StructureDetails.describe(foundId, start);
+		String name = tag ? input + " (" + foundId + (details != null ? ", " + details : "") + ")"
+				: id + (details != null ? " (" + details + ")" : "");
+		return message(kind, name, origin, pos, y, includeY, foundId, details, start == null ? null : start.getBoundingBox());
+	}
+
+	/** The structure's start generated in or next to the chunk it was located in. */
+	private static @Nullable StructureStart start(ServerLevel level, Structure structure, BlockPos at) {
+		int cx = at.getX() >> 4, cz = at.getZ() >> 4;
+		for (int r = 0; r <= 1; r++) {
+			for (int dx = -r; dx <= r; dx++) {
+				for (int dz = -r; dz <= r; dz++) {
+					if (Math.max(Math.abs(dx), Math.abs(dz)) != r) continue;
+					var chunk = level.getChunk(cx + dx, cz + dz, ChunkStatus.STRUCTURE_STARTS, true);
+					StructureStart s = chunk.getStartForStructure(structure);
+					if (s != null && s.isValid()) return s;
+				}
+			}
+		}
+		return null;
 	}
 
 	/** Vanilla's message (green coordinates suggesting a /tp), marked as from the seed, and a waypoint button with Xaero. */
-	private static Component message(Kind kind, String name, BlockPos origin, BlockPos pos, int y, boolean includeY, String foundId) {
+	private static Component message(Kind kind, String name, BlockPos origin, BlockPos pos, int y, boolean includeY, String foundId,
+			@Nullable String details, @Nullable BoundingBox bounds) {
 		int distance = includeY ? Mth.floor(Mth.sqrt((float) origin.distSqr(pos)))
 				: Mth.floor(Mth.sqrt((float) (Mth.square(pos.getX() - origin.getX()) + Mth.square(pos.getZ() - origin.getZ()))));
 		String shownY = includeY ? String.valueOf(pos.getY()) : "~";
@@ -215,6 +260,14 @@ public final class LocateCommands {
 		MutableComponent out = Component.translatable(kind.success, name, coordinates, distance);
 		out.append(Component.literal(" (from the seed)").withStyle(st -> st.withColor(ChatFormatting.GRAY)
 				.withHoverEvent(new HoverEvent.ShowText(Component.literal("Found with the world seed's generator: a world made with other versions or mods can differ.")))));
+		String selectionName = displayName(foundId) + (details != null ? " (" + details + ")" : "");
+		if (bounds != null) {
+			out.append(" ").append(ComponentUtils.wrapInSquareBrackets(Component.literal("Create selection")).withStyle(st -> st.withColor(ChatFormatting.YELLOW)
+					.withClickEvent(new ClickEvent.RunCommand("/plainsight select " + bounds.minX() + " " + bounds.minY() + " " + bounds.minZ() + " "
+							+ bounds.maxX() + " " + bounds.maxY() + " " + bounds.maxZ() + " " + selectionName))
+					.withHoverEvent(new HoverEvent.ShowText(Component.literal("A box selection around the whole structure ("
+							+ (bounds.getXSpan()) + " x " + bounds.getYSpan() + " x " + bounds.getZSpan() + "), selected in the editor")))));
+		}
 		if (XaeroWaypoints.PRESENT) {
 			String waypointName = displayName(foundId);
 			out.append(" ").append(ComponentUtils.wrapInSquareBrackets(Component.literal("+ Waypoint")).withStyle(st -> st.withColor(ChatFormatting.AQUA)

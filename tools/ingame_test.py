@@ -1358,9 +1358,10 @@ def test_locate_from_seed():
         shown = wait_chat("The nearest minecraft:plains is at")
         check("(from the seed)" in shown, "marked as from the seed: %s" % shown)
         c.command("plainsight locate structure minecraft:village_plains", wait=0.2)
-        shown = wait_chat("The nearest minecraft:village_plains is at")
-        m = re.search(r"village_plains is at \[(-?\d+), ~, (-?\d+)\] \((\d+) blocks away\)", shown)
-        check(m, "coordinates and distance as vanilla shows them: %s" % shown)
+        shown = wait_chat("The nearest minecraft:village_plains (")
+        m = re.search(r"village_plains \((\d+) houses?\) is at \[(-?\d+), ~, (-?\d+)\] \((\d+) blocks away\)", shown)
+        check(m, "the village's houses, coordinates and distance as vanilla shows them: %s" % shown)
+        check("[Create selection]" in shown, "a button to select the whole structure: %s" % shown)
         c.command("plainsight locate structure #minecraft:village", wait=0.2)
         wait_chat("The nearest #minecraft:village (minecraft:village_")
         c.command("plainsight locate structure minecraft:no_such_thing", wait=0.2)
@@ -1374,6 +1375,81 @@ def test_locate_from_seed():
             check("[+ Waypoint]" not in shown, "no waypoint button without Xaero's Minimap")
     finally:
         c.command("plainsight seed clear")
+
+
+def test_select_command_creates_selection():
+    """/plainsight select (behind locate's [Create selection]) adds a box over the blocks and selects it."""
+    editor_on()
+    fresh_tree()
+    editor_off()
+    out = c.command("plainsight select 2 -61 3 5 -59 7 Test Structure", wait=0.5)
+    check('Selection "Test Structure" created' in ed("chatShown", 2), "feedback: %s" % ed("chatShown", 2))
+    editor_on()
+    s = state()
+    check(s["tree"] == ["Test Structure (60 blocks)"], "in the tree: %s" % s["tree"])
+    check(s["selected"] == ["Test Structure (60 blocks)"], "and selected: %s" % s["selected"])
+    fresh_tree()
+
+
+def test_selection_copy_buttons():
+    """A selected box's centre ("X Y Z") and blocks ("min X Y Z, max X Y Z") copy to the clipboard."""
+    editor_on()
+    fresh_tree()
+    name = ed("addBox", 1, -61, 4, 7, -57, 10, "shown")
+    a, _ = find_node(name)
+    c.click(*a, b=1)
+    time.sleep(0.4)
+    c.click(*widget("copy_center"), b=1)
+    time.sleep(0.3)
+    check(ed("clipboard") == "4 -59 7", "centre copied: %r" % ed("clipboard"))
+    c.click(*widget("copy_specs"), b=1)
+    time.sleep(0.3)
+    check(ed("clipboard") == "min 1 -61 4, max 7 -57 10", "blocks copied: %r" % ed("clipboard"))
+    fresh_tree()
+
+
+def test_selection_waypoint_markers():
+    """A selection marked as waypoint (tree button) shows a diamond at its centre in the editor and the
+    game, with its name when the mouse (editor) or the crosshair (game) is close."""
+    editor_on()
+    fresh_tree()
+    cmd("tp @s 0.5 -60 0.5 0 0")
+    name = ed("addBox", 0, -59, 10, 0, -58, 11, "shown")  # centre (0.5, -58, 11): just above eye height ahead
+    check(ed("waypointMarkers").split()[0] == "0", "not a waypoint yet: %s" % ed("waypointMarkers"))
+    c.click(*widget("wp:" + name), b=1)
+    time.sleep(0.4)
+    try:
+        check(ed("waypointMarkers").split()[0] == "1", "the waypoint button marks it: %s" % ed("waypointMarkers"))
+        cam(0.5, -58, -6, 0, 0)
+        p = ed("project", 0.5, -58, 11)
+        check(p != "behind", "in view")
+        x, y = (float(v) for v in p.split(","))
+        c.move(x, y + 3)
+        time.sleep(0.4)
+        drawn, alpha, shown = ed("waypointMarkers").split(" ", 2)
+        check(float(alpha) > 0.9 and shown == name, "the mouse at the diamond shows its name: %s" % ed("waypointMarkers"))
+        c.move(x + 300, y + 200)
+        time.sleep(0.4)
+        check(float(ed("waypointMarkers").split()[1]) == 0, "not away from it")
+        shot("waypoint-editor")
+        editor_off()
+        cmd("tp @s 0.5 -60 0.5 0 0")
+        time.sleep(0.6)
+        drawn, alpha, shown = ed("waypointMarkers").split(" ", 2)
+        check(drawn == "1" and float(alpha) > 0.5 and shown == name, "in the game the crosshair shows it: %s" % ed("waypointMarkers"))
+        cmd("tp @s 0.5 -60 0.5 180 0")
+        time.sleep(0.6)
+        drawn, alpha, _ = (ed("waypointMarkers").split(" ", 2) + [""])[:3]
+        check(drawn == "1" and float(alpha) == 0, "behind the player: on the edge, no name: %s" % ed("waypointMarkers"))
+        shot("waypoint-game-behind")
+        editor_on()
+        c.click(*widget("vis:" + name), b=1)
+        time.sleep(0.4)
+        check(ed("waypointMarkers").split()[0] == "0", "a hidden selection is no waypoint marker: %s" % ed("waypointMarkers"))
+    finally:
+        cmd("tp @s 0.5 -60 0.5 0 0")
+        editor_on()
+        fresh_tree()
 
 
 def test_minimap_shows_xaero_waypoints():

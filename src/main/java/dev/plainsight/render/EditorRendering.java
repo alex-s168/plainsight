@@ -17,6 +17,7 @@ public final class EditorRendering {
 
 	public static void afterLevel(GameRenderer renderer) {
 		Editor editor = Editor.get();
+		WaypointMarkers.capture(renderer.gameRenderState().levelRenderState.cameraRenderState);
 		// the surface under the cursor, before overlays add their own depth
 		if (Editor.isActive()) DepthPick.afterLevel(renderer.gameRenderState().levelRenderState.cameraRenderState);
 		// block and path overlays: always in the editor, in the normal game while its overlays are shown (J)
@@ -32,7 +33,7 @@ public final class EditorRendering {
 			GuessTint.render(renderer.gameRenderState().levelRenderState.cameraRenderState, guess);
 	}
 
-	/** HUD outside the editor: an ImGui frame for the minimap only (no input goes to ImGui here). */
+	/** HUD outside the editor: an ImGui frame for the minimap and waypoints (no input goes to ImGui here). */
 	private static void hud(GameRenderer renderer) {
 		Window w = Minecraft.getInstance().getWindow();
 		float sw = Math.max(1, w.getScreenWidth()), sh = Math.max(1, w.getScreenHeight());
@@ -40,6 +41,8 @@ public final class EditorRendering {
 		try {
 			layer.newFrame(w.getWidth(), w.getHeight(), w.getWidth() / sw, w.getHeight() / sh);
 			dev.plainsight.minimap.Minimap.draw();
+			if (!Minecraft.getInstance().gui.hud.isHidden())
+				WaypointMarkers.draw(imgui.ImGui.getBackgroundDrawList(), 0, 0, sw, sh, sw, sh, sw / 2, sh / 2);
 		} finally {
 			layer.endFrameAndRender(renderer.mainRenderTarget());
 		}
@@ -53,7 +56,7 @@ public final class EditorRendering {
 				mc.textInputManager().stopTextInput(EditorRendering.class);
 				textInput = false;
 			}
-			if (dev.plainsight.minimap.Minimap.visible()) hud(renderer);
+			if (mc.level != null && (dev.plainsight.minimap.Minimap.visible() || !mc.gui.hud.isHidden() && WaypointMarkers.any())) hud(renderer);
 			return;
 		}
 		Window w = mc.getWindow();

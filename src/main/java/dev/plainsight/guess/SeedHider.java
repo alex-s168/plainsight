@@ -65,10 +65,22 @@ public final class SeedHider {
 
 	public static String mask(String text) {
 		if (text == null || !enabled() || !containsDigit(text)) return text;
+		return mask(text, SeedStore.knownSeeds());
+	}
+
+	/** Shortest known seed that is masked: shorter ones are everyday numbers (and no secret). */
+	private static final int MIN_KNOWN_SEED_DIGITS = 5;
+
+	/**
+	 * {@code text} with long numbers and the known {@code seeds} as dots; a seed's digits only count as
+	 * the whole number, not as part of a decimal ("0.5") or of a longer one.
+	 */
+	static String mask(String text, long[] seeds) {
 		String out = LONG_NUMBER.matcher(text).replaceAll(MASK);
-		for (long seed : SeedStore.knownSeeds()) {
+		for (long seed : seeds) {
 			String s = Long.toString(seed);
-			if (out.contains(s)) out = out.replaceAll("(?<![\\d-])" + Pattern.quote(s) + "(?!\\d)", Matcher.quoteReplacement(MASK));
+			if (s.replace("-", "").length() < MIN_KNOWN_SEED_DIGITS || !out.contains(s)) continue;
+			out = out.replaceAll("(?<![\\d.-])" + Pattern.quote(s) + "(?!\\d|\\.\\d)", Matcher.quoteReplacement(MASK));
 		}
 		return out;
 	}

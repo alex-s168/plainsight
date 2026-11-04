@@ -458,6 +458,49 @@ public final class EditorDebug {
 		return "ok";
 	}
 
+	/** Waypoint markers in the last frame: "drawn nameAlpha nameShown". */
+	public static String waypointMarkers() {
+		return dev.plainsight.render.WaypointMarkers.drawn + " " + dev.plainsight.render.WaypointMarkers.nameAlpha + " " + dev.plainsight.render.WaypointMarkers.nameShown;
+	}
+
+	/** Marks the selection called {@code name} as a waypoint (or not). */
+	public static String setWaypoint(String name, String on) {
+		for (var n : dev.plainsight.editor.selection.SelectionTree.leaves(Editor.get().tree.root())) {
+			if (n.name().equals(name)) {
+				n.waypoint = Boolean.parseBoolean(on);
+				Editor.get().tree.touch();
+				return "ok";
+			}
+		}
+		return "no such selection";
+	}
+
+	public static String clipboard() {
+		return net.minecraft.client.Minecraft.getInstance().keyboardHandler.getClipboard();
+	}
+
+	/** On the singleplayer server: what the structure {@code id} that starts in the chunk of (x, z) is (as /plainsight locate tells). */
+	public static String realStructureDetails(String id, int x, int z) {
+		var server = net.minecraft.client.Minecraft.getInstance().getSingleplayerServer();
+		var mc = net.minecraft.client.Minecraft.getInstance();
+		if (server == null || mc.level == null) return "no singleplayer server";
+		var dim = mc.level.dimension();
+		return server.submit(() -> {
+			var level = server.getLevel(dim);
+			var structure = level.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.STRUCTURE)
+					.getValue(net.minecraft.resources.Identifier.parse(id));
+			for (int dx = -1; dx <= 1; dx++) {
+				for (int dz = -1; dz <= 1; dz++) {
+					var chunk = level.getChunk((x >> 4) + dx, (z >> 4) + dz, net.minecraft.world.level.chunk.status.ChunkStatus.STRUCTURE_STARTS, true);
+					var start = chunk.getStartForStructure(structure);
+					if (start != null && start.isValid())
+						return String.valueOf(dev.plainsight.guess.StructureDetails.describe(id, start)) + " " + start.getBoundingBox();
+				}
+			}
+			return "none";
+		}).join();
+	}
+
 	public static String clearTree() {
 		Editor.get().boxTool.stopEditing();
 		Editor.get().tree.clear();

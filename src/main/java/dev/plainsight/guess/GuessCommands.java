@@ -48,6 +48,7 @@ public final class GuessCommands {
 						})))
 				.then(LocateCommands.locate())
 				.then(LocateCommands.waypoint())
+				.then(LocateCommands.select())
 				.then(literal("guess").then(literal("radius").then(argument("chunks", IntegerArgumentType.integer(4, 128)).executes(c -> {
 					GuessWorld.radius = IntegerArgumentType.getInteger(c, "chunks");
 					c.getSource().sendFeedback(Component.literal("Guessed terrain radius: " + GuessWorld.radius + " chunks"));

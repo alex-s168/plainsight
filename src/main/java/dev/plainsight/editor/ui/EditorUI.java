@@ -65,6 +65,7 @@ public final class EditorUI {
 		statusBar(0, bottom, width, statusHeight);
 		editor.viewport.set(LEFT_WIDTH, top, width - LEFT_WIDTH - RIGHT_WIDTH, bottom - top, width, height);
 		viewportButtons();
+		waypointMarkers(width, height);
 		shortcuts();
 		if (deferred != null) {
 			Runnable r = deferred;
@@ -292,6 +293,19 @@ public final class EditorUI {
 		}
 	}
 
+	/** Waypoint selections in the viewport (under the panels and buttons); the mouse shows their names. */
+	private void waypointMarkers(float width, float height) {
+		var vp = editor.viewport;
+		ImDrawList dl = ImGui.getBackgroundDrawList();
+		dl.pushClipRect(vp.x, vp.y, vp.x + vp.width, vp.y + vp.height, true);
+		try {
+			dev.plainsight.render.WaypointMarkers.draw(dl, vp.x, vp.y, vp.x + vp.width, vp.y + vp.height, width, height,
+					(float) editor.mouseX, (float) editor.mouseY);
+		} finally {
+			dl.popClipRect();
+		}
+	}
+
 	// -- viewport buttons -------------------------------------------------------------------------------------
 
 	private void viewportButtons() {
@@ -435,7 +449,8 @@ public final class EditorUI {
 		// widgets over the row: the eye toggle at the right end, the rename field over the label
 		ImVec2 next = ImGui.getCursorScreenPos();
 		visibilityButton(n, rowMaxX, rowMinY, rowMaxY - rowMinY);
-		if (renamingThis) renameField(n, rowMinX + ImGui.getTreeNodeToLabelSpacing() + 18, rowMinY, rowMaxX - 26);
+		waypointButton(n, rowMaxX - 22, rowMinY, rowMaxY - rowMinY);
+		if (renamingThis) renameField(n, rowMinX + ImGui.getTreeNodeToLabelSpacing() + 18, rowMinY, rowMaxX - 48);
 		ImGui.setCursorScreenPos(next.x, next.y);
 		if (group && open) {
 			try {
@@ -471,6 +486,30 @@ public final class EditorUI {
 		if (hovered) tooltip(n.visible ? "Hide" : "Show", "Show or hide this selection in the world" + (n instanceof GroupNode ? " (with everything in it)." : "."));
 		if (clicked) {
 			n.visible = !n.visible;
+			editor.tree.touch();
+		}
+	}
+
+	/** Diamond button left of the eye: shows/hides the node as a waypoint in the world (marker and name at its centre). */
+	private void waypointButton(SelectionNode n, float rowMaxX, float rowY, float rowH) {
+		float w = 22, x = rowMaxX - w;
+		ImGui.setCursorScreenPos(x, rowY);
+		ImGui.pushID("wp" + n.id());
+		boolean clicked = ImGui.invisibleButton("##wp", w, rowH);
+		ImGui.popID();
+		rect("wp:" + (n instanceof EntityNode ? n.label() : n.name()));
+		boolean hovered = ImGui.isItemHovered();
+		ImDrawList dl = ImGui.getWindowDrawList();
+		float cx = x + w / 2, cy = rowY + rowH / 2, r = 5;
+		if (n.waypoint) {
+			dl.addQuadFilled(cx, cy - r, cx + r, cy, cx, cy + r, cx - r, cy, hovered ? 0xFF80F0FF : 0xFF40E0FF);
+		} else {
+			dl.addQuad(cx, cy - r, cx + r, cy, cx, cy + r, cx - r, cy, hovered ? 0xFFB0B0B0 : 0xFF707070, 1.5f);
+		}
+		if (hovered) tooltip(n.waypoint ? "Waypoint (on)" : "Waypoint (off)",
+				"Show this selection as a waypoint in the world: a marker at its centre, with its name when you look at it.");
+		if (clicked) {
+			n.waypoint = !n.waypoint;
 			editor.tree.touch();
 		}
 	}
@@ -554,6 +593,10 @@ public final class EditorUI {
 				n.visible = !n.visible;
 				tree.touch();
 			}
+			if (ImGui.menuItem("Waypoint", "", n.waypoint)) {
+				n.waypoint = !n.waypoint;
+				tree.touch();
+			}
 			if (ImGui.menuItem("Focus camera")) editor.focus(n);
 			if (n instanceof EntityNode en) {
 				var mc = Minecraft.getInstance();
@@ -631,6 +674,7 @@ public final class EditorUI {
 			long blocks = 0;
 			for (SelectionNode n : editor.tree.topLevel(new ArrayList<>(sel))) blocks += n.blockCount();
 			ImGui.text(sel.size() + " nodes, " + blocks + " blocks");
+			copyButtons(new ArrayList<>(sel));
 			return;
 		}
 		SelectionNode n = sel.iterator().next();
@@ -651,6 +695,37 @@ public final class EditorUI {
 			}
 		}
 		if (ImGui.button("Focus")) editor.focus(n);
+		copyButtons(List.of(n));
+	}
+
+	/**
+	 * Copies the selection as text for chat or commands: the centre block "X Y Z" and, unless only entities
+	 * are selected, the blocks covered "min X Y Z, max X Y Z".
+	 */
+	private void copyButtons(List<SelectionNode> nodes) {
+		List<double[]> all = new ArrayList<>();
+		boolean onlyEntities = true;
+		for (SelectionNode n : nodes) {
+			all.add(dev.plainsight.render.SelectionRenderer.bounds(editor, n));
+			if (!(n instanceof EntityNode)) onlyEntities = false;
+		}
+		double[] b = dev.plainsight.editor.selection.SelectionText.union(all);
+		if (b == null) ImGui.beginDisabled();
+		if (ImGui.button("Copy center coords") && b != null) copy(dev.plainsight.editor.selection.SelectionText.center(b));
+		rect("copy_center");
+		tooltip("Copy center coords", "The block at the centre as \"X Y Z\", to paste into chat or a command.");
+		if (!onlyEntities) {
+			ImGui.sameLine();
+			if (ImGui.button("Copy specs (text)") && b != null) copy(dev.plainsight.editor.selection.SelectionText.specs(b));
+			rect("copy_specs");
+			tooltip("Copy specs (text)", "The blocks it covers as \"min X Y Z, max X Y Z\", to paste into chat.");
+		}
+		if (b == null) ImGui.endDisabled();
+	}
+
+	private void copy(String text) {
+		Minecraft.getInstance().keyboardHandler.setClipboard(text);
+		editor.setStatus("Copied: " + text);
 	}
 
 	// -- status bar -------------------------------------------------------------------------------------------

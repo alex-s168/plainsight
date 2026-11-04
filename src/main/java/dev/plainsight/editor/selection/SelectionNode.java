@@ -16,6 +16,8 @@ public abstract sealed class SelectionNode permits GroupNode, BoxNode, EntityNod
 	String defaultName = "";
 	@Nullable GroupNode parent;
 	public boolean visible = true;
+	/** Shown as a waypoint in the world (a marker at its centre with its name, see WaypointMarkers). */
+	public boolean waypoint;
 
 	protected SelectionNode(UUID id) {
 		this.id = id;

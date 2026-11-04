@@ -56,6 +56,7 @@ public final class GroupNode extends SelectionNode {
 		g.rename(customName());
 		g.expanded = expanded;
 		g.visible = visible;
+		g.waypoint = waypoint;
 		for (SelectionNode c : children) {
 			SelectionNode cc = c.copy();
 			cc.parent = g;
