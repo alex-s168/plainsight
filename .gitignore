@@ -43,3 +43,4 @@ run/
 run-axiom/
 .mcsrc/
 run-hidden/
+__pycache__/
