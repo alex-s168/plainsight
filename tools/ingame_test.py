@@ -1517,18 +1517,28 @@ def test_switch_to_axiom():
     c.key(K["RSHIFT"])
     time.sleep(1.0)
     check(state()["active"], "and afterwards opens this editor again")
-    # with Axiom's editor key unbound: still Axiom's editor, not whatever else is unbound (a screen)
-    if ed("setAxiomEditorKey", -1) == "ok":
+    # Axiom's editor key elsewhere (F13) or unbound: this editor's key closes Axiom's editor; unbound, the
+    # button still opens Axiom's editor, not whatever else is unbound (a screen)
+    for key in (104, -1):
+        if ed("setAxiomEditorKey", key) != "ok":
+            break
         try:
+            editor_on()
             c.click(*widget("view_axiom"), b=1)
             time.sleep(1.0)
-            check(not state()["active"] and "screen=none" in c.status(), "unbound: no other screen opens: %s" % c.status().splitlines()[0])
-            shot("axiom-editor-unbound")
-        finally:
-            # bound again, Right Shift closes Axiom's editor
-            ed("setAxiomEditorKey", K["RSHIFT"])
+            check(not state()["active"] and "screen=none" in c.status() and ed("axiomOpen") == "true",
+                  "Axiom key %d: Axiom's editor opens: %s" % (key, c.status().splitlines()[0]))
+            shot("axiom-editor-key-%d" % key)
             c.key(K["RSHIFT"])
             time.sleep(1.0)
+            check(not state()["active"] and ed("axiomOpen") == "false", "Right Shift closes Axiom's editor (Axiom key %d)" % key)
+            shot("axiom-closed-key-%d" % key)
+            c.key(K["RSHIFT"])
+            time.sleep(0.8)
+            check(state()["active"], "and then opens this editor")
+        finally:
+            ed("setAxiomEditorKey", K["RSHIFT"])
+    editor_off()
 
 
 def test_map_mode_camera():

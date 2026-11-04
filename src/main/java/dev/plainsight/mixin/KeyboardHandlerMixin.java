@@ -27,10 +27,20 @@ public abstract class KeyboardHandlerMixin {
 		if (handle != minecraft.getWindow().handle() || minecraft.gui.screen() != null || minecraft.gui.overlay() != null
 				|| dev.plainsight.compat.Axiom.passing()) return;
 		if (dev.plainsight.compat.Axiom.editorOpen()) {
-			if (action == 1) dev.plainsight.compat.Axiom.keyInAxiom(event);
+			if (action != 1) return;
+			if (Plainsight.toggleEditor().matches(event) && !dev.plainsight.compat.Axiom.isEditorKey(event)) {
+				// this editor's key always closes Axiom's editor (Axiom's own key is Axiom's anyway)
+				dev.plainsight.compat.Axiom.close();
+				ci.cancel();
+				return;
+			}
+			dev.plainsight.compat.Axiom.keyInAxiom(event);
 			return;
 		}
 		boolean active = Editor.isActive();
+		// Axiom's own editor key (bound apart from this editor's) opens Axiom's: its keys are Axiom's then
+		if (!active && action == 1 && dev.plainsight.compat.Axiom.isEditorKey(event) && !Plainsight.toggleEditor().matches(event))
+			dev.plainsight.compat.Axiom.openedByItsKey();
 		if (action == 1 && Plainsight.toggleEditor().matches(event) && !(active && ImGuiLayer.get().wantsTextInput())) {
 			Editor.get().toggle();
 			ci.cancel();

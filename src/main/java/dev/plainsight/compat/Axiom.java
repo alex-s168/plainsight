@@ -17,7 +17,8 @@ import java.nio.file.Files;
 
 /**
  * Switching from this editor to Axiom's (both open with Right Shift by default): this editor closes and
- * Axiom gets the press of its own editor key, which this mod lets through ({@link #passing()}).
+ * Axiom gets the press of its own editor key, which this mod lets through ({@link #passing()}). While
+ * Axiom's editor is open, this editor's key closes it.
  */
 public final class Axiom {
 	public static final boolean PRESENT = FabricLoader.getInstance().isModLoaded("axiom");
@@ -28,6 +29,11 @@ public final class Axiom {
 	private static boolean iconTried;
 
 	private Axiom() {
+	}
+
+	/** Whether Axiom's editor is open as far as this mod tracks it (tests). */
+	public static boolean tracked() {
+		return axiomOpen;
 	}
 
 	/** While true, key presses go past this mod's key handling (to Axiom). */
@@ -48,8 +54,7 @@ public final class Axiom {
 
 	/** A key press while Axiom's editor is open: it is Axiom's; its editor key closes it. */
 	public static void keyInAxiom(KeyEvent event) {
-		KeyMapping k = editorMapping();
-		if ((k == null || !k.isUnbound()) && editorKey().getValue() == event.key()) axiomOpen = false;
+		if (isEditorKey(event)) axiomOpen = false;
 	}
 
 	/** Axiom's editor key mapping, if it is one of the game's. */
@@ -94,27 +99,50 @@ public final class Axiom {
 
 	/** Closes this editor and opens Axiom's. */
 	public static void switchTo() {
-		Minecraft mc = Minecraft.getInstance();
 		Editor.get().disable();
-		KeyMapping mapping = editorMapping();
-		if (mapping != null && mapping.isUnbound()) {
-			// unbound: a press of no key would be any unbound key mapping's (Xaero's config screen, say);
-			// Axiom's mapping is bound to a free key for this one press (not saved)
-			int key = freeKey();
-			if (key < 0) return;
-			mapping.setKey(InputConstants.Type.KEYBOARD.getOrCreate(key));
-			KeyMapping.resetMapping();
-			try {
-				press(mc, key);
-			} finally {
-				mapping.setKey(InputConstants.UNKNOWN);
-				KeyMapping.resetMapping();
-			}
-		} else {
-			press(mc, editorKey().getValue());
-		}
+		if (!pressEditorKey()) return;
 		axiomOpen = true;
 		Plainsight.LOG.info("Switched to Axiom's editor");
+	}
+
+	/** Closes Axiom's editor (this editor's key while it is open), with a press of Axiom's editor key. */
+	public static void close() {
+		if (pressEditorKey()) axiomOpen = false;
+	}
+
+	/** Presses Axiom's editor key (toggling its editor); false if that was not possible. */
+	private static boolean pressEditorKey() {
+		Minecraft mc = Minecraft.getInstance();
+		KeyMapping mapping = editorMapping();
+		if (mapping == null || !mapping.isUnbound()) {
+			press(mc, editorKey().getValue());
+			return true;
+		}
+		// unbound: a press of no key would be any unbound key mapping's (Xaero's config screen, say);
+		// Axiom's mapping is bound to a free key for this one press (not saved)
+		int key = freeKey();
+		if (key < 0) return false;
+		mapping.setKey(InputConstants.Type.KEYBOARD.getOrCreate(key));
+		KeyMapping.resetMapping();
+		try {
+			press(mc, key);
+		} finally {
+			mapping.setKey(InputConstants.UNKNOWN);
+			KeyMapping.resetMapping();
+		}
+		return true;
+	}
+
+	/** Whether {@code event} is a press of Axiom's own (bound) editor key. */
+	public static boolean isEditorKey(KeyEvent event) {
+		if (!PRESENT) return false;
+		KeyMapping k = editorMapping();
+		return (k == null || !k.isUnbound()) && editorKey().getValue() == event.key();
+	}
+
+	/** In the game: Axiom's own editor key (bound apart from this editor's) opens Axiom's editor. */
+	public static void openedByItsKey() {
+		axiomOpen = true;
 	}
 
 	/** Axiom's mod icon as an ImGui texture, or -1. */

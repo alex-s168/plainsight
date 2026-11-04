@@ -494,6 +494,10 @@ public final class EditorDebug {
 		return h.apply(dev.plainsight.Plainsight.minimapZoomIn()) + " " + h.apply(dev.plainsight.Plainsight.minimapZoomOut()) + " " + h.apply(dev.plainsight.Plainsight.minimapLayer());
 	}
 
+	public static String axiomOpen() {
+		return Boolean.toString(dev.plainsight.compat.Axiom.tracked());
+	}
+
 	/** Binds Axiom's editor key mapping to {@code key} (-1: unbinds it); "none" without that mapping (tests). */
 	public static String setAxiomEditorKey(int key) {
 		for (var k : Minecraft.getInstance().options.keyMappings) {
