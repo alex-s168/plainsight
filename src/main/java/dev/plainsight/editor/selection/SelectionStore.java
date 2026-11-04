@@ -67,6 +67,14 @@ public final class SelectionStore {
 				o.addProperty("entityType", e.type());
 				o.addProperty("entityName", e.entityName());
 			}
+			case PointNode p -> {
+				o.addProperty("type", "point");
+				JsonArray at = new JsonArray();
+				at.add(p.x);
+				at.add(p.y);
+				at.add(p.z);
+				o.add("pos", at);
+			}
 		}
 		return o;
 	}
@@ -113,6 +121,10 @@ public final class SelectionStore {
 			}
 			case "entity" -> new EntityNode(id, UUID.fromString(o.get("entity").getAsString()), o.get("entityType").getAsString(),
 					o.get("entityName").getAsString());
+			case "point" -> {
+				JsonArray at = o.getAsJsonArray("pos");
+				yield new PointNode(id, at.get(0).getAsInt(), at.get(1).getAsInt(), at.get(2).getAsInt());
+			}
 			default -> throw new IllegalArgumentException("unknown selection type " + type);
 		};
 		if (o.has("name")) n.rename(o.get("name").getAsString());

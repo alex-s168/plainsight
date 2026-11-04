@@ -35,6 +35,12 @@ public abstract class CameraMixin {
 		if (Editor.isActive()) depthFar = Math.max(depthFar, 65536f);
 	}
 
+	/** The editor's map looks through a narrow field of view (almost a flat map). */
+	@Inject(method = "calculateFov", at = @At("RETURN"), cancellable = true)
+	private void plainsight$mapFov(float partialTicks, org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<Float> cir) {
+		if (Editor.isActive() && Editor.get().map.active()) cir.setReturnValue(dev.plainsight.editor.MapMode.FOV);
+	}
+
 	@Inject(method = "alignWithEntity", at = @At("TAIL"))
 	private void plainsight$editorCamera(float partialTicks, CallbackInfo ci) {
 		Editor editor = Editor.get();

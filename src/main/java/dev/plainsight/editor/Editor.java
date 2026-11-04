@@ -80,7 +80,10 @@ public final class Editor {
 
 	public final BoxSelectTool boxTool = new BoxSelectTool(this);
 	public final EntitySelectTool entityTool = new EntitySelectTool(this);
-	public final List<Tool> tools = List.of(boxTool, entityTool);
+	public final dev.plainsight.editor.tool.PointSelectTool pointTool = new dev.plainsight.editor.tool.PointSelectTool(this);
+	public final List<Tool> tools = List.of(boxTool, entityTool, pointTool);
+	/** The map view (M). */
+	public final MapMode map = new MapMode();
 	private Tool tool = dev.plainsight.editor.tool.NoTool.INSTANCE;
 	/** The tool to return to after editing a box that was picked in the tree (null otherwise). */
 	private @Nullable Tool toolBeforeTreeEdit;
@@ -211,6 +214,7 @@ public final class Editor {
 		active = false;
 		camera.stopMovement();
 		camera.endDrag();
+		map.reset();
 		tool.deactivate();
 		Minecraft mc = Minecraft.getInstance();
 		mc.textInputManager().stopTextInput(this);
@@ -627,6 +631,7 @@ public final class Editor {
 	public void onMouseMove(double x, double y) {
 		mouseX = x;
 		mouseY = y;
+		if (map.dragging()) map.dragTo(this, mouseRay());
 		if (camera.drag() != EditorCamera.Drag.NONE) {
 			camera.dragBy(x - lastDragX, y - lastDragY, viewport.worldPerPixel(fov()));
 			lastDragX = x;
@@ -639,7 +644,8 @@ public final class Editor {
 	/** SDL buttons: 1 left, 2 middle, 3 right. */
 	public void onMouseButton(int button, boolean down) {
 		if (!down) {
-			boolean lookClick = button == 1 && camera.drag() == EditorCamera.Drag.LOOK && !movedSincePress;
+			boolean lookClick = button == 1 && (camera.drag() == EditorCamera.Drag.LOOK || map.dragging()) && !movedSincePress;
+			if (button == 1) map.endDrag();
 			if (camera.drag() != EditorCamera.Drag.NONE && (button == 1 || button == 3)) camera.endDrag();
 			tool.mouseReleased(button);
 			// a plain click on nothing (no handle, no drag) deselects, like clicking empty space elsewhere
@@ -652,6 +658,13 @@ public final class Editor {
 		pressX = mouseX;
 		pressY = mouseY;
 		movedSincePress = false;
+		if (map.active()) {
+			// the map only zooms and moves: LMB drags it (unless the tool grabs a handle), RMB uses the tool
+			if (button == 1 && !tool.leftPressed()) map.beginDrag(this, mouseRay());
+			else if (button == 3) tool.rightPressed();
+			else if (button == 2) pickBlock();
+			return;
+		}
 		if (button == 1) {
 			if (ctrl) {
 				camera.down = false;
@@ -667,6 +680,10 @@ public final class Editor {
 
 	public void onScroll(double dy) {
 		if (ImGuiLayer.get().wantsMouse() || !viewport.contains(mouseX, mouseY) || dy == 0) return;
+		if (map.active()) {
+			map.zoom(this, dy, mouseRay());
+			return;
+		}
 		// arcball (after an orbit, or following an entity): zoom along the view to the pivot
 		Entity f = followed();
 		if (f != null) {
@@ -718,6 +735,10 @@ public final class Editor {
 		if (typing) return true;
 		if (setMovementKey(scancode, true)) return true;
 		if (tool.keyPressed(scancode)) return true;
+		if (scancode == InputConstants.KEY_M) {
+			map.toggle(this);
+			return true;
+		}
 		switch (scancode) {
 			case InputConstants.KEY_DELETE -> {
 				deleteSelected();
@@ -739,6 +760,11 @@ public final class Editor {
 	}
 
 	private boolean setMovementKey(int sc, boolean down) {
+		if (map.active() && down) {
+			// the map does not fly: the keys are taken but do nothing
+			return sc == InputConstants.KEY_W || sc == InputConstants.KEY_S || sc == InputConstants.KEY_A || sc == InputConstants.KEY_D
+					|| sc == InputConstants.KEY_SPACE || sc == InputConstants.KEY_LSHIFT || sc == InputConstants.KEY_LCONTROL;
+		}
 		switch (sc) {
 			case InputConstants.KEY_W -> camera.forward = down;
 			case InputConstants.KEY_S -> camera.back = down;
@@ -769,6 +795,22 @@ public final class Editor {
 	}
 
 	/** The box tool stopped editing {@code box}: deselect it in the tree, give back the earlier tool. */
+	/** A point clicked in the selection tree: as {@link #editBox}, with the point tool. */
+	public void editPoint(dev.plainsight.editor.selection.PointNode point) {
+		Tool before = toolBeforeTreeEdit != null ? toolBeforeTreeEdit : tool;
+		setTool(pointTool);
+		toolBeforeTreeEdit = before;
+		pointTool.edit(point);
+	}
+
+	public void onPointPutDown(dev.plainsight.editor.selection.PointNode point) {
+		tree.deselect(point);
+		if (switchingTool || toolBeforeTreeEdit == null) return;
+		Tool restore = toolBeforeTreeEdit;
+		toolBeforeTreeEdit = null;
+		setTool(restore);
+	}
+
 	public void onBoxPutDown(BoxNode box) {
 		tree.deselect(box);
 		if (switchingTool || toolBeforeTreeEdit == null) return;

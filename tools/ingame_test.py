@@ -1452,6 +1452,110 @@ def test_selection_waypoint_markers():
         fresh_tree()
 
 
+def test_map_mode_camera():
+    """M switches the editor to the map: tilted like the minimap, north up; the wheel zooms towards the cursor, LMB
+    drags it, the movement keys do nothing; M again brings the 3D camera back."""
+    editor_on()
+    fresh_tree()
+    cam(2, -50, -6, 0, 30)
+    before = state()["camera"]
+    c.key(K["M"])
+    time.sleep(0.4)
+    s = state()
+    check(s["map"], "M opens the map: %s" % s["map"])
+    check(abs(s["camera"]["pitch"] - 60) < 1e-3 and abs(s["camera"]["yaw"] - 180) < 1e-3, "tilted like the minimap, north up: %s" % s["camera"])
+    try:
+        h0 = s["mapHeight"]
+        c.scroll(3, 800, 450)
+        time.sleep(0.3)
+        check(state()["mapHeight"] < h0, "the wheel zooms in: %s -> %s" % (h0, state()["mapHeight"]))
+        c.scroll(-3, 800, 450)
+        time.sleep(0.3)
+        check(abs(state()["mapHeight"] - h0) < 1e-6, "and out again")
+        x0 = state()["camera"]["pos"][0]
+        c.drag(800, 450, 900, 450, b=1)
+        time.sleep(0.3)
+        check(state()["camera"]["pos"][0] < x0 - 1, "dragging the map to the right shows what is west: %s -> %s" % (x0, state()["camera"]["pos"][0]))
+        p = state()["camera"]["pos"]
+        c.hold(K["W"], 0.4)
+        time.sleep(0.2)
+        check(state()["camera"]["pos"] == p, "W does not fly in the map")
+        check("LMB - Move Map" in state()["statusHints"] if "statusHints" in state() else True, "map hints")
+        shot("map-mode")
+    finally:
+        c.key(K["M"])
+        time.sleep(0.4)
+    s = state()
+    check(not s["map"], "M again: the 3D view")
+    check(s["camera"]["pos"] == before["pos"] and s["camera"]["pitch"] == before["pitch"], "with the 3D camera as it was: %s vs %s" % (s["camera"], before))
+
+
+def test_point_select():
+    """The point tool selects a block position with RMB (also in the map); it copies as "X Y Z" only."""
+    editor_on()
+    fresh_tree()
+    ed("selectTool", "point_select")
+    cam(2, -54, -6, 0, 35)
+    try:
+        c.click(800, 600, b=3)
+        time.sleep(0.4)
+        s = state()
+        check(len(s["tree"]) == 1 and s["tree"][0].startswith("point 1 ("), "a point in the tree: %s" % s["tree"])
+        at = [int(v) for v in s["tree"][0][len("point 1 ("):-1].split(", ")]
+        check(at[1] == -61, "on the block under the cursor (the ground): %s" % at)
+        check("copy_specs" not in s["widgets"], "a point copies its coordinates only")
+        c.click(*widget("copy_center"), b=1)
+        time.sleep(0.3)
+        check(ed("clipboard") == "%d %d %d" % tuple(at), "copied: %r" % ed("clipboard"))
+        c.key(K["ENTER"])
+        time.sleep(0.2)
+        # in the map too, at the surface under the cursor
+        c.key(K["M"])
+        time.sleep(0.5)
+        c.click(800, 450, b=3)
+        time.sleep(0.4)
+        check(len(state()["tree"]) == 2 and state()["tree"][1].startswith("point 2 ("), "a point from the map: %s" % state()["tree"])
+        shot("map-point")
+        c.key(K["M"])
+        time.sleep(0.3)
+    finally:
+        if state()["map"]:
+            c.key(K["M"])
+        fresh_tree()
+        ed("selectTool", "box_select")
+
+
+def test_map_mode_shows_player_layer():
+    """With Voxy the map is drawn like the minimap: under a roof it shows the player's layer, and the
+    editor aims at what the map shows (the ground, not the roof)."""
+    if not state()["lodMod"] or not state()["sodium"]:
+        print("      (needs Voxy, skipped)")
+        return
+    editor_off()
+    cmd("tp @s 0.5 -60 0.5 0 0")
+    cmd("fill -30 -52 -30 30 -52 30 red_wool")
+    editor_on()
+    fresh_tree()
+    r0 = int(ed("minimap").split(" ")[2])
+    try:
+        cam(0.5, -50, 0.5, 0, 30)
+        c.key(K["M"])
+        time.sleep(4)  # the roof's chunks go to Voxy again
+        check(int(ed("minimap").split(" ")[2]) > r0, "the map is rendered by a minimap pass: %s" % ed("minimap"))
+        c.move(800, 450)
+        time.sleep(0.6)
+        surface = state()["surfaceUnderCursor"]
+        check(surface and abs(float(surface.split(",")[1]) + 60) < 1.01, "under the cursor: the ground below the roof: %s" % surface)
+        shot("map-player-layer")
+        vp = (330, 100, 940, 700)
+        rgb = avg_color(os.path.join(SHOTS, "map-player-layer.png"), *vp)
+        check(rgb[0] - (rgb[1] + rgb[2]) / 2 < 30, "the roof is not on the map: %s" % (rgb,))
+    finally:
+        if state()["map"]:
+            c.key(K["M"])
+        cmd("fill -30 -52 -30 30 -52 30 air")
+
+
 def test_minimap_shows_xaero_waypoints():
     """With Xaero's Minimap installed, its waypoints are on plainsight's minimap (option)."""
     if not state()["lodMod"] or not state()["sodium"] or ed("xaeroWaypoints") == "none":

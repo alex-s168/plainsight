@@ -45,6 +45,14 @@ public final class WaypointMarkers {
 		captured = true;
 	}
 
+	/** Where a world point is on screen (window units) with the last frame's camera, or null behind it. */
+	public static float @org.jspecify.annotations.Nullable [] project(double x, double y, double z, float screenW, float screenH) {
+		if (!captured) return null;
+		Vector4f clip = viewProjection.transform(new Vector4f((float) (x - cameraPos.x), (float) (y - cameraPos.y), (float) (z - cameraPos.z), 1));
+		if (clip.w <= 0.05f) return null;
+		return new float[]{(clip.x / clip.w * 0.5f + 0.5f) * screenW, (0.5f - clip.y / clip.w * 0.5f) * screenH};
+	}
+
 	/** Whether any shown selection is a waypoint. */
 	public static boolean any() {
 		return any(Editor.get().tree.root());

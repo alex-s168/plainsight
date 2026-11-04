@@ -57,12 +57,12 @@ public final class MinimapVoxy {
 			// empty depth everywhere, so Voxy draws the LOD on every pixel
 			GL44.glClearTexImage(colour, 0, GL11.GL_RGBA, GL11.GL_FLOAT, new float[]{0.07f, 0.07f, 0.08f, 1f});
 			GL44.glClearTexImage(depth, 0, GL11.GL_DEPTH_COMPONENT, GL11.GL_FLOAT, new float[]{props.clearDepth()});
-			var proj = new org.joml.Matrix4f(Minimap.projection(props.isReverseZ(), props.isZero2One()));
+			var proj = Minimap.passProjection(props.isReverseZ(), props.isZero2One());
 			inPass = true;
 			targets.plainsight$swapMinimapTargets();
 			try {
 				var p = Minimap.cameraPos;
-				var viewport = rs.setupViewport(proj, Minimap.modelView, NO_FOG, Minimap.size, Minimap.size, p.x, p.y, p.z);
+				var viewport = rs.setupViewport(proj, Minimap.modelView, NO_FOG, Minimap.width, Minimap.height, p.x, p.y, p.z);
 				rs.renderOpaque(viewport, depth, colour);
 			} finally {
 				targets.plainsight$swapMinimapTargets();

@@ -47,7 +47,11 @@ public final class Minimap {
 	static GpuTexture colour, depth;
 	private static GpuTextureView colourView;
 	private static long imguiTexture = -1;
-	static int size;
+	static int width, height;
+	/** This frame's pass is the editor's map (M; full window, the editor camera) rather than the HUD minimap. */
+	public static boolean editorMap;
+	/** An editor map pass rendered since the last level frame took it (see {@link #takeEditorMap}). */
+	private static boolean editorMapReady;
 	/** This frame's camera: position, rotation (model view) and projection; set by {@link #prepare}. */
 	static final Vector3d cameraPos = new Vector3d();
 	static final Matrix4f modelView = new Matrix4f(), projection = new Matrix4f();
@@ -71,7 +75,7 @@ public final class Minimap {
 
 	/** A block changed in a loaded chunk (client level, render thread). */
 	public static void blockChanged(int cx, int cz) {
-		if (visible()) changed.add(net.minecraft.world.level.ChunkPos.pack(cx, cz));
+		if (visible() || editorMapWanted()) changed.add(net.minecraft.world.level.ChunkPos.pack(cx, cz));
 	}
 
 	public static void zoom(int steps) {
@@ -85,6 +89,20 @@ public final class Minimap {
 				&& !mc.gui.hud.isHidden() && !Editor.isActive();
 	}
 
+	/** Whether the editor shows its map (M) through a minimap pass (needs Voxy). */
+	public static boolean editorMapWanted() {
+		Minecraft mc = Minecraft.getInstance();
+		return Editor.isActive() && Editor.get().map.active() && dev.plainsight.guess.VoxyGuess.PRESENT && error.isEmpty()
+				&& mc.player != null && mc.level != null;
+	}
+
+	/** Whether an editor map pass is ready to be shown in the viewport (once per pass). */
+	public static boolean takeEditorMap() {
+		boolean ready = editorMapReady;
+		editorMapReady = false;
+		return ready;
+	}
+
 	/** Side of the minimap on screen, in GUI pixels (ImGui display units). */
 	static float screenSide() {
 		var w = Minecraft.getInstance().getWindow();
@@ -96,12 +114,25 @@ public final class Minimap {
 	 * from inside Voxy's frame (so before the HUD is drawn).
 	 */
 	static boolean prepare(float partialTick) {
-		if (!visible()) return false;
 		Minecraft mc = Minecraft.getInstance();
 		var w = mc.getWindow();
+		editorMap = editorMapWanted();
+		if (editorMap) {
+			// the editor's map: the frame's own camera and projection (made for the viewport), the whole
+			// window's size, so the image lines up with the editor's overlays
+			if (colour == null || w.getWidth() != width || w.getHeight() != height) allocate(w.getWidth(), w.getHeight());
+			var cam = mc.gameRenderer.gameRenderState().levelRenderState.cameraRenderState;
+			cameraPos.set(cam.pos.x, cam.pos.y, cam.pos.z);
+			modelView.set(cam.viewRotationMatrix);
+			projection.set(cam.projectionMatrix);
+			var at = mc.player.getPosition(partialTick);
+			cutY = playerLayer ? (float) Math.floor(at.y + 1e-3) + 1 : Float.MAX_VALUE;
+			return true;
+		}
+		if (!visible()) return false;
 		float scale = w.getWidth() / (float) Math.max(1, w.getScreenWidth());
 		int px = Math.max(64, Math.round(screenSide() * scale));
-		if (colour == null || px != size) allocate(px);
+		if (colour == null || px != width || px != height) allocate(px, px);
 
 		long now = System.nanoTime();
 		double dt = lastFrame == 0 ? 0 : Math.min(0.25, (now - lastFrame) / 1e9);
@@ -129,6 +160,7 @@ public final class Minimap {
 
 	/** A pass rendered the minimap this frame (through the shader pack or not). */
 	static void markRendered(boolean pack) {
+		if (editorMap) editorMapReady = true;
 		rendered++;
 		lastRendered = System.nanoTime();
 		throughPack = pack;
@@ -139,6 +171,14 @@ public final class Minimap {
 		return throughPack;
 	}
 
+	/**
+	 * The pass's projection: the game's (Voxy makes its own from it) for the editor map, else the minimap
+	 * camera's in Voxy's depth convention.
+	 */
+	static Matrix4f passProjection(boolean reverseZ, boolean zeroToOne) {
+		return editorMap ? new Matrix4f(projection) : new Matrix4f(projection(reverseZ, zeroToOne));
+	}
+
 	/** Projection in Voxy's depth convention (reverse-Z and/or 0..1 like the game's). */
 	static Matrix4f projection(boolean reverseZ, boolean zeroToOne) {
 		float near = (float) Math.max(1, distance * 0.05), far = 48000;
@@ -146,13 +186,23 @@ public final class Minimap {
 		return reverseZ ? projection.setPerspective(fov, 1, far, near, zeroToOne) : projection.setPerspective(fov, 1, near, far, zeroToOne);
 	}
 
-	private static void allocate(int px) {
+	private static void allocate(int w, int h) {
 		release();
-		target = new com.mojang.blaze3d.pipeline.TextureTarget("plainsight minimap", px, px, GpuFormat.RGBA8_UNORM, GpuFormat.D32_FLOAT);
+		target = new com.mojang.blaze3d.pipeline.TextureTarget("plainsight minimap", w, h, GpuFormat.RGBA8_UNORM, GpuFormat.D32_FLOAT);
 		colour = target.getColorTexture();
 		depth = target.getDepthTexture();
 		colourView = target.getColorTextureView();
-		size = px;
+		width = w;
+		height = h;
+	}
+
+	/** The pass's colour and depth textures and whether it went through a shader pack (editor map display). */
+	public static GpuTexture colourTexture() {
+		return colour;
+	}
+
+	public static GpuTexture depthTexture() {
+		return depth;
 	}
 
 	private static void release() {
@@ -162,7 +212,7 @@ public final class Minimap {
 		target = null;
 		colourView = null;
 		colour = depth = null;
-		size = 0;
+		width = height = 0;
 	}
 
 	/** Draws the minimap into the current ImGui frame (HUD, top right). */
@@ -241,6 +291,9 @@ public final class Minimap {
 				var e = entities.get(en.entity());
 				if (e != null) dot(dl, e.position(), abgr(dev.plainsight.render.SelectionRenderer.ENTITY), x0, y0, side, null);
 			}
+			case dev.plainsight.editor.selection.PointNode p ->
+					dot(dl, new net.minecraft.world.phys.Vec3(p.x + 0.5, p.y + 0.5, p.z + 0.5),
+							abgr(sel ? dev.plainsight.render.SelectionRenderer.BOX_SELECTED : dev.plainsight.render.SelectionRenderer.BOX), x0, y0, side, null);
 		}
 	}
 

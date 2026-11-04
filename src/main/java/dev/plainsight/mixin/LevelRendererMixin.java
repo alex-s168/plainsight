@@ -23,6 +23,7 @@ public abstract class LevelRendererMixin {
 
 	@Inject(method = "executeAlwaysOnTop", at = @At("HEAD"))
 	private void plainsight$depthBeforeOnTop(CallbackInfo ci) {
-		if (Editor.isActive()) DepthPick.sampleOnce(levelRenderState.cameraRenderState);
+		// (in the editor's map the map image replaces the level's depth after the level: read after that)
+		if (Editor.isActive() && !dev.plainsight.minimap.Minimap.editorMapWanted()) DepthPick.sampleOnce(levelRenderState.cameraRenderState);
 	}
 }

@@ -22,7 +22,7 @@ public abstract class GameRendererMixin {
 	 */
 	@Inject(method = "renderLevel", at = @At("HEAD"))
 	private void plainsight$minimapThroughPack(CallbackInfo ci) {
-		if (dev.plainsight.minimap.Minimap.visible())
+		if (dev.plainsight.minimap.Minimap.visible() || dev.plainsight.minimap.Minimap.editorMapWanted())
 			dev.plainsight.minimap.MinimapVoxy.throughPack(net.minecraft.client.Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false));
 	}
 

@@ -18,6 +18,11 @@ public final class EditorRendering {
 	public static void afterLevel(GameRenderer renderer) {
 		Editor editor = Editor.get();
 		WaypointMarkers.capture(renderer.gameRenderState().levelRenderState.cameraRenderState);
+		// the editor's map (M): its image (and depth, unless through a shader pack) replaces the level's
+		if (Editor.isActive() && dev.plainsight.minimap.Minimap.takeEditorMap()) {
+			MapBlit.blit(dev.plainsight.minimap.Minimap.colourTexture(), dev.plainsight.minimap.Minimap.throughPack() ? null
+					: dev.plainsight.minimap.Minimap.depthTexture(), renderer.mainRenderTarget(), editor.viewport);
+		}
 		// the surface under the cursor, before overlays add their own depth
 		if (Editor.isActive()) DepthPick.afterLevel(renderer.gameRenderState().levelRenderState.cameraRenderState);
 		// block and path overlays: always in the editor, in the normal game while its overlays are shown (J)

@@ -131,6 +131,8 @@ public final class BoxSelectTool implements Tool {
 		gizmo.orientation.set(editing.box().rotation);
 		gizmo.rings = active == Handle.CENTER;
 		gizmo.planes = true;
+		// in the map only across it (and turning about the vertical)
+		gizmo.allowed = editor.map.active() ? TransformGizmo.MAP_PARTS : TransformGizmo.ALL_PARTS;
 		gizmo.update(editor.camera.pos);
 	}
 

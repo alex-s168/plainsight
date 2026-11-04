@@ -97,7 +97,7 @@ public final class MinimapIris {
 			// no vanilla terrain: its depth is empty, the LOD fills everything
 			GL44.glClearTexImage(colour, 0, GL11.GL_RGBA, GL11.GL_FLOAT, new float[]{0, 0, 0, 1});
 			GL44.glClearTexImage(depth, 0, GL11.GL_DEPTH_COMPONENT, GL11.GL_FLOAT, new float[]{props.clearDepth()});
-			var proj = new Matrix4f(Minimap.projection(props.isReverseZ(), props.isZero2One()));
+			var proj = Minimap.passProjection(props.isReverseZ(), props.isZero2One());
 			state.setGbufferModelView(Minimap.modelView);
 			state.setGbufferProjection(MatrixUtils.undoRevZ(new Matrix4f(proj)));
 			pm.plainsight$setPipeline(iris);
@@ -114,7 +114,7 @@ public final class MinimapIris {
 			GL11.glStencilMask(0xFF);
 			try {
 				var p = Minimap.cameraPos;
-				var viewport = rs.setupViewport(proj, Minimap.modelView, MinimapVoxy.NO_FOG, Minimap.size, Minimap.size, p.x, p.y, p.z);
+				var viewport = rs.setupViewport(proj, Minimap.modelView, MinimapVoxy.NO_FOG, Minimap.width, Minimap.height, p.x, p.y, p.z);
 				rs.renderOpaque(viewport, depth, colour);
 			} finally {
 				GL11.glStencilMask(stencilMask);
@@ -204,7 +204,7 @@ public final class MinimapIris {
 		}
 		GL45.glNamedFramebufferTexture(holeFramebuffer, GL30.GL_COLOR_ATTACHMENT0, colour, 0);
 		GlStateManager._glBindFramebuffer(GL30.GL_FRAMEBUFFER, holeFramebuffer);
-		GlStateManager._viewport(0, 0, Minimap.size, Minimap.size);
+		GlStateManager._viewport(0, 0, Minimap.width, Minimap.height);
 		GlStateManager._disableDepthTest();
 		GlStateManager._disableBlend(0);
 		GlStateManager._disableScissorTest();
@@ -214,7 +214,7 @@ public final class MinimapIris {
 		GlStateManager._glUseProgram(holeProgram);
 		GL20.glUniform1i(GL20.glGetUniformLocation(holeProgram, "voxyDepth"), 0);
 		GL20.glUniform1f(GL20.glGetUniformLocation(holeProgram, "clearDepth"), props.clearDepth());
-		GL20.glUniform2f(GL20.glGetUniformLocation(holeProgram, "size"), Minimap.size, Minimap.size);
+		GL20.glUniform2f(GL20.glGetUniformLocation(holeProgram, "size"), Minimap.width, Minimap.height);
 		GlStateManager._activeTexture(GL13.GL_TEXTURE0);
 		GlStateManager._bindTexture(voxy.fb.getDepthTex().id);
 		GL33.glBindSampler(0, holeSampler);

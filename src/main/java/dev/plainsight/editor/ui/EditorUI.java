@@ -137,6 +137,7 @@ public final class EditorUI {
 		ImGui.bulletText("Ctrl + RMB drag: pan   Scroll: move to/from the point under the cursor");
 		ImGui.bulletText("Follow an entity: right-click it in the tree; arcball then orbits it");
 		ImGui.bulletText("WASD: fly, Space / Shift: up / down, hold Ctrl: faster");
+		ImGui.bulletText("M: map (like the minimap, north up): scroll to zoom, LMB drag to move; selections move across it");
 		ImGui.textDisabled("Tools");
 		ImGui.bulletText("RMB: use tool   MMB: pick block");
 		ImGui.bulletText("Modules (light overlay, brightness, minimap, hide seeds): click to switch, right-click for options");
@@ -301,9 +302,32 @@ public final class EditorUI {
 		try {
 			dev.plainsight.render.WaypointMarkers.draw(dl, vp.x, vp.y, vp.x + vp.width, vp.y + vp.height, width, height,
 					(float) editor.mouseX, (float) editor.mouseY);
+			if (editor.map.active()) playerArrow(dl, width, height);
 		} finally {
 			dl.popClipRect();
 		}
+	}
+
+	/** The player on the map: an arrow pointing where it looks, as on the minimap. */
+	private void playerArrow(ImDrawList dl, float width, float height) {
+		var player = Minecraft.getInstance().player;
+		if (player == null) return;
+		var p = player.getPosition(Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false));
+		float[] s = dev.plainsight.render.WaypointMarkers.project(p.x, p.y, p.z, width, height);
+		double a = Math.toRadians(player.getYRot());
+		// its facing on screen: where a point a block ahead of it is drawn (the map is tilted)
+		float[] ahead = dev.plainsight.render.WaypointMarkers.project(p.x - Math.sin(a), p.y, p.z + Math.cos(a), width, height);
+		if (s == null || ahead == null) return;
+		float fx = ahead[0] - s[0], fy = ahead[1] - s[1], len = (float) Math.hypot(fx, fy);
+		if (len < 1e-3f) return;
+		fx /= len;
+		fy /= len;
+		float r = 9;
+		float tx = s[0] + fx * r, ty = s[1] + fy * r;
+		float lx = s[0] - fx * r * 0.6f - fy * r * 0.7f, ly = s[1] - fy * r * 0.6f + fx * r * 0.7f;
+		float rx = s[0] - fx * r * 0.6f + fy * r * 0.7f, ry = s[1] - fy * r * 0.6f - fx * r * 0.7f;
+		dl.addTriangleFilled(tx, ty, lx, ly, rx, ry, 0xFFFFFFFF);
+		dl.addTriangle(tx, ty, lx, ly, rx, ry, 0xFF000000, 1.5f);
 	}
 
 	// -- viewport buttons -------------------------------------------------------------------------------------
@@ -318,6 +342,14 @@ public final class EditorUI {
 		ImGui.popStyleVar();
 		try {
 			guarded("viewport buttons", () -> {
+				boolean map = editor.map.active();
+				if (map) ImGui.pushStyleColor(ImGuiCol.Button, 0xFFB06A33);
+				if (ImGui.button(map ? "Map (M)" : "3D (M)", 0, 30)) editor.map.toggle(editor);
+				if (map) ImGui.popStyleColor();
+				rect("view_map");
+				tooltip(map ? "Map" : "3D view", "M switches between the 3D view (fly, look, arcball) and the map (tilted like the minimap, north up: "
+						+ "scroll to zoom, drag to move; selections are moved across it).");
+				ImGui.sameLine(0, 6);
 				Module[] buttons = {editor.fluids, editor.seeThrough, editor.blockOverlayDemo, editor.pathDemo};
 				String[] labels = {"Fluids", "See-through", "Block overlay", "Path overlay"};
 				for (int i = 0; i < buttons.length; i++) {
@@ -437,9 +469,12 @@ public final class EditorUI {
 			if (!ctrl && n == editor.boxTool.editing()) {
 				// clicking the box being moved again puts it down
 				editor.boxTool.stopEditing();
+			} else if (!ctrl && n == editor.pointTool.editing()) {
+				editor.pointTool.stopEditing();
 			} else {
 				tree.select(n, ctrl);
 				if (n instanceof BoxNode b && tree.selected().contains(n)) editor.editBox(b);
+				else if (n instanceof dev.plainsight.editor.selection.PointNode p && tree.selected().contains(n)) editor.editPoint(p);
 				else if (!ctrl) editor.boxTool.stopEditing();
 			}
 		}
@@ -540,6 +575,11 @@ public final class EditorUI {
 				int c = shown ? 0xFFFFE040 : 0xFF606060; // ABGR: cyan
 				dl.addCircleFilled(x + 7, cy - 3, 3f, c);
 				dl.addRectFilled(x + 3, cy + 1, x + 11, cy + 7, c, 2f);
+			}
+			case dev.plainsight.editor.selection.PointNode p -> {
+				int c = shown ? 0xFF40E0FF : 0xFF606060; // ABGR: yellow, as boxes
+				dl.addCircle(x + 7, cy, 5f, c, 14, 1.6f);
+				dl.addCircleFilled(x + 7, cy, 1.8f, c, 8);
 			}
 		}
 	}
@@ -693,6 +733,7 @@ public final class EditorUI {
 				boolean loaded = mc.level != null && mc.level.getEntity(e.entity()) != null;
 				ImGui.textDisabled(loaded ? "loaded" : "not loaded");
 			}
+			case dev.plainsight.editor.selection.PointNode p -> ImGui.textDisabled("at " + p.x + " " + p.y + " " + p.z);
 		}
 		if (ImGui.button("Focus")) editor.focus(n);
 		copyButtons(List.of(n));
@@ -707,7 +748,7 @@ public final class EditorUI {
 		boolean onlyEntities = true;
 		for (SelectionNode n : nodes) {
 			all.add(dev.plainsight.render.SelectionRenderer.bounds(editor, n));
-			if (!(n instanceof EntityNode)) onlyEntities = false;
+			if (!(n instanceof EntityNode) && !(n instanceof dev.plainsight.editor.selection.PointNode)) onlyEntities = false;
 		}
 		double[] b = dev.plainsight.editor.selection.SelectionText.union(all);
 		if (b == null) ImGui.beginDisabled();
@@ -745,7 +786,9 @@ public final class EditorUI {
 
 	private void statusContents(float w) {
 		boolean ctrl = editor.ctrl;
-		String[] hints = ctrl
+		String[] hints = editor.map.active()
+				? new String[]{"LMB - Move Map", "Scroll - Zoom", "M - 3D View", editor.tool().hints()}
+				: ctrl
 				? new String[]{"Ctrl+LMB - Arcball Camera", "Ctrl+Shift+LMB - Arcball through rock", "Ctrl+RMB - Pan Camera"}
 				: new String[]{"LMB - Rotate Camera", "MMB - Pick Block", editor.tool().hints()};
 		for (int i = 0; i < hints.length; i++) {

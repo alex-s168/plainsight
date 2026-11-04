@@ -6,9 +6,9 @@ import java.util.UUID;
 
 /**
  * An element of the selection tree. Every node is a selection on its own: a group is the union of its
- * children, a box selects the blocks inside it, an entity node selects one entity.
+ * children, a box selects the blocks inside it, an entity node selects one entity, a point one position.
  */
-public abstract sealed class SelectionNode permits GroupNode, BoxNode, EntityNode {
+public abstract sealed class SelectionNode permits GroupNode, BoxNode, EntityNode, PointNode {
 	private final UUID id;
 	/** Name given by the user; {@code null} shows the generated default name. */
 	private @Nullable String customName;

@@ -51,6 +51,13 @@ public final class SelectionRenderer {
 				o.aabbEdges(Overlay.Layer.WORLD, a.minX, a.minY, a.minZ, a.maxX, a.maxY, a.maxZ, c, sel ? 2.5f : 1.75f);
 				o.aabbEdges(Overlay.Layer.XRAY, a.minX, a.minY, a.minZ, a.maxX, a.maxY, a.maxZ, Overlay.withAlpha(c, 110), 1.25f);
 			}
+			case dev.plainsight.editor.selection.PointNode p -> {
+				if (p == editor.pointTool.editing()) return;
+				int c = sel ? BOX_SELECTED : BOX;
+				o.selectionBox(dev.plainsight.editor.math.OrientedBox.ofBlocks(p.x, p.y, p.z, p.x, p.y, p.z), c, sel ? 2.5f : 1.75f, sel ? 50 : 30, 0, sel ? 110 : 60);
+				// a short post above it, so a point on the ground is found from afar
+				o.line(Overlay.Layer.WORLD, p.x + 0.5, p.y + 1, p.z + 0.5, p.x + 0.5, p.y + 2.5, p.z + 0.5, c, 2f);
+			}
 		}
 	}
 
@@ -68,6 +75,7 @@ public final class SelectionRenderer {
 		for (SelectionNode leaf : dev.plainsight.editor.selection.SelectionTree.leaves(node)) {
 			double[] b = null;
 			if (leaf instanceof BoxNode box) b = box.box().bounds();
+			else if (leaf instanceof dev.plainsight.editor.selection.PointNode p) b = p.bounds();
 			else if (leaf instanceof EntityNode en && entities.get(en.entity()) != null) {
 				AABB a = Editor.renderBox(entities.get(en.entity()));
 				b = new double[]{a.minX, a.minY, a.minZ, a.maxX, a.maxY, a.maxZ};

@@ -54,6 +54,8 @@ public final class EditorDebug {
 		o.add("viewport", vp);
 		o.addProperty("mouse", e.mouseX + "," + e.mouseY);
 		o.addProperty("tool", e.tool().id());
+		o.addProperty("map", e.map.active());
+		o.addProperty("mapHeight", e.map.height());
 		o.addProperty("hints", e.tool().hints());
 		o.addProperty("statusHints", e.ui.statusHintsText);
 		o.addProperty("ctrl", e.ctrl);
@@ -411,6 +413,13 @@ public final class EditorDebug {
 		dev.plainsight.minimap.Minimap.showPlayers = Boolean.parseBoolean(players);
 		dev.plainsight.minimap.Minimap.showMobs = Boolean.parseBoolean(mobs);
 		return minimapOptions();
+	}
+
+	/** Adds a point selection at the block (x, y, z). */
+	public static String addPoint(int x, int y, int z) {
+		var p = Editor.get().tree.add(new dev.plainsight.editor.selection.PointNode(x, y, z));
+		Editor.get().tree.touch();
+		return p.name();
 	}
 
 	/** Adds a box of whole blocks (corners inclusive) to the selection tree; "hidden" adds it hidden. */

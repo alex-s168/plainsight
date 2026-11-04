@@ -41,6 +41,11 @@ public final class TransformGizmo {
 	public final Vector3d origin = new Vector3d();
 	public final Quaterniond orientation = new Quaterniond();
 	public boolean planes = true, rings = false, arrows = true;
+	/** Every part, and the map's: moving across it (X, Z, the XZ plane) and turning about the vertical. */
+	public static final java.util.Set<Part> ALL_PARTS = java.util.EnumSet.allOf(Part.class),
+			MAP_PARTS = java.util.EnumSet.of(Part.AXIS_X, Part.AXIS_Z, Part.PLANE_XZ, Part.RING_Y);
+	/** The parts that can be picked and are drawn (in the map only those that move across it). */
+	public java.util.Set<Part> allowed = ALL_PARTS;
 	public @Nullable Part hovered, active;
 
 	private final Vector3d[] dirs = {new Vector3d(), new Vector3d(), new Vector3d()};
@@ -82,6 +87,7 @@ public final class TransformGizmo {
 				Vector3d a = new Vector3d(dirs[i]).mul(size * 0.12).add(origin);
 				Vector3d b = new Vector3d(dirs[i]).mul(size * 1.12).add(origin);
 				double[] r = raySegment(rayOrigin, rayDir, a, b);
+				if (!allowed.contains(Part.values()[i])) continue;
 				if (r != null && r[1] < size * 0.075 && r[0] < bestT) {
 					bestT = r[0];
 					best = Part.values()[i];
@@ -90,6 +96,7 @@ public final class TransformGizmo {
 		}
 		if (planes) {
 			for (int n = 0; n < 3; n++) {
+				if (!allowed.contains(Part.values()[3 + n])) continue;
 				int u = (n + 1) % 3, v = (n + 2) % 3;
 				double t = rayPlane(rayOrigin, rayDir, origin, dirs[n]);
 				if (t <= 0 || t >= bestT) continue;
@@ -103,6 +110,7 @@ public final class TransformGizmo {
 		}
 		if (rings) {
 			for (int i = 0; i < 3; i++) {
+				if (!allowed.contains(Part.values()[6 + i])) continue;
 				Vector3d n = axis(i);
 				double t = rayPlane(rayOrigin, rayDir, origin, n);
 				double radius = size * 0.85, tolerance = size * 0.07;
@@ -256,7 +264,7 @@ public final class TransformGizmo {
 		if (rings) {
 			for (int i = 0; i < 3; i++) {
 				Part p = Part.values()[6 + i];
-				if (active != null && active != p) continue;
+				if (!allowed.contains(p) || active != null && active != p) continue;
 				int c = color(p, i);
 				o.ring(L, origin, axis(i), size * 0.85, c, highlighted(p) ? 5f : 3f, 72);
 			}
@@ -264,7 +272,7 @@ public final class TransformGizmo {
 		if (arrows) {
 			for (int i = 0; i < 3; i++) {
 				Part p = Part.values()[i];
-				if (active != null && active != p && !(active.isPlane() && active.axis() != i)) continue;
+				if (!allowed.contains(p) || active != null && active != p && !(active.isPlane() && active.axis() != i)) continue;
 				int c = color(p, i);
 				Vector3d a = new Vector3d(dirs[i]).mul(size * 0.12).add(origin);
 				Vector3d b = new Vector3d(dirs[i]).mul(size * 0.9).add(origin);
@@ -275,7 +283,7 @@ public final class TransformGizmo {
 		if (planes) {
 			for (int n = 0; n < 3; n++) {
 				Part p = Part.values()[3 + n];
-				if (active != null && active != p) continue;
+				if (!allowed.contains(p) || active != null && active != p) continue;
 				int u = (n + 1) % 3, v = (n + 2) % 3;
 				Vector3d du = new Vector3d(dirs[u]).mul(size), dv = new Vector3d(dirs[v]).mul(size);
 				Vector3d a = new Vector3d(origin).fma(0.25, du).fma(0.25, dv);

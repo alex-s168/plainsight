@@ -37,6 +37,21 @@ class TransformGizmoTest {
 	}
 
 	@Test
+	void theMapOnlyOffersPartsAcrossIt() {
+		Vector3d cam = new Vector3d(0, 80, 30);
+		TransformGizmo g = gizmo(cam);
+		g.allowed = TransformGizmo.MAP_PARTS;
+		// the Y arrow cannot be grabbed in the map; the X and Z arrows can
+		Vector3d onY = new Vector3d(g.dir(1)).mul(g.size() * 0.6).add(g.origin);
+		TransformGizmo.Part p = g.pick(cam, new Vector3d(onY).sub(cam).normalize());
+		assertNotEquals(TransformGizmo.Part.AXIS_Y, p);
+		for (int axis : new int[]{0, 2}) {
+			Vector3d onArrow = new Vector3d(g.dir(axis)).mul(g.size() * 0.6).add(g.origin);
+			assertEquals(TransformGizmo.Part.values()[axis], g.pick(cam, new Vector3d(onArrow).sub(cam).normalize()), "axis " + axis);
+		}
+	}
+
+	@Test
 	void picksPlaneSquaresAndRings() {
 		Vector3d cam = new Vector3d(25, 90, 35);
 		TransformGizmo g = gizmo(cam);
