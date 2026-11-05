@@ -98,11 +98,16 @@ public abstract class ShaderPatchMixin {
 				// NVIDIA's half precision path redeclares the vertex outputs
 				.replace("f16vec4 gl_Position;", "f16vec4 gl_Position;\n    float gl_ClipDistance[1];")
 				.replace(main, "\n" + CUT_UNIFORM + FLUID_UNIFORM + main)
-				.replace(main, "\nlayout(location = 6) out vec2 infiniterraMaskXZ;\nuniform ivec2 infiniterraMaskOrigin;\n" + main)
+				.replace(main, "\nlayout(location = 6) out vec2 infiniterraMaskXZ;\nuniform ivec2 infiniterraMaskOrigin;\nuniform vec3 infiniterraMaskCamera;\n" + main)
 				.replace(anchor, anchor + "\n    {\n"
 						+ "        vec2 infiniterraCorner = vec2((cornerId>>1)&1u, cornerId&1u)*quad.lodScale;\n"
 						+ "        vec3 infiniterraP = quad.basePoint + swizzelDataAxis(quad.axis, vec3(quad.quadSizeAddin*infiniterraCorner, 0));\n"
-						+ "        infiniterraMaskXZ = vec2((baseSectionPos.xz<<5) - infiniterraMaskOrigin) + infiniterraP.xz;\n"
+						// a little further from the camera: a visible face's block is behind it, and a face on a chunk
+						// border (at far LOD levels every voxel side is one) would otherwise read either chunk's cell by
+						// rounding, so guessed walls next to real chunks flickered through in game
+						+ "        vec3 infiniterraW = vec3((baseSectionPos<<5) - ivec3(infiniterraMaskOrigin.x, 0, infiniterraMaskOrigin.y)) + infiniterraP;\n"
+						+ "        vec3 infiniterraAway = infiniterraW - infiniterraMaskCamera;\n"
+						+ "        infiniterraMaskXZ = infiniterraW.xz + (dot(infiniterraAway, infiniterraAway) > 0.0 ? normalize(infiniterraAway).xz * 0.05 : vec2(0.0));\n"
 						+ "    }")
 				// fluid opacity 0: fluid quads collapse to a point (nothing is drawn, not even depth)
 				.replace(anchor, anchor + "\n    if (infiniterraFluidAlpha <= 0.0 && (modelData[extractStateId(quadData[uint(gl_VertexID)>>2])].flagsA & "

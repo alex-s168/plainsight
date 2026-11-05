@@ -411,7 +411,7 @@ final class VoxyGuessImpl {
 		VoxyGuessMask.hide = !guessed && rendered == g && g != null;
 		GuessWorld w = world;
 		if (w != null && rendered == g && g != null && mc.gameRenderer != null)
-			VoxyGuessMask.update(w, mc.gameRenderer.mainCamera().position().x, mc.gameRenderer.mainCamera().position().z);
+			VoxyGuessMask.update(w, mc.gameRenderer.mainCamera().position().x, mc.gameRenderer.mainCamera().position().y, mc.gameRenderer.mainCamera().position().z);
 		if (keep) guessed = true;
 		try {
 			if (guessed && g != null && rendered != g) {
