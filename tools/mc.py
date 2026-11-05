@@ -79,6 +79,13 @@ class Client:
     def world(self, name="plainsight-dev", mode="creative", preset="flat"):
         return self.call("/world", name=name, mode=mode, preset=preset)
 
+
+    def world(self, name="plainsight-dev", mode="creative", preset="flat", seed=None):
+        """Opens the world, or creates it (preset flat or normal; a normal world's seed is 12345 unless given)."""
+        if seed is None:
+            return self.call("/world", name=name, mode=mode, preset=preset)
+        return self.call("/world", name=name, mode=mode, preset=preset, seed=str(seed))
+
     def static(self, cls, method, *args):
         return self.call("/static", **{"class": cls, "method": method, "args": ",".join(str(a) for a in args)})
 
