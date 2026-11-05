@@ -94,7 +94,9 @@ final class VoxyGuessImpl {
 		if (e == null || instance == null || !e.isLive()) return false;
 		MIRRORING.set(true);
 		try {
-			if (realSections == 0) return instance.getIngestService().enqueueIngest(e, chunk);
+			// Voxy's own ingest refuses a chunk none of whose sections has light data yet (the worldgen server
+			// under load): then ingest it section by section as below, with whatever light there is
+			if (realSections == 0 && instance.getIngestService().enqueueIngest(e, chunk)) return true;
 			var light = chunk.getLevel().getLightEngine();
 			var blockLayer = light.getLayerListener(net.minecraft.world.level.LightLayer.BLOCK);
 			var skyLayer = light.getLayerListener(net.minecraft.world.level.LightLayer.SKY);

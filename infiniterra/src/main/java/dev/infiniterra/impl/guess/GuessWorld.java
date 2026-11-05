@@ -56,6 +56,9 @@ public final class GuessWorld {
 	private volatile net.minecraft.server.MinecraftServer server;
 	/** Chunks that show guessed terrain, and chunks the client has really seen (which never show guesses). */
 	private final LongOpenHashSet guessed = new LongOpenHashSet(), real = new LongOpenHashSet(), inFlight = new LongOpenHashSet();
+	/** Chunks Voxy refused to ingest, and how often (this session). */
+	private final it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap refused = new it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap();
+	private static final int MAX_REFUSALS = 3;
 	/** 2x2-chunk LOD columns already looked up in the normal LOD world. Kept between sessions. */
 	private final LongOpenHashSet columns = new LongOpenHashSet();
 	/**
@@ -420,9 +423,15 @@ public final class GuessWorld {
 			level.getChunkSource().getChunkFuture(cx, cz, ChunkStatus.FULL, true).whenCompleteAsync((result, err) -> {
 				boolean ok = false;
 				if (err == null && result.orElse(null) instanceof LevelChunk chunk) {
-					if (!VoxyGuess.ingestGuessed(chunk, realSections)) failed++;
-					// done either way: a chunk Voxy refused is not asked for again
-					ok = true;
+					if (VoxyGuess.ingestGuessed(chunk, realSections)) ok = true;
+					else {
+						failed++;
+						// asked for again by tick() (marking it done left a hole in the LOD for good); after a few
+						// refusals it counts as done, so a guessed world Voxy cannot take is not asked forever
+						synchronized (this) {
+							ok = refused.addTo(key, 1) + 1 >= MAX_REFUSALS;
+						}
+					}
 				} else if (err != null) {
 					failed++;
 				}
