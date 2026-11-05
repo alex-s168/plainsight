@@ -2428,6 +2428,43 @@ def test_block_overlay_demo_lit():
     check(state()["overlayBlocksSubmitted"] == 0, "disabled overlay is gone")
 
 
+def test_block_overlay_outline():
+    editor_on()
+    cmd("tp @s 0.5 -60 0.5 0 0")
+    time.sleep(0.5)
+    ed("overlayOutline", "false")
+    ed("overlayOpacity", 1.0)
+    c.click(*widget("view_block_overlay_demo"), b=1)
+    time.sleep(1.0)
+    # the hut's corner log column stands at x -3, z 5 (y -59..-56); look at it from outside
+    cam(-9, -54, -3, -40, 20)
+    time.sleep(0.8)
+    check(state()["overlayOutlineEdges"] == 0, "no outline while it is off")
+    off = shot("block-overlay-no-outline")
+    ed("overlayOutline", "true")
+    time.sleep(0.6)
+    edges = state()["overlayOutlineEdges"]
+    check(edges > 100, "outline edges drawn: %s" % edges)
+    on = shot("block-overlay-outline")
+    vp = state()["viewport"]
+    # the corner edge of the hut: outline pixels there, blue (0x60C0FF)
+    x, y = map(float, ed("project", -3.01, -57.5, 4.99).split(","))
+    changed = changed_pixels(off, on, int(x) - 6, int(y) - 6, 12, 12)
+    col = avg_color(on, int(x) - 1, int(y) - 1, 3, 3)
+    print("      outline edges", edges, "changed at the corner", changed, "colour", col)
+    check(changed >= 12, "the outline shows at the hut's corner: %s pixels" % changed)
+    check(col[2] > col[0] + 40, "the outline is drawn in its colour: %s" % (col,))
+    # flat surfaces are not gridded: the middle of a wall barely changes
+    x, y = map(float, ed("project", -3.01, -58.5, 7.5).split(","))
+    flat = changed_pixels(off, on, int(x) - 6, int(y) - 6, 12, 12)
+    check(flat <= 6, "no lines between blocks of a flat wall: %s pixels" % flat)
+    ed("overlayOutline", "false")
+    ed("overlayOpacity", 0.65)
+    c.click(*widget("view_block_overlay_demo"), b=1)
+    time.sleep(0.5)
+    check(state()["overlayOutlineEdges"] == 0, "outline gone with the overlay")
+
+
 def test_path_overlay_demo():
     editor_on()
     # facing the oak wall (x 4..8, y -60..-57, z 8..10): the plan has to tunnel through it
