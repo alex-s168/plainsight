@@ -76,10 +76,6 @@ class Client:
             params["pause"] = str(bool(pause)).lower()
         return self.call("/focus", **params)
 
-    def world(self, name="plainsight-dev", mode="creative", preset="flat"):
-        return self.call("/world", name=name, mode=mode, preset=preset)
-
-
     def world(self, name="plainsight-dev", mode="creative", preset="flat", seed=None):
         """Opens the world, or creates it (preset flat or normal; a normal world's seed is 12345 unless given)."""
         if seed is None:

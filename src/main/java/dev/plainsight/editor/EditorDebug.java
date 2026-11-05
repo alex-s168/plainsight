@@ -315,6 +315,9 @@ public final class EditorDebug {
 
 	public static String fluidOpacity(float opacity) {
 		Editor.get().fluids.setOpacity(opacity);
+		return "ok";
+	}
+
 	public static String lodDistanceScale() {
 		return Float.toString(Editor.lodDistanceScale());
 	}
