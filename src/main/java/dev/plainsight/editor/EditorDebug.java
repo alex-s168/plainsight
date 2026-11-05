@@ -599,6 +599,35 @@ public final class EditorDebug {
 		return "ok";
 	}
 
+	private static GroupNode groupTitled(String title) {
+		if (title.isEmpty()) return null;
+		GroupNode[] found = {null};
+		Editor.get().tree.root().forEach(n -> {
+			if (found[0] == null && n instanceof GroupNode g && n.title().equals(title)) found[0] = g;
+		});
+		if (found[0] == null) throw new IllegalArgumentException("no group " + title);
+		return found[0];
+	}
+
+	/** Adds a group (in the group titled {@code parent}, "" for the top level), "open" or "closed". */
+	public static String addGroup(String parent, String name, String open) {
+		var t = Editor.get().tree;
+		GroupNode g = t.add(new GroupNode(), groupTitled(parent), -1);
+		t.rename(g, name);
+		g.expanded = "open".equals(open);
+		t.touch();
+		return g.title();
+	}
+
+	/** Adds a named point to the group titled {@code parent} ("" for the top level). */
+	public static String addPointTo(String parent, String name, int x, int y, int z) {
+		var t = Editor.get().tree;
+		var p = t.add(new dev.plainsight.editor.selection.PointNode(x, y, z), groupTitled(parent), -1);
+		t.rename(p, name);
+		t.touch();
+		return p.title();
+	}
+
 	/** Renames the first node whose tree title is {@code title}. */
 	public static String renameNode(String title, String name) {
 		SelectionNode[] found = {null};

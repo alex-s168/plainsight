@@ -10,6 +10,11 @@ import java.util.function.Consumer;
 public final class GroupNode extends SelectionNode {
 	final List<SelectionNode> children = new ArrayList<>();
 	public boolean expanded = true;
+	/**
+	 * A group of detected structures (the read-only groups planned in #26, e.g. "Nether portals"): its members
+	 * have about the same names, so the tree search does not open it. Not saved.
+	 */
+	public boolean detected;
 
 	public GroupNode() {
 		this(UUID.randomUUID());
