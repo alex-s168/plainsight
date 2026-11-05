@@ -2331,6 +2331,18 @@ def test_lod_covers_loaded_edge_from_outside():
     time.sleep(1)
     check(frames() > n, "outside them Voxy draws its LOD over the loaded chunks too (%d -> %d frames)" % (n, frames()))
     shot("lod-edge-from-outside")
+    # just inside the outermost loaded chunk (a corner of the rounded loaded area is like this): the camera
+    # sees the edge's cut sides from outside, so the LOD covers them too; further in Voxy keeps its bounds
+    ed("setCamera", px, py + 60, edge - 8, 180, 40)
+    time.sleep(2)
+    s = state()
+    check(not s["cameraOutsideLoaded"] and s["cameraAtLoadedEdge"], "inside the outermost chunk the camera is at the edge: %s %s" % (s["cameraOutsideLoaded"], s["cameraAtLoadedEdge"]))
+    n = frames()
+    time.sleep(1)
+    check(frames() > n, "at the edge Voxy draws its LOD over the loaded chunks too (%d -> %d frames)" % (n, frames()))
+    ed("setCamera", px, py + 60, edge - 16 * 4 - 8, 180, 40)
+    time.sleep(2)
+    check(not state()["cameraAtLoadedEdge"], "four chunks further in it is not")
     ed("setCamera", px, py + 10, pz - 10, 0, 30)
 
 
