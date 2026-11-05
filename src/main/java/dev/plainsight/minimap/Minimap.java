@@ -61,7 +61,7 @@ public final class Minimap {
 	private static final CameraPass.Source SOURCE = new CameraPass.Source() {
 		@Override
 		public boolean wanted() {
-			return visible() || editorMapWanted();
+			return visible() || editorMapWanted() && !holdingEditorMap();
 		}
 
 		@Override
@@ -144,9 +144,35 @@ public final class Minimap {
 				&& mc.player != null && mc.level != null;
 	}
 
-	/** Whether an editor map pass is ready to be shown in the viewport (once per pass). */
+	/**
+	 * Window size (width << 32 | height) of the editor map image kept while the game is paused, -1 for none.
+	 * Paused, nothing the map shows can change (the world stands still and the editor camera gets no
+	 * input), so after one pass the image is shown again instead of rendering the map every frame (#53).
+	 */
+	private static long heldMapSize = -1;
+	/** Whether the paused editor map keeps its image (off only to measure, see EditorDebug.pausedThrottle). */
+	public static boolean holdPausedMap = true;
+
+	/** Whether the editor map shows its last image again this frame instead of a new pass. */
+	public static boolean holdingEditorMap() {
+		Minecraft mc = Minecraft.getInstance();
+		if (heldMapSize == -1) return false;
+		var w = mc.getWindow();
+		if (mc.isPaused() && heldMapSize == ((long) w.getWidth() << 32 | w.getHeight())) return true;
+		heldMapSize = -1;
+		return false;
+	}
+
+	/** Whether an editor map image is ready to be shown in the viewport: a new pass, or the held one while paused. */
 	public static boolean takeEditorMap() {
-		return CameraPass.takeRendered() && editorMap;
+		Minecraft mc = Minecraft.getInstance();
+		boolean fresh = CameraPass.takeRendered() && editorMap;
+		if (fresh && mc.isPaused() && holdPausedMap) {
+			var w = mc.getWindow();
+			heldMapSize = (long) w.getWidth() << 32 | w.getHeight();
+			return true;
+		}
+		return fresh || editorMap && editorMapWanted() && holdingEditorMap() && CameraPass.colourView() != null;
 	}
 
 	/** Side of the minimap on screen, in GUI pixels (ImGui display units). */

@@ -13,6 +13,8 @@ public final class EditorRendering {
 	private static final OverlayRenderer OVERLAY = new OverlayRenderer();
 	private static boolean textInput;
 	public static long frames;
+	/** Frames that showed the editor map's image (tests). */
+	public static long mapBlits;
 
 	private EditorRendering() {
 	}
@@ -22,6 +24,7 @@ public final class EditorRendering {
 		WaypointMarkers.capture(renderer.gameRenderState().levelRenderState.cameraRenderState);
 		// the editor's map (M): its image (and depth, unless through a shader pack) replaces the level's
 		if (Editor.isActive() && dev.plainsight.minimap.Minimap.takeEditorMap()) {
+			mapBlits++;
 			MapBlit.blit(CameraPass.colour(), CameraPass.throughPack() ? null : CameraPass.depth(), renderer.mainRenderTarget(), editor.viewport);
 		}
 		// the surface under the cursor, before overlays add their own depth
