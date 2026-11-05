@@ -42,6 +42,17 @@ public final class SeedServer {
 		return server instanceof GuessServer;
 	}
 
+	/** The name of a worldgen server's thread (set before it starts). */
+	public static final String THREAD_NAME = "InfiniTerra worldgen server";
+
+	/**
+	 * Whether this thread is a worldgen server's: the game's server events (Fabric's lifecycle, level and
+	 * chunk events) fire on it for these servers too, and other mods must not take them for the game's.
+	 */
+	public static boolean onWorldgenThread() {
+		return THREAD_NAME.equals(Thread.currentThread().getName());
+	}
+
 	/** The seed's server (started if needed); a failed one is started anew. */
 	public static SeedServer acquire(long seed) {
 		SeedServer s = BY_SEED.get(seed);

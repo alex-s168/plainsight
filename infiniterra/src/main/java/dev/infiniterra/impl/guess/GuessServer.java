@@ -75,9 +75,12 @@ final class GuessServer extends MinecraftServer {
 			}, WorldStem::new, Util.backgroundExecutor(), Util.backgroundExecutor()).get();
 			access.saveDataTag(stem.worldDataAndGenSettings().data());
 			Minecraft mc = Minecraft.getInstance();
-			GuessServer server = MinecraftServer.spin(t -> new GuessServer(t, access, packs, stem, mc.getFixerUpper(), mc.services()));
-			server.getRunningThread().setName("InfiniTerra worldgen server");
-			server.getRunningThread().setPriority(Thread.NORM_PRIORITY - 1);
+			GuessServer server = MinecraftServer.spin(t -> {
+				// named before it starts: other mods' server events on this thread are recognised (SeedServer)
+				t.setName(SeedServer.THREAD_NAME);
+				t.setPriority(Thread.NORM_PRIORITY - 1);
+				return new GuessServer(t, access, packs, stem, mc.getFixerUpper(), mc.services());
+			});
 			return server;
 		} catch (Exception | Error e) {
 			access.safeClose();
