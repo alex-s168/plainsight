@@ -44,13 +44,20 @@ public abstract class PassRenderSystemMixin {
 
 	/**
 	 * Voxy leaves out the LOD where the game draws its loaded chunks (their bounds go into the viewport's
-	 * depth bounds); the camera pass has no game terrain, so it draws the LOD there too (as when Voxy alone
-	 * renders everything).
+	 * depth bounds). The camera pass has no game terrain, so it draws the LOD there too (as when Voxy alone
+	 * renders everything). So does an editor camera outside the loaded chunks: looking at their edge from
+	 * outside, the outermost chunks the game draws show their cut side (its faces are culled against the
+	 * next ring, loaded but not drawn), and the LOD of the columns along the edge is what covers it; the
+	 * LOD is then depth-tested against the terrain instead ({@link RenderPipelineMixin}) (#12).
 	 */
 	@WrapOperation(method = "renderOpaque", at = @At(value = "INVOKE",
 			target = "Lme/cortex/voxy/client/core/rendering/bounding/BoundRenderer;render(Lme/cortex/voxy/client/core/rendering/Viewport;Lme/cortex/voxy/client/core/rendering/bounding/IBoundStore;)V"))
 	private void infiniterra$noChunkBounds(BoundRenderer renderer, Viewport<?> viewport, IBoundStore store, Operation<Void> original) {
-		if (PassVoxy.inPass) viewport.depthBoundingBuffer.clear(properties.inverseClearDepth());
-		else original.call(renderer, viewport, store);
+		if (PassVoxy.inPass || dev.infiniterra.impl.CameraState.outsideLoaded) {
+			viewport.depthBoundingBuffer.clear(properties.inverseClearDepth());
+			if (!PassVoxy.inPass) dev.infiniterra.impl.CameraState.lodWithoutBounds++;
+		} else {
+			original.call(renderer, viewport, store);
+		}
 	}
 }

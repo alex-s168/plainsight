@@ -2279,6 +2279,35 @@ def test_minimap_through_shader_pack():
     shot("minimap-pack-hud")
 
 
+def test_lod_covers_loaded_edge_from_outside():
+    """From an editor camera outside the loaded chunks, looking at their edge, the outermost chunks the game
+    draws show their cut side (its faces are culled against the next ring, loaded but not drawn). Voxy's LOD
+    then covers the loaded chunks too (no chunk bounds, depth-tested against the terrain), so the edge is
+    covered instead of leaving holes to the sky (#12). Inside the loaded chunks Voxy keeps its bounds."""
+    if not state()["lodMod"] or not state()["sodium"]:
+        print("      (needs Voxy, skipped)")
+        return
+    D = "dev.infiniterra.api.DetachedCamera"
+    frames = lambda: int(c.static(D, "lodWithoutBoundsFrames"))
+    editor_on()
+    px, py, pz = state()["player"]
+    ed("setCamera", px, py + 60, pz + 0.5, 180, 40)
+    time.sleep(2)
+    n = frames()
+    time.sleep(1)
+    check(not state()["cameraOutsideLoaded"] and frames() == n, "over the loaded chunks Voxy keeps its chunk bounds")
+    rd = int(re.search(r"D: (\d+)", state()["sodiumChunks"]).group(1))
+    edge = (int(pz) >> 4) * 16 + rd * 16 + 16
+    ed("setCamera", px, py + 60, edge + 72, 180, 40)
+    time.sleep(3)
+    check(state()["cameraOutsideLoaded"], "the camera is outside the loaded chunks")
+    n = frames()
+    time.sleep(1)
+    check(frames() > n, "outside them Voxy draws its LOD over the loaded chunks too (%d -> %d frames)" % (n, frames()))
+    shot("lod-edge-from-outside")
+    ed("setCamera", px, py + 10, pz - 10, 0, 30)
+
+
 def test_guess_prefers_real_lod():
     """Terrain Voxy already has (here: flat land loaded far from spawn, then unloaded) is copied into the
     guessed view instead of generated (the seed's generator would make hills there)."""
