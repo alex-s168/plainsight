@@ -43,7 +43,7 @@ import java.util.Optional;
  * A private, headless server that only generates terrain: a vanilla world (default world preset, the
  * given seed) without players, in its own folder. Chunks are asked for through
  * {@link net.minecraft.server.level.ServerChunkCache#getChunkFuture} on its thread and unload again like any
- * chunk without a ticket; they are not saved (Voxy keeps the result).
+ * chunk without a ticket; they are saved, with the real chunks the client has seen mirrored in (WorldMirror).
  */
 final class GuessServer extends MinecraftServer {
 	private final LocalSampleLogger tickTimes = new LocalSampleLogger(1);
@@ -91,8 +91,7 @@ final class GuessServer extends MinecraftServer {
 	@Override
 	protected boolean initServer() {
 		loadLevel();
-		// Voxy keeps what was generated; the chunks themselves need not be written to disk
-		for (var level : getAllLevels()) level.noSave = true;
+		// the world is kept: it mirrors the real chunks the client has seen (WorldMirror)
 		return true;
 	}
 
