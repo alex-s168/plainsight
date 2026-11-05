@@ -13,6 +13,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class BlockChangeMixin {
 	@Inject(method = "sendBlockUpdated", at = @At("TAIL"))
 	private void infiniterra$blockChanged(BlockPos pos, BlockState old, BlockState updated, int flags, CallbackInfo ci) {
-		if (old != updated) dev.infiniterra.impl.pass.Passes.blockChanged(pos.getX() >> 4, pos.getZ() >> 4);
+		if (old != updated) {
+			dev.infiniterra.impl.pass.Passes.blockChanged(pos.getX() >> 4, pos.getZ() >> 4);
+			dev.infiniterra.impl.guess.WorldMirror.blockChanged(pos.getX() >> 4, pos.getZ() >> 4);
+		}
 	}
 }

@@ -2350,6 +2350,35 @@ def test_zz_leave_world_with_guessed_terrain():
     c.command("plainsight seed clear")
 
 
+def test_worldgen_world_mirrors_the_real_one():
+    """With a seed, the worldgen server's world copies the real chunks the client has, and block changes in
+    them: here in the flat test world its chunks become flat, far ones stay generated from the seed."""
+    W = "dev.infiniterra.impl.guess.WorldMirror"
+    cmd("tp @s 0.5 -60 0.5 0 0")
+    before = int(c.static(W, "counts").split()[0])  # (the count runs on from earlier tests)
+    c.command("plainsight seed 12345")
+    try:
+        deadline = time.time() + 120
+        while time.time() < deadline and int(c.static(W, "counts").split()[0]) < before + 20:
+            time.sleep(1)
+        check(int(c.static(W, "counts").split()[0]) >= before + 20, "real chunks are copied: %s" % c.static(W, "counts"))
+        time.sleep(2)
+        # the flat world: grass (or dirt under blocks) at -61, air above; generated terrain has rock there
+        surface, above = c.static(W, "serverBlock", 20, -61, 20), c.static(W, "serverBlock", 20, -40, 20)
+        check(("grass_block" in surface or "dirt" in surface) and "air" in above,
+              "near the player the worldgen world is the flat world: %s / %s" % (surface, above))
+        far = c.static(W, "serverBlock", 50008, -61, 50008)
+        check("grass_block" not in far and "dirt" not in far and "air" not in far, "far away it is generated from the seed: %s" % far)
+        cmd("setblock 9 -60 9 gold_block")
+        deadline = time.time() + 15
+        while time.time() < deadline and "gold_block" not in c.static(W, "serverBlock", 9, -60, 9):
+            time.sleep(0.5)
+        check("gold_block" in c.static(W, "serverBlock", 9, -60, 9), "a block placed in the real world reaches it: %s" % c.static(W, "serverBlock", 9, -60, 9))
+    finally:
+        cmd("setblock 9 -60 9 air")
+        c.command("plainsight seed clear")
+
+
 def test_distant_horizons_keeps_its_world():
     """With Distant Horizons, a worldgen server starting (a seed set) does not replace DH's world, and a chunk
     generated from the seed can be given to DH's LOD (the prototype of a DH backend, #48)."""
