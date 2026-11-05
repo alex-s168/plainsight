@@ -46,7 +46,8 @@ what the tool is doing and closes ImGui popups.
 
 ### World view (the labelled buttons at the top of the viewport; right-click a button for settings)
 
-* **Transparent fluids**: water and lava drawn translucent (opacity slider, 0 = hidden).
+* **Transparent fluids**: water and lava drawn translucent (opacity slider, 0 = hidden). With Voxy this
+  reaches the LOD too (water takes the opacity, lava is hidden at 0), as shader state without a re-mesh.
 * **See-through to players** (RTS cutaway): a cone from the camera that widens to a large area around
   each player (radius sliders for both ends) is drawn faintly (opacity slider, 0 = hidden), optionally
   for other players too; the ground the player stands on stays. Blocks around the cut are meshed as if

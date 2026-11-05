@@ -77,6 +77,9 @@ public abstract class ShaderPatchMixin {
 	 */
 	private static final String CUT_UNIFORM = "#ifndef INFINITERRA_CUT\n#define INFINITERRA_CUT\nuniform float infiniterraCutY = 1e30;\n#endif\n";
 
+	/** Fluid opacity of {@link dev.infiniterra.api.TerrainStyle}, set before every LOD draw ({@link PassTerrainCutMixin}). */
+	private static final String FLUID_UNIFORM = "#ifndef INFINITERRA_FLUID\n#define INFINITERRA_FLUID\nuniform float infiniterraFluidAlpha = 1.0;\n#endif\n";
+
 	private static void patchTerrain(Identifier id, CallbackInfoReturnable<String> cir) {
 		String src = cir.getReturnValue();
 		String main = "\nvoid main() {", anchor = "interData = quad.attributeData;";
@@ -87,7 +90,10 @@ public abstract class ShaderPatchMixin {
 		cir.setReturnValue(src
 				// NVIDIA's half precision path redeclares the vertex outputs
 				.replace("f16vec4 gl_Position;", "f16vec4 gl_Position;\n    float gl_ClipDistance[1];")
-				.replace(main, "\n" + CUT_UNIFORM + main)
+				.replace(main, "\n" + CUT_UNIFORM + FLUID_UNIFORM + main)
+				// fluid opacity 0: fluid quads collapse to a point (nothing is drawn, not even depth)
+				.replace(anchor, anchor + "\n    if (infiniterraFluidAlpha <= 0.0 && (modelData[extractStateId(quadData[uint(gl_VertexID)>>2])].flagsA & "
+						+ dev.infiniterra.impl.style.VoxyStyle.FLUID_FLAG + "u) != 0u) gl_Position = vec4(0.0);")
 				.replace(anchor, anchor + "\n    {\n"
 						+ "        vec2 infiniterraMask = vec2((cornerId>>1)&1u, cornerId&1u)*quad.lodScale;\n"
 						+ "        vec3 infiniterraPoint = quad.basePoint + swizzelDataAxis(quad.axis, vec3(quad.quadSizeAddin*infiniterraMask, 0));\n"
@@ -105,6 +111,15 @@ public abstract class ShaderPatchMixin {
 			dev.infiniterra.InfiniTerraMod.LOG.warn("Could not patch Voxy's {} (changed?): caves are dark on the camera pass", id);
 			return;
 		}
-		cir.setReturnValue(CUT_UNIFORM + src.replace(anchor, anchor + "\n    if (infiniterraCutY < 1e29) lighting |= 0xFu;"));
+		src = src.replace(anchor, anchor + "\n    if (infiniterraCutY < 1e29) lighting |= 0xFu;");
+		// translucent fluids (water): their alpha times the fluid opacity (the lighting colour's alpha is the
+		// quad's alpha in the translucent pass; opaque quads use it for other data and are left alone)
+		String alpha = "tinting.rgb *= computeDirectionalFaceTint(isShaded, face);";
+		dev.infiniterra.impl.style.VoxyStyle.fluidAlphaPatched = src.contains(alpha);
+		if (src.contains(alpha))
+			src = src.replace(alpha, alpha + "\n    if (isTranslucent && (model.flagsA & " + dev.infiniterra.impl.style.VoxyStyle.FLUID_FLAG + "u) != 0u) tinting.w *= infiniterraFluidAlpha;");
+		else
+			dev.infiniterra.InfiniTerraMod.LOG.warn("Could not patch Voxy's {} (changed?): water in the LOD keeps its opacity", id);
+		cir.setReturnValue(CUT_UNIFORM + FLUID_UNIFORM + src);
 	}
 }
