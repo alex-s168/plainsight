@@ -41,6 +41,9 @@ public final class TerrainGuess {
 
 		int importTotal();
 
+		/** Whether opening and closing the editor switches seamlessly now (the LOD around the player is copied in). */
+		boolean seamlessReady();
+
 		/** Chunks copied from the LOD and failed to generate this session (tests and debugging). */
 		int copiedThisSession();
 

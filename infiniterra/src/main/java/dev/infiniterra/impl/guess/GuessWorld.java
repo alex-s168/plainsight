@@ -71,6 +71,11 @@ public final class GuessWorld {
 	public volatile int importTotal, imported;
 	/** Whether all of the normal LOD world is in the guessed one (the import ran to the end). */
 	public volatile boolean importDone;
+	/** The import ran to the end in an earlier session (only what Voxy gathered without the seed known is missing). */
+	volatile boolean importDoneBefore;
+	/** Columns still to copy, so seamless switching can start once those around the player are in. */
+	final ImportProgress importProgress = new ImportProgress();
+	private volatile boolean nearLogged;
 	/** Whether Voxy renders this world now (set from the render thread). */
 	volatile boolean showing;
 	/** Set when Voxy should rebuild its view of this world from storage (render thread does it). */
@@ -101,6 +106,7 @@ public final class GuessWorld {
 		load(real, stateDir.resolve("real-v5.bin"));
 		load(columns, stateDir.resolve("columns-v5.bin"));
 		loadMap(realSections, stateDir.resolve("sections-v5.bin"));
+		importDoneBefore = Files.exists(stateDir.resolve("import-done-v5"));
 		this.seedServer = SeedServer.acquire(seed);
 		seedServer.ready().whenComplete((s, e) -> {
 			if (e != null) {
@@ -189,6 +195,10 @@ public final class GuessWorld {
 				return w.importTotal;
 			}
 
+			public boolean seamlessReady() {
+				return VoxyGuess.seamlessReady();
+			}
+
 			public int copiedThisSession() {
 				return w.copiedThisSession;
 			}
@@ -209,6 +219,32 @@ public final class GuessWorld {
 				w.reloadView = true;
 			}
 		};
+	}
+
+	/**
+	 * Whether Voxy may keep rendering this world in game (guesses hidden): it holds the normal world's LOD
+	 * within {@code radiusColumns} LOD columns of block position (x, z), or all of it. While the columns are
+	 * still being listed, an import finished in an earlier session counts. Render thread.
+	 */
+	boolean seamlessReady(double x, double z, int radiusColumns) {
+		if (importDone) return true;
+		if (!importProgress.listed()) return importDoneBefore;
+		boolean near = importProgress.doneNear((int) Math.floor(x) >> 5, (int) Math.floor(z) >> 5, radiusColumns, System.currentTimeMillis());
+		if (near && !nearLogged) {
+			nearLogged = true;
+			InfiniTerraMod.LOG.info("LOD import: the columns within {} of the player are copied ({} / {}); seamless switching on", radiusColumns,
+					importProgress.done(), importProgress.total());
+		}
+		return near;
+	}
+
+	/** Whether LOD column {@code column} is within Voxy's LOD distance of the player. */
+	private static boolean withinLod(long column) {
+		var p = Minecraft.getInstance().player;
+		if (p == null) return true;
+		int r = VoxyGuess.lodRadiusColumns();
+		return Math.abs(ChunkPos.getX(column) - ((int) Math.floor(p.getX()) >> 5)) <= r
+				&& Math.abs(ChunkPos.getZ(column) - ((int) Math.floor(p.getZ()) >> 5)) <= r;
 	}
 
 	public State state() {
@@ -369,17 +405,31 @@ public final class GuessWorld {
 						return dx * dx + dz * dz;
 					})).mapToLong(Long::longValue).toArray();
 			importTotal = todo.length;
+			importProgress.list(todo);
+			InfiniTerraMod.LOG.info("LOD import: {} columns in Voxy's world, {} to copy into the guessed world{}", found.size(), todo.length,
+					todo.length > 0 ? " (seamless switching once those around the player are copied)" : "");
+			long started = System.currentTimeMillis(), lastLog = started;
+			int lastLogged = 0;
 			for (long c : todo) {
+				long now = System.currentTimeMillis();
+				if (now - lastLog > 60_000 || imported - lastLogged >= Math.max(1000, todo.length / 10)) {
+					InfiniTerraMod.LOG.info("LOD import: {} / {} columns ({} per second{})", imported, todo.length,
+							(imported * 1000L) / Math.max(1, now - started), showing ? ", slowly while Voxy shows the guessed world" : "");
+					lastLog = now;
+					lastLogged = imported;
+				}
 				if (closed) return;
 				synchronized (this) {
 					if (columns.contains(c)) {
 						imported++;
+						importProgress.copied(c);
 						continue;
 					}
 				}
 				// while Voxy renders the guessed world it must keep up with every change (it drops updates
-				// it gets too fast, leaving holes): slowly then, at full speed while it shows the normal one
-				if (showing) {
+				// it gets too fast, leaving holes): slowly then, at full speed while it shows the normal one, or
+				// for columns beyond its LOD distance (it does not draw those)
+				if (showing && withinLod(c)) {
 					try {
 						Thread.sleep(25);
 					} catch (InterruptedException e) {
@@ -398,10 +448,17 @@ public final class GuessWorld {
 					if (any) copiedThisSession++;
 				}
 				imported++;
+				importProgress.copied(c);
 			}
 			importDone = true;
 			InfiniTerraMod.LOG.info("Copied {} LOD columns into the guessed world", imported);
 			save();
+			try {
+				Files.createDirectories(stateDir);
+				Files.writeString(stateDir.resolve("import-done-v5"), "all of Voxy's LOD world was copied in\n");
+			} catch (IOException e) {
+				InfiniTerraMod.LOG.warn("Could not save the import state", e);
+			}
 			// whatever Voxy missed meanwhile: it re-reads the world once
 			if (todo.length > 0) reloadView = true;
 		}, "InfiniTerra LOD import");

@@ -95,6 +95,22 @@ public final class VoxyGuess {
 		}
 	}
 
+	/** How far Voxy draws its LOD, in 32-block LOD columns. */
+	static int lodRadiusColumns() {
+		return PRESENT ? VoxyGuessImpl.lodRadiusColumns() : 0;
+	}
+
+	/** For tests: LOD columns around the player to import before seamless switching (0: Voxy's LOD distance). */
+	public static String setSeamlessRadius(int columns) {
+		if (PRESENT) VoxyGuessImpl.radiusOverride = columns;
+		return "ok";
+	}
+
+	/** Whether opening and closing the editor switches seamlessly now (the LOD around the player is copied in). */
+	public static boolean seamlessReady() {
+		return PRESENT && VoxyGuessImpl.seamlessReady();
+	}
+
 	/** Whether Voxy currently shows the guessed terrain (renders the guessed LOD world, guesses not hidden). */
 	public static boolean showing() {
 		return PRESENT && VoxyGuessImpl.showing();
