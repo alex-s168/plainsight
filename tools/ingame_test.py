@@ -2279,6 +2279,31 @@ def test_minimap_through_shader_pack():
     shot("minimap-pack-hud")
 
 
+def test_editor_lod_distance():
+    """The editor draws Voxy's LOD further (its LOD distance times the editor's setting, x2 by default),
+    and leaving the editor gives Voxy its own distance back."""
+    if not state()["lodMod"] or not state()["sodium"]:
+        print("      (needs Voxy, skipped)")
+        return
+    L = "dev.infiniterra.api.LodTerrain"
+    applied = lambda: float(c.static(L, "appliedDistance"))
+    editor_off()
+    time.sleep(1)
+    base = applied()
+    check(base == base and base > 0, "Voxy's own distance in game: %s" % base)
+    editor_on()
+    time.sleep(1)
+    scale = float(ed("lodDistanceScale"))
+    check(abs(applied() - base * scale) < 1e-3, "in the editor: %s x %s = %s" % (base, scale, applied()))
+    ed("setLodDistanceScale", 3.0)
+    time.sleep(1)
+    check(abs(applied() - base * 3) < 1e-3, "the slider sets it: %s" % applied())
+    ed("setLodDistanceScale", scale)
+    editor_off()
+    time.sleep(1)
+    check(applied() == base, "back to Voxy's own after the editor: %s" % applied())
+
+
 def test_fluid_opacity_in_lod():
     """Transparent Fluids reaches Voxy's LOD: fluid models are flagged on the GPU and the terrain shader
     takes the module's opacity (shader state, no re-mesh)."""

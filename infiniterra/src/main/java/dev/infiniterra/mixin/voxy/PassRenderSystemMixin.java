@@ -24,6 +24,20 @@ public abstract class PassRenderSystemMixin {
 	@Final
 	private RenderProperties properties;
 
+	@org.spongepowered.asm.mixin.Unique
+	private float infiniterra$distance = Float.NaN;
+
+	/** The LOD distance, scaled by {@link dev.infiniterra.api.LodTerrain#setDistanceScale} (the editor sees further). */
+	@Inject(method = "renderOpaque", at = @At("HEAD"))
+	private void infiniterra$distance(Viewport<?> viewport, int depth, int colour, CallbackInfo ci) {
+		if (PassVoxy.inPass) return;
+		float want = me.cortex.voxy.client.config.VoxyConfig.CONFIG.sectionRenderDistance * dev.infiniterra.api.LodTerrain.distanceScale();
+		if (want == infiniterra$distance) return;
+		infiniterra$distance = want;
+		((VoxyRenderSystem) (Object) this).setRenderDistance(want);
+		dev.infiniterra.api.LodTerrain.appliedDistance = want;
+	}
+
 	@Inject(method = "renderOpaque", at = @At("TAIL"))
 	private void infiniterra$pass(Viewport<?> viewport, int depth, int colour, CallbackInfo ci) {
 		PassVoxy.render((VoxyRenderSystem) (Object) this, Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false));

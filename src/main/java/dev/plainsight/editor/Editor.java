@@ -56,6 +56,26 @@ public final class Editor {
 		return INSTANCE.active;
 	}
 
+	/** Voxy's LOD distance in the editor, times its configured one (see {@link dev.infiniterra.api.LodTerrain#setDistanceScale}). */
+	private static float lodDistanceScale = Float.NaN;
+	public static final float DEFAULT_LOD_DISTANCE_SCALE = 2f;
+
+	public static float lodDistanceScale() {
+		if (Float.isNaN(lodDistanceScale))
+			lodDistanceScale = clampLodScale(EditorConfig.getFloat("lodDistanceScale", DEFAULT_LOD_DISTANCE_SCALE));
+		return lodDistanceScale;
+	}
+
+	/** Sets it; {@code save} writes it to the editor settings (when the slider is let go). */
+	public static void setLodDistanceScale(float scale, boolean save) {
+		lodDistanceScale = clampLodScale(scale);
+		if (save) EditorConfig.setFloat("lodDistanceScale", lodDistanceScale);
+	}
+
+	private static float clampLodScale(float s) {
+		return Float.isFinite(s) ? Math.max(1f, Math.min(dev.infiniterra.api.LodTerrain.MAX_DISTANCE_SCALE, s)) : DEFAULT_LOD_DISTANCE_SCALE;
+	}
+
 	/** Frame rate limit while the editor is open behind the pause menu (see FramerateLimitTrackerMixin); 0: none. */
 	public static int pausedFps = 60;
 
@@ -787,7 +807,17 @@ public final class Editor {
 			return;
 		}
 		Vector3d dir = mouseRay();
-		double dist = distanceTo(raycastUnderCursor(dir));
+		// far out, zooming away speeds up (20% of the distance per notch): stop at a height the LOD still covers,
+		// past which Voxy can stall the game
+		if (dy * dir.y() > 0 && camera.pos.y + camera.pendingZoomY() >= EditorCamera.MAX_ZOOM_OUT_Y) return;
+		BlockHitResult under = raycastUnderCursor(dir);
+		double dist = distanceTo(under);
+		if (under == null) {
+			// nothing under the cursor (sky, or terrain beyond the LOD): step by the height above sea level,
+			// not by one block, so zooming back in from far out works
+			camera.dolly(dy, dir, 0, Math.max(16, camera.pos.y - 63));
+			return;
+		}
 		if (dy > 0 && dist < EditorCamera.DOLLY_NEAR) {
 			// the camera is in or against the block under the cursor (#28): zoom on through it, towards what
 			// is behind it (no target if that is right there too, e.g. inside rock)
