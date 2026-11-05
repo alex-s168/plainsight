@@ -43,8 +43,21 @@ public abstract sealed class SelectionNode permits GroupNode, BoxNode, EntityNod
 		customName = name == null || name.isBlank() ? null : name.strip();
 	}
 
-	/** Text shown in the tree, e.g. {@code box 1 (500 blocks)}. */
-	public abstract String label();
+	/** Text shown in the tree, e.g. {@code box 1 (500 blocks)}: the {@link #title()} and the {@link #detail()}. */
+	public final String label() {
+		String d = detail();
+		return d.isEmpty() ? title() : title() + " " + d;
+	}
+
+	/** The node's name as shown in the tree, e.g. {@code box 1} or {@code player: Steve}. */
+	public String title() {
+		return name();
+	}
+
+	/** Extra information shown after the title (greyed), e.g. {@code (500 blocks)}; empty for none. */
+	public String detail() {
+		return "";
+	}
 
 	/** Kind used for generated names: "box", "group", "player", ... */
 	public abstract String kind();

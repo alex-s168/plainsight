@@ -34,7 +34,18 @@ public final class EditorUI {
 	private static final int PANEL_FLAGS = ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse
 			| ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoBringToFrontOnFocus | ImGuiWindowFlags.NoSavedSettings;
 
+	/** Tree rows: frame padding (moves the arrows), icon width and the gap to the text, in pixels. */
+	private static final float TREE_FRAME_PAD_X = 2, ICON_WIDTH = 16, ICON_GAP = 7;
+	/** Width of the waypoint and eye buttons at a row's right end, plus a little space before them. */
+	private static final float ROW_BUTTONS_WIDTH = 48;
+	/** Width of the gradient that fades out a clipped row text. */
+	private static final float FADE_WIDTH = 24;
+	private static final int TEXT_COLOR = 0xFFEBEBEB, DETAIL_COLOR = 0xFF9A9A9A; // ABGR
+	private static final int HIDDEN_TEXT_COLOR = 0xFF808080, HIDDEN_DETAIL_COLOR = 0xFF626262;
+
 	private final Editor editor;
+	/** Title of the tree row whose full text is shown in a tooltip this frame (for tests), or "". */
+	public String nodeTooltip = "";
 	private @Nullable SelectionNode renaming;
 	private boolean renameFocus;
 	private int renameFrames;
@@ -56,6 +67,7 @@ public final class EditorUI {
 
 	public void draw(float width, float height) {
 		widgetRects.clear();
+		nodeTooltip = "";
 		menuHeight = ImGui.getFrameHeight();
 		statusHeight = ImGui.getFrameHeight() + 4;
 		menuBar();
@@ -479,7 +491,9 @@ public final class EditorUI {
 	}
 
 	private void treeContents(SelectionTree tree) {
-		{
+		// a narrower frame padding brings the open/close arrows closer to the panel edge and the icons
+		ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, TREE_FRAME_PAD_X, ImGui.getStyle().getFramePaddingY());
+		try {
 			for (SelectionNode n : tree.root().children()) node(n);
 			// drop below the last node: move to the end of the top level
 			ImGui.dummy(ImGui.getContentRegionAvailX(), Math.max(20, ImGui.getContentRegionAvailY()));
@@ -493,6 +507,8 @@ public final class EditorUI {
 				tree.clearSelection();
 				editor.boxTool.stopEditing();
 			}
+		} finally {
+			ImGui.popStyleVar();
 		}
 	}
 
@@ -505,15 +521,18 @@ public final class EditorUI {
 		if (!group) flags |= ImGuiTreeNodeFlags.Leaf | ImGuiTreeNodeFlags.NoTreePushOnOpen;
 		if (group) ImGui.setNextItemOpen(((GroupNode) n).expanded);
 		boolean renamingThis = renaming == n;
-		String label = renamingThis ? "" : "     " + n.label();
 		boolean shown = shownInWorld(n);
-		if (!shown) ImGui.pushStyleColor(ImGuiCol.Text, 0xFF808080);
-		boolean open = ImGui.treeNodeEx(n.id().toString(), flags, label);
-		if (!shown) ImGui.popStyleColor();
-		rect("node:" + (n instanceof EntityNode ? n.label() : n.name()));
+		// the label is drawn below (icon, clipped title, grey detail), the tree node only gets an id
+		boolean open = ImGui.treeNodeEx(n.id().toString(), flags, "");
+		String key = n.title();
+		rect("node:" + key);
 		float rowMinX = ImGui.getItemRectMinX(), rowMinY = ImGui.getItemRectMinY();
 		float rowMaxX = ImGui.getItemRectMaxX(), rowMaxY = ImGui.getItemRectMaxY();
-		if (!renamingThis) drawNodeIcon(n, shown);
+		float iconX = rowMinX + ImGui.getTreeNodeToLabelSpacing(), textX = iconX + ICON_WIDTH + ICON_GAP;
+		if (!renamingThis) {
+			drawNodeIcon(n, iconX, shown);
+			nodeText(n, key, textX, rowMinY, rowMaxY, rowMaxX - ROW_BUTTONS_WIDTH, shown);
+		}
 		if (group) ((GroupNode) n).expanded = open;
 		if (ImGui.isItemClicked(ImGuiMouseButton.Left) && !ImGui.isItemToggledOpen()) {
 			boolean ctrl = ImGui.getIO().getKeyCtrl();
@@ -536,7 +555,7 @@ public final class EditorUI {
 		ImVec2 next = ImGui.getCursorScreenPos();
 		visibilityButton(n, rowMaxX, rowMinY, rowMaxY - rowMinY);
 		waypointButton(n, rowMaxX - 22, rowMinY, rowMaxY - rowMinY);
-		if (renamingThis) renameField(n, rowMinX + ImGui.getTreeNodeToLabelSpacing() + 18, rowMinY, rowMaxX - 48);
+		if (renamingThis) renameField(n, textX, rowMinY, rowMaxX - ROW_BUTTONS_WIDTH);
 		ImGui.setCursorScreenPos(next.x, next.y);
 		if (group && open) {
 			try {
@@ -560,7 +579,7 @@ public final class EditorUI {
 		ImGui.pushID("vis" + n.id());
 		boolean clicked = ImGui.invisibleButton("##vis", w, rowH);
 		ImGui.popID();
-		rect("vis:" + (n instanceof EntityNode ? n.label() : n.name()));
+		rect("vis:" + n.title());
 		boolean hovered = ImGui.isItemHovered();
 		ImDrawList dl = ImGui.getWindowDrawList();
 		float cx = x + w / 2, cy = rowY + rowH / 2;
@@ -583,7 +602,7 @@ public final class EditorUI {
 		ImGui.pushID("wp" + n.id());
 		boolean clicked = ImGui.invisibleButton("##wp", w, rowH);
 		ImGui.popID();
-		rect("wp:" + (n instanceof EntityNode ? n.label() : n.name()));
+		rect("wp:" + n.title());
 		boolean hovered = ImGui.isItemHovered();
 		ImDrawList dl = ImGui.getWindowDrawList();
 		float cx = x + w / 2, cy = rowY + rowH / 2, r = 5;
@@ -600,10 +619,54 @@ public final class EditorUI {
 		}
 	}
 
-	/** Small vector icon in front of a tree label: folder (group), box outline, person (entity). */
-	private void drawNodeIcon(SelectionNode n, boolean shown) {
+	/**
+	 * A row's text: the title, then the detail (position, size) in grey. Both are clipped before the row's
+	 * buttons, where a gradient in the row's background colour fades them out; hovering a clipped row shows
+	 * the whole text, wrapped, in a tooltip.
+	 */
+	private void nodeText(SelectionNode n, String key, float x, float minY, float maxY, float clipX, boolean shown) {
+		String title = n.title(), detail = n.detail();
+		float titleW = ImGui.calcTextSizeX(title);
+		float detailX = x + titleW + ImGui.calcTextSizeX(" ");
+		float endX = detail.isEmpty() ? x + titleW : detailX + ImGui.calcTextSizeX(detail);
+		boolean clipped = endX > clipX;
+		float y = (minY + maxY - ImGui.getTextLineHeight()) / 2;
 		ImDrawList dl = ImGui.getWindowDrawList();
-		float x = ImGui.getItemRectMinX() + ImGui.getTreeNodeToLabelSpacing() + 2;
+		dl.pushClipRect(x, minY, Math.max(x, clipX), maxY, true);
+		try {
+			dl.addText(x, y, shown ? TEXT_COLOR : HIDDEN_TEXT_COLOR, title);
+			if (!detail.isEmpty()) dl.addText(detailX, y, shown ? DETAIL_COLOR : HIDDEN_DETAIL_COLOR, detail);
+		} finally {
+			dl.popClipRect();
+		}
+		widgetRects.put("nodetext:" + key, new float[]{x, minY, Math.min(endX, clipX), maxY});
+		if (!clipped) return;
+		// the row is drawn in Header colours while selected or hovered (opaque in our style), else on the window
+		boolean hovered = ImGui.isItemHovered(), held = hovered && ImGui.isItemActive();
+		int bgCol = held ? ImGuiCol.HeaderActive : hovered ? ImGuiCol.HeaderHovered
+				: editor.tree.selected().contains(n) ? ImGuiCol.Header : ImGuiCol.WindowBg;
+		int bg = ImGui.getColorU32(bgCol) | 0xFF000000, clear = bg & 0x00FFFFFF;
+		float fade = Math.min(FADE_WIDTH, clipX - x);
+		dl.addRectFilledMultiColor(clipX - fade, minY, clipX, maxY, clear, bg, bg, clear);
+		widgetRects.put("nodefade:" + key, new float[]{clipX - fade, minY, clipX, maxY});
+		if (hovered && ImGui.getMousePosX() < clipX && !ImGui.isMouseDragging(ImGuiMouseButton.Left)) {
+			ImGui.beginTooltip();
+			ImGui.pushTextWrapPos(ImGui.getFontSize() * 20);
+			ImGui.textWrapped(title);
+			if (!detail.isEmpty()) {
+				ImGui.pushStyleColor(ImGuiCol.Text, DETAIL_COLOR);
+				ImGui.textWrapped(detail);
+				ImGui.popStyleColor();
+			}
+			ImGui.popTextWrapPos();
+			ImGui.endTooltip();
+			nodeTooltip = title;
+		}
+	}
+
+	/** Small vector icon in front of a tree label: folder (group), box outline, person (entity). */
+	private void drawNodeIcon(SelectionNode n, float x, boolean shown) {
+		ImDrawList dl = ImGui.getWindowDrawList();
 		float cy = (ImGui.getItemRectMinY() + ImGui.getItemRectMaxY()) / 2;
 		int col = shown ? 0xFFE8E8E8 : 0xFF808080;
 		switch (n) {

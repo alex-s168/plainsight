@@ -24,11 +24,6 @@ public final class GroupNode extends SelectionNode {
 	}
 
 	@Override
-	public String label() {
-		return name();
-	}
-
-	@Override
 	public String kind() {
 		return "group";
 	}
