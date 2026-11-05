@@ -2332,6 +2332,31 @@ def test_fluid_opacity_in_lod():
     c.command("fill 4 -61 4 6 -61 6 minecraft:air")
 
 
+def test_editor_lod_distance():
+    """The editor draws Voxy's LOD further (its LOD distance times the editor's setting, x2 by default),
+    and leaving the editor gives Voxy its own distance back."""
+    if not state()["lodMod"] or not state()["sodium"]:
+        print("      (needs Voxy, skipped)")
+        return
+    L = "dev.infiniterra.api.LodTerrain"
+    applied = lambda: float(c.static(L, "appliedDistance"))
+    editor_off()
+    time.sleep(1)
+    base = applied()
+    check(base == base and base > 0, "Voxy's own distance in game: %s" % base)
+    editor_on()
+    time.sleep(1)
+    scale = float(ed("lodDistanceScale"))
+    check(abs(applied() - base * scale) < 1e-3, "in the editor: %s x %s = %s" % (base, scale, applied()))
+    ed("setLodDistanceScale", 3.0)
+    time.sleep(1)
+    check(abs(applied() - base * 3) < 1e-3, "the slider sets it: %s" % applied())
+    ed("setLodDistanceScale", scale)
+    editor_off()
+    time.sleep(1)
+    check(applied() == base, "back to Voxy's own after the editor: %s" % applied())
+
+
 def test_guess_prefers_real_lod():
     """Terrain Voxy already has (here: flat land loaded far from spawn, then unloaded) is copied into the
     guessed view instead of generated (the seed's generator would make hills there)."""

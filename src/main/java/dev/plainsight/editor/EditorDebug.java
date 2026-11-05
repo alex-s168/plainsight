@@ -283,6 +283,12 @@ public final class EditorDebug {
 
 	public static String fluidOpacity(float opacity) {
 		Editor.get().fluids.setOpacity(opacity);
+	public static String lodDistanceScale() {
+		return Float.toString(Editor.lodDistanceScale());
+	}
+
+	public static String setLodDistanceScale(float scale) {
+		Editor.setLodDistanceScale(scale, false);
 		return "ok";
 	}
 

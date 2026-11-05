@@ -151,6 +151,7 @@ public final class Plainsight implements ClientModInitializer {
 		Editor editor = Editor.get();
 		var mc = net.minecraft.client.Minecraft.getInstance();
 		dev.infiniterra.api.TerrainStyle.setFluidOpacity(dev.plainsight.module.FluidTransparency.isActive() ? dev.plainsight.module.FluidTransparency.opacity() : 1f);
+		dev.infiniterra.api.LodTerrain.setDistanceScale(Editor.isActive() ? Editor.lodDistanceScale() : 1f);
 		dev.infiniterra.api.TerrainGuess.setTint(dev.plainsight.module.GuessedTerrain.tintOpacity, dev.plainsight.module.GuessedTerrain.pulseSeconds);
 		dev.infiniterra.api.TerrainGuess.update(mc.level == null ? null : dev.plainsight.guess.SeedStore.worldKey(),
 				mc.level == null ? java.util.OptionalLong.empty() : dev.plainsight.guess.SeedStore.seed(),

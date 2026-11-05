@@ -56,6 +56,26 @@ public final class Editor {
 		return INSTANCE.active;
 	}
 
+	/** Voxy's LOD distance in the editor, times its configured one (see {@link dev.infiniterra.api.LodTerrain#setDistanceScale}). */
+	private static float lodDistanceScale = Float.NaN;
+	public static final float DEFAULT_LOD_DISTANCE_SCALE = 2f;
+
+	public static float lodDistanceScale() {
+		if (Float.isNaN(lodDistanceScale))
+			lodDistanceScale = clampLodScale(EditorConfig.getFloat("lodDistanceScale", DEFAULT_LOD_DISTANCE_SCALE));
+		return lodDistanceScale;
+	}
+
+	/** Sets it; {@code save} writes it to the editor settings (when the slider is let go). */
+	public static void setLodDistanceScale(float scale, boolean save) {
+		lodDistanceScale = clampLodScale(scale);
+		if (save) EditorConfig.setFloat("lodDistanceScale", lodDistanceScale);
+	}
+
+	private static float clampLodScale(float s) {
+		return Float.isFinite(s) ? Math.max(1f, Math.min(dev.infiniterra.api.LodTerrain.MAX_DISTANCE_SCALE, s)) : DEFAULT_LOD_DISTANCE_SCALE;
+	}
+
 	/** Frame rate limit while the editor is open behind the pause menu (see FramerateLimitTrackerMixin); 0: none. */
 	public static int pausedFps = 60;
 
