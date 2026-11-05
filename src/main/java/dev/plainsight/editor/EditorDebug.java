@@ -570,6 +570,15 @@ public final class EditorDebug {
 		return "no such selection";
 	}
 
+	public static String captureRepro() {
+		return VisualsRepro.capture(Editor.get());
+	}
+
+	/** Puts a repro's view back (the JSON, or "clipboard" for the clipboard's). */
+	public static String applyRepro(String json) {
+		return VisualsRepro.apply(Editor.get(), json.equals("clipboard") ? clipboard() : json);
+	}
+
 	public static String clipboard() {
 		return net.minecraft.client.Minecraft.getInstance().keyboardHandler.getClipboard();
 	}
