@@ -462,6 +462,26 @@ def test_camera_scroll_dolly():
     check(p2[2] < p1[2], "scrolling down moves away")
 
 
+def test_camera_scroll_dolly_against_block():
+    """#28: with the camera in or right against a block (e.g. after zooming out into terrain), scrolling up still
+    zooms in, through it, instead of not moving at all."""
+    editor_on()
+    vp = state()["viewport"]
+    cx, cy = vp[0] + vp[2] / 2, vp[1] + vp[3] / 2
+    # the plank wall at z 8..10 in front of the spawn point, looking south (+z) at it
+    for z in (7.6, 7.2, 8.5):
+        cam(6.5, -58.5, z, 0, 0)
+        c.move(cx, cy)
+        time.sleep(0.1)
+        c.scroll(1, cx, cy)
+        time.sleep(0.4)
+        p = state()["camera"]["pos"]
+        check(p[2] - z > 0.9, "scrolling up at z %s moves into the wall: z %s" % (z, p[2]))
+        c.scroll(-1, cx, cy)
+        time.sleep(0.4)
+        check(state()["camera"]["pos"][2] < p[2] - 0.5, "and scrolling down back out")
+
+
 def create_box(x1, y1, x2, y2):
     c.drag(x1, y1, x2, y2, b=3)
     time.sleep(0.3)

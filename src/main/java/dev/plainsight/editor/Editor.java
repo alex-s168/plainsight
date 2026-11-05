@@ -749,9 +749,20 @@ public final class Editor {
 			return;
 		}
 		Vector3d dir = mouseRay();
-		BlockHitResult hit = raycastUnderCursor(dir);
-		double dist = hit != null ? hit.getLocation().distanceTo(new Vec3(camera.pos.x, camera.pos.y, camera.pos.z)) : 0;
+		double dist = distanceTo(raycastUnderCursor(dir));
+		if (dy > 0 && dist < EditorCamera.DOLLY_NEAR) {
+			// the camera is in or against the block under the cursor (#28): zoom on through it, towards what
+			// is behind it (no target if that is right there too, e.g. inside rock)
+			Vector3d from = new Vector3d(camera.pos).fma(EditorCamera.DOLLY_NEAR, dir);
+			dist = distanceTo(raycastUnderCursor(from, dir));
+			if (dist < EditorCamera.DOLLY_NEAR + 0.5) dist = 0;
+		}
 		camera.dolly(dy, dir, dist);
+	}
+
+	/** Distance from the camera to a hit; 0 for none. */
+	private double distanceTo(@Nullable BlockHitResult hit) {
+		return hit != null ? hit.getLocation().distanceTo(new Vec3(camera.pos.x, camera.pos.y, camera.pos.z)) : 0;
 	}
 
 	private void pickBlock() {
