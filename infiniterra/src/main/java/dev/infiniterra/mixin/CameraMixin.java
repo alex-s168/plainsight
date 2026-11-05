@@ -31,7 +31,7 @@ public abstract class CameraMixin {
 	private void infiniterra$detachedState(CameraRenderState cameraState, DeltaTracker deltaTracker, CallbackInfo ci) {
 		if (!CameraState.active) {
 			CameraState.toPlayer = 0;
-			CameraState.outsideLoaded = CameraState.caveCullingOff = false;
+			CameraState.outsideLoaded = CameraState.caveCullingOff = CameraState.atLoadedEdge = false;
 			return;
 		}
 		Minecraft mc = Minecraft.getInstance();
@@ -42,6 +42,14 @@ public abstract class CameraMixin {
 		var level = mc.level;
 		boolean outside = level != null && !level.getChunkSource().hasChunk(cameraState.blockPos.getX() >> 4, cameraState.blockPos.getZ() >> 4);
 		CameraState.outsideLoaded = outside;
+		boolean edge = outside;
+		int cx = cameraState.blockPos.getX() >> 4, cz = cameraState.blockPos.getZ() >> 4;
+		// the higher the camera, the further in it sees the edge from outside: a chunk more per 16 blocks above sea level
+		int m = CameraState.EDGE_MARGIN + Math.min(CameraState.MAX_EDGE_MARGIN, Math.max(0, (cameraState.blockPos.getY() - 63) >> 4));
+		for (int dx = -m; dx <= m && !edge && level != null; dx++)
+			for (int dz = -m; dz <= m && !edge; dz++)
+				edge = !level.getChunkSource().hasChunk(cx + dx, cz + dz);
+		CameraState.atLoadedEdge = edge;
 		boolean noCulling = CameraState.spectatorCulling && level != null && (outside || level.getBlockState(cameraState.blockPos).isSolidRender());
 		CameraState.caveCullingOff = noCulling;
 		if (noCulling) cameraState.smartCull = false;

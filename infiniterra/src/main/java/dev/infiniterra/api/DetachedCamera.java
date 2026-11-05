@@ -21,7 +21,7 @@ public final class DetachedCamera {
 		CameraState.active = detached;
 		if (!detached) {
 			CameraState.toPlayer = 0;
-			CameraState.outsideLoaded = CameraState.caveCullingOff = false;
+			CameraState.outsideLoaded = CameraState.caveCullingOff = CameraState.atLoadedEdge = false;
 		}
 	}
 
@@ -42,6 +42,11 @@ public final class DetachedCamera {
 	/** Whether the camera is outside the loaded chunks this frame. */
 	public static boolean outsideLoaded() {
 		return CameraState.outsideLoaded;
+	}
+
+	/** Whether the camera is outside the loaded chunks or near their edge, so the LOD covers the loaded chunks too. */
+	public static boolean atLoadedEdge() {
+		return CameraState.atLoadedEdge;
 	}
 
 	/** Whether cave (occlusion) culling is off this frame (camera in rock or outside the loaded chunks). */

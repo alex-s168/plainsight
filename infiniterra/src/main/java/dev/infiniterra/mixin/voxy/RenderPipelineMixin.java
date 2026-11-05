@@ -19,6 +19,6 @@ public abstract class RenderPipelineMixin {
 	@WrapOperation(method = "initDepthStencil", at = @At(value = "INVOKE",
 			target = "Lme/cortex/voxy/client/core/rendering/post/FullscreenBlit;blit()V"))
 	private void infiniterra$noStencilOutside(FullscreenBlit blit, Operation<Void> original) {
-		if (!dev.infiniterra.impl.CameraState.outsideLoaded) original.call(blit);
+		if (!dev.infiniterra.impl.CameraState.atLoadedEdge) original.call(blit);
 	}
 }

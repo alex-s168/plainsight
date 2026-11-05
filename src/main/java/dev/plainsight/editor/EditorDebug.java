@@ -74,6 +74,7 @@ public final class EditorDebug {
 		o.addProperty("cameraToPlayer", dev.infiniterra.api.DetachedCamera.toPlayer());
 		o.addProperty("disableCaveCulling", dev.infiniterra.api.DetachedCamera.caveCullingOff());
 		o.addProperty("cameraOutsideLoaded", dev.infiniterra.api.DetachedCamera.outsideLoaded());
+		o.addProperty("cameraAtLoadedEdge", dev.infiniterra.api.DetachedCamera.atLoadedEdge());
 		var guess = dev.infiniterra.api.TerrainGuess.current();
 		var seed = dev.plainsight.guess.SeedStore.seed();
 		o.addProperty("seed", seed.isPresent() ? Long.toString(seed.getAsLong()) : "");
