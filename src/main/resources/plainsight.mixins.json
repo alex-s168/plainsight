@@ -18,6 +18,7 @@
 		"KeyboardHandlerMixin",
 		"LevelRendererMixin",
 		"LightmapMixin",
+		"MinecraftMixin",
 		"MouseHandlerMixin",
 		"PictureInPictureRendererMixin",
 		"SectionCompilerMixin",

@@ -2941,6 +2941,27 @@ def test_chat_and_pause_still_work():
     check("screen=none" in c.status(), "back from the pause menu")
 
 
+def test_unfocus_does_not_pause_in_editor():
+    editor_on()
+    fresh_tree()
+    check("screen=none" in c.status(), "starts without a screen")
+    # the hidden client's options turn pauseOnLostFocus off; turn it on for this test
+    try:
+        c.focus(False, pause=True)
+        time.sleep(1.2)
+        check("screen=none" in c.status(), "losing focus in the editor must not open the pause menu: %s" % c.status().splitlines()[0])
+        check(state()["active"], "editor still open")
+        editor_off()
+        time.sleep(1.2)
+        check("PauseScreen" in c.status(), "outside the editor, losing focus still pauses: %s" % c.status().splitlines()[0])
+    finally:
+        c.focus(True, pause=False)
+    if "PauseScreen" in c.status():
+        c.key(K["ESC"])
+        time.sleep(0.4)
+    check("screen=none" in c.status(), "back from the pause menu")
+
+
 TESTS = [v for k, v in list(globals().items()) if k.startswith("test_")]
 K["T"] = 23
 K["BACKSPACE"] = 42
