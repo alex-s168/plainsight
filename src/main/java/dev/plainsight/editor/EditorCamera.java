@@ -20,6 +20,13 @@ public final class EditorCamera {
 	public static final float LOOK_DEGREES_PER_PIXEL = 0.2f;
 	/** Scroll targets nearer than this (blocks) are ones the camera is in or against: zooming goes through them. */
 	public static final double DOLLY_NEAR = 1.5;
+	/** The highest point zooming out takes the camera (blocks); flying can still go higher. */
+	public static final double MAX_ZOOM_OUT_Y = 8000;
+
+	/** The vertical part of the zoom still to come. */
+	public double pendingZoomY() {
+		return pendingZoom.y;
+	}
 
 	public enum Drag {NONE, LOOK, ORBIT, PAN}
 
@@ -278,10 +285,23 @@ public final class EditorCamera {
 	 * into terrain) does not stop the zoom: it would allow no step at all (#28).
 	 */
 	public void dolly(double notches, Vector3dc dir, double targetDistance) {
+		dolly(notches, dir, targetDistance, 0);
+	}
+
+	/**
+	 * As {@link #dolly(double, Vector3dc, double)}; {@code scale} (when the cursor is over nothing, so there
+	 * is no target) sets the step size instead: 20% of it per notch.
+	 */
+	public void dolly(double notches, Vector3dc dir, double targetDistance, double scale) {
 		if (targetDistance < DOLLY_NEAR) targetDistance = 0;
 		// the distance still to go after the pending part of earlier steps
 		double dist = Math.max(0, targetDistance - pendingZoom.dot(dir));
-		double step = Math.max(1.0, dist * 0.2) * notches * Math.max(0.25, speed);
+		double step = Math.max(1.0, Math.max(dist, scale) * 0.2) * notches * Math.max(0.25, speed);
+		// zooming out never climbs above MAX_ZOOM_OUT_Y
+		if (notches < 0 && dir.y() < 0) {
+			double room = Math.max(0, MAX_ZOOM_OUT_Y - (pos.y + pendingZoom.y));
+			step = Math.max(step, -room / -dir.y());
+		}
 		if (notches > 0 && targetDistance > 0) step = Math.min(step, Math.max(0, dist - 1.0));
 		pendingZoom.fma(step, dir);
 	}

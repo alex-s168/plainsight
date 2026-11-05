@@ -807,7 +807,17 @@ public final class Editor {
 			return;
 		}
 		Vector3d dir = mouseRay();
-		double dist = distanceTo(raycastUnderCursor(dir));
+		// far out, zooming away speeds up (20% of the distance per notch): stop at a height the LOD still covers,
+		// past which Voxy can stall the game
+		if (dy < 0 && camera.pos.y + camera.pendingZoomY() >= EditorCamera.MAX_ZOOM_OUT_Y && dir.y() < 0) return;
+		BlockHitResult under = raycastUnderCursor(dir);
+		double dist = distanceTo(under);
+		if (under == null) {
+			// nothing under the cursor (sky, or terrain beyond the LOD): step by the height above sea level,
+			// not by one block, so zooming back in from far out works
+			camera.dolly(dy, dir, 0, Math.max(16, camera.pos.y - 63));
+			return;
+		}
 		if (dy > 0 && dist < EditorCamera.DOLLY_NEAR) {
 			// the camera is in or against the block under the cursor (#28): zoom on through it, towards what
 			// is behind it (no target if that is right there too, e.g. inside rock)
