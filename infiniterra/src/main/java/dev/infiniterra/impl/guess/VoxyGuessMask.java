@@ -27,6 +27,8 @@ public final class VoxyGuessMask {
 	private static ByteBuffer upload;
 	private static final byte[] cells = new byte[SIZE * SIZE];
 	private static int originX = Integer.MIN_VALUE, originZ, version = -1;
+	/** The camera this frame (blocks), for the shader's tie-break at chunk borders. */
+	private static double cameraX, cameraY, cameraZ;
 	private static GuessWorld builtFor;
 	private static long builtAt;
 	/** Whether the main view hides guessed chunks now (set by {@link VoxyGuessImpl#show}). */
@@ -39,7 +41,10 @@ public final class VoxyGuessMask {
 	}
 
 	/** Keeps the mask up to date around the camera (at most 4 rebuilds a second while guesses change). */
-	static void update(GuessWorld w, double camX, double camZ) {
+	static void update(GuessWorld w, double camX, double camY, double camZ) {
+		cameraX = camX;
+		cameraY = camY;
+		cameraZ = camZ;
 		if (texture == 0) {
 			texture = GL11.glGenTextures();
 			int prev = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
@@ -88,6 +93,8 @@ public final class VoxyGuessMask {
 		if (!on) return;
 		GL41.glProgramUniform2i(program, GL20.glGetUniformLocation(program, "infiniterraMaskOrigin"), originX * 16, originZ * 16);
 		GL41.glProgramUniform1i(program, GL20.glGetUniformLocation(program, "infiniterraMaskSize"), SIZE);
+		GL41.glProgramUniform3f(program, GL20.glGetUniformLocation(program, "infiniterraMaskCamera"),
+				(float) (cameraX - originX * 16.0), (float) cameraY, (float) (cameraZ - originZ * 16.0));
 		GL41.glProgramUniform1i(program, GL20.glGetUniformLocation(program, "infiniterraGuessMask"), UNIT);
 		int prev = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
 		GL13.glActiveTexture(GL13.GL_TEXTURE0 + UNIT);
