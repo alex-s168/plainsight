@@ -2464,6 +2464,74 @@ def test_zzz_seed_check_against_bedrock():
         time.sleep(3)
 
 
+def test_zzzz_distant_horizons_on_a_server():
+    """On a server (tools/test-server.sh: vanilla, seed 12345) with Distant Horizons and the seed known, DH runs
+    on the worldgen server as in singleplayer: it builds LOD from the seed far beyond the server's view
+    distance; without the seed DH is back to its own world for the server. Runs last: it switches worlds."""
+    import socket
+    T = "dev.infiniterra.impl.dh.DhProbe"
+    if c.static(T, "present") != "true":
+        print("      (needs Distant Horizons, skipped)")
+        return
+    try:
+        socket.create_connection(("127.0.0.1", 25599), 1).close()
+    except OSError:
+        print("      (needs the test server: tools/test-server.sh, skipped)")
+        return
+
+    def run(what, wait=60):
+        c.static(T, "run", what)
+        deadline = time.time() + wait
+        while time.time() < deadline:
+            r = c.static(T, "last")
+            if r != "running":
+                return r
+            time.sleep(0.5)
+        return "timeout"
+
+    def leave():
+        ed("leaveWorld")
+        deadline = time.time() + 40
+        while time.time() < deadline and "world=none" not in c.status():
+            time.sleep(1)
+
+    leave()
+    c.connect("127.0.0.1", 25599)
+    c.wait_world(120)
+    try:
+        # (the seed may be known for this server from an earlier run)
+        c.command("plainsight seed clear")
+        deadline = time.time() + 20
+        while time.time() < deadline and not c.static(T, "levels").startswith("DhClientWorld"):
+            time.sleep(1)
+        check(c.static(T, "levels").startswith("DhClientWorld"), "without a seed DH has its own world for the server: %s" % c.static(T, "levels"))
+        c.command("plainsight seed 12345")
+        deadline = time.time() + 60
+        while time.time() < deadline and not c.static(T, "levels").startswith("DhClientServerWorld"):
+            time.sleep(1)
+        check(c.static(T, "levels").startswith("DhClientServerWorld"), "with the seed DH runs on the worldgen server: %s" % c.static(T, "levels"))
+        check(state()["seedCheck"].startswith(("MATCHES", "UNKNOWN")), "and the seed fits: %s" % state()["seedCheck"])
+        # 1280 blocks out: far beyond the server's 8 chunks, only the worldgen server has it
+        deadline, far = time.time() + 240, ""
+        while time.time() < deadline:
+            far = run("surface 1280 8")
+            if "up to" in far:
+                break
+            time.sleep(10)
+        check("up to" in far, "DH builds LOD from the seed far away: %s" % far)
+        c.command("plainsight seed clear")
+        deadline = time.time() + 20
+        while time.time() < deadline and not c.static(T, "levels").startswith("DhClientWorld"):
+            time.sleep(1)
+        check(c.static(T, "levels").startswith("DhClientWorld"), "without the seed DH is back to its own world: %s" % c.static(T, "levels"))
+    finally:
+        c.command("plainsight seed clear")
+        leave()
+        c.world("plainsight-test")
+        c.wait_world()
+        time.sleep(3)
+
+
 def test_guessed_terrain():
     """With a seed (here given by command) and Voxy, the editor shows terrain generated from the seed far
     from the player, tinted; Voxy shows the normal LOD again outside the editor."""

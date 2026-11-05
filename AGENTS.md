@@ -36,6 +36,9 @@ passes, detached camera, the Voxy/Sodium/Iris mixins for those); plainsight only
 * In a worktree, `run-hidden` is a symlink to the main checkout's (`ln -s ~/Repos/plainsight/run-hidden`),
   unless the worktree has its own slot (next section).
 * Hot-swap (`tools/mc.py hotswap`) cannot add fields or change mixins: restart the client instead.
+* Multiplayer tests (e.g. Distant Horizons on the worldgen server) need `tools/test-server.sh`: a vanilla
+  server in run-server/ on 127.0.0.1:25599 (offline, seed 12345; the user accepted Mojang's EULA for it);
+  `tools/test-server.sh stop` stops it. `tools/mc.py` has `connect`.
 
 ## Parallel worktrees: one hidden client each
 

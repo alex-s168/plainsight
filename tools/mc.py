@@ -66,6 +66,9 @@ class Client:
         lines = self.call("/chatlog", "GET", since=before)
         return res + "\n" + "\n".join(l for l in lines.splitlines() if not l.startswith("next="))
 
+    def connect(self, host="127.0.0.1", port=25599):
+        return self.call("/connect", host=host, port=port)
+
     def world(self, name="plainsight-dev", mode="creative", preset="flat"):
         return self.call("/world", name=name, mode=mode, preset=preset)
 
