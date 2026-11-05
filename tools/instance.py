@@ -4,6 +4,9 @@
     tools/instance.py                 show this checkout's slot (ports, run dir, compositor state)
     tools/instance.py setup [N]       give this checkout its own slot (the lowest free one, or N) and its own
                                       run-hidden/ (replaces the run-hidden symlink, seeded from the main checkout)
+    tools/instance.py world [--force] copy the main checkout's plainsight-test world into this checkout's run-hidden
+                                      (setup does this for a new run-hidden; --force replaces an existing copy, the
+                                      old one is kept as plainsight-test.old)
     tools/instance.py release         back to slot 0 (removes .plainsight-instance; run-hidden/ is kept)
     tools/instance.py list            slots of all worktrees of this repository
     tools/instance.py env             shell assignments for tools/hidden-client.sh and stop-hidden-client.sh
@@ -13,7 +16,9 @@ else 0. Slot 0 is the classic setup (bridge 25612, JDWP 5011, compositor $XDG_RU
 Slot N >= 1 uses bridge 25620+N, JDWP 5020+N and plainsight-hidden-sN. Every checkout already has its own
 Gradle project dir, so its client runs in its own <checkout>/run-hidden.
 """
+import fcntl
 import os
+import shutil
 import socket
 import subprocess
 import sys
@@ -85,8 +90,8 @@ def setup(want=None):
 
 
 def own_run_dir():
-    """Replaces a run-hidden symlink by a directory of this checkout, seeded with the main checkout's options and
-    config (not its worlds, guess caches or extra mods: the test suite builds its world itself)."""
+    """Replaces a run-hidden symlink by a directory of this checkout, seeded with the main checkout's options, config
+    and test world (not its other worlds, guess caches or extra mods)."""
     run = os.path.join(ROOT, "run-hidden")
     if os.path.islink(run):
         os.unlink(run)
@@ -95,9 +100,49 @@ def own_run_dir():
     os.makedirs(os.path.join(run, "mods"))
     src = os.path.join(main_checkout(), "run-hidden")
     if os.path.isfile(os.path.join(src, "options.txt")):
-        subprocess.run(["cp", os.path.join(src, "options.txt"), run], check=True)
+        shutil.copy2(os.path.join(src, "options.txt"), run)
     if os.path.isdir(os.path.join(src, "config")):
-        subprocess.run(["cp", "-R", os.path.join(src, "config"), run], check=True)
+        shutil.copytree(os.path.join(src, "config"), os.path.join(run, "config"))
+    copy_world()
+
+
+TEST_WORLD = "plainsight-test"
+FICLONE = 0x40049409  # Linux ioctl: share the file's extents (btrfs, XFS): instant and takes no space until written
+
+
+def clone_file(src, dst):
+    try:
+        with open(src, "rb") as i, open(dst, "wb") as o:
+            fcntl.ioctl(o.fileno(), FICLONE, i.fileno())
+        shutil.copystat(src, dst)
+    except OSError:
+        shutil.copy2(src, dst)
+
+
+def copy_world(force=False):
+    """The suite builds only part of its scenery itself (setup_world); the cave and rock tests need the terrain of
+    the main checkout's plainsight-test world, so a slot starts from a copy of it."""
+    src = os.path.join(main_checkout(), "run-hidden", "saves", TEST_WORLD)
+    saves = os.path.join(ROOT, "run-hidden", "saves")
+    dst = os.path.join(saves, TEST_WORLD)
+    if os.path.realpath(src) == os.path.realpath(dst):
+        sys.exit("this checkout uses the main checkout's run-hidden: nothing to copy")
+    if not os.path.isdir(src):
+        print("no %s world in the main checkout: the suite creates a flat one (cave and rock tests fail there)" % TEST_WORLD)
+        return
+    if os.path.exists(dst):
+        if not force:
+            print("%s exists; tools/instance.py world --force replaces it" % dst)
+            return
+        old = dst + ".old"
+        if os.path.exists(old):
+            shutil.rmtree(old)
+        os.rename(dst, old)
+        print("kept the previous copy as " + old)
+    os.makedirs(saves, exist_ok=True)
+    # session.lock belongs to a client that may have the world open in the main checkout
+    shutil.copytree(src, dst, copy_function=clone_file, ignore=shutil.ignore_patterns("session.lock"))
+    print("copied %s from the main checkout" % TEST_WORLD)
 
 
 def show():
@@ -127,6 +172,8 @@ def main(argv):
         except FileNotFoundError:
             pass
         show()
+    elif op == "world":
+        copy_world(force="--force" in argv[1:])
     elif op == "list":
         list_all()
     elif op == "env":

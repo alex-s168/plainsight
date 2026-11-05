@@ -55,9 +55,11 @@ tools/instance.py list      # slots of all worktrees, and which bridges are up
   `tools/ingame_test.py`, `tools/hidden-client.sh`, `tools/stop-hidden-client.sh` and `tools/mc.py hotswap`
   all follow it; `PLAINSIGHT_INSTANCE=N` overrides the file.
 * `setup` replaces the `run-hidden` symlink with the worktree's own directory, seeded with the main
-  checkout's `options.txt` and `config/` (no worlds, guess caches or extra mods: the suite builds its
-  `plainsight-test` world itself on first run, which takes a few minutes). Mods a test adds stay in this
-  worktree.
+  checkout's `options.txt`, `config/` and `saves/plainsight-test` (no other worlds or extra mods). The world
+  is a reflink copy (instant, no extra space on btrfs). It is needed: `setup_world` builds only part of the
+  scenery, and the cave and rock tests fail in a freshly created world. `tools/instance.py world [--force]`
+  copies it again (into an older slot, or to start over; `--force` keeps the previous copy as `.old`).
+  Mods a test adds stay in this worktree.
 * `tools/mc.py stop` only stops this checkout's client. Never `pkill` Java or sway broadly: other
   worktrees' clients are running.
 * Never run `./gradlew --stop` (or kill Gradle daemons): the daemons are shared by all checkouts, so it
