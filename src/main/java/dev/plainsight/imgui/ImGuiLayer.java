@@ -159,6 +159,8 @@ public final class ImGuiLayer {
 
 	// -- frame ------------------------------------------------------------------------------------------
 
+	private int lastCursor = imgui.flag.ImGuiMouseCursor.Arrow;
+
 	public void newFrame(int width, int height, float scaleX, float scaleY) {
 		long now = System.nanoTime();
 		float dt = Math.max(1e-4f, (now - lastFrameNanos) / 1e9f);
@@ -174,7 +176,21 @@ public final class ImGuiLayer {
 		if (!frameStarted) return;
 		frameStarted = false;
 		ImGui.render();
+		lastCursor = ImGui.getMouseCursor();
 		renderer.render(ImGui.getDrawData(), target);
+	}
+
+	/** The mouse cursor ImGui asked for in its last frame (text field, resize, ...), as a game cursor. */
+	public com.mojang.blaze3d.platform.cursor.CursorType cursor() {
+		return switch (lastCursor) {
+			case imgui.flag.ImGuiMouseCursor.TextInput -> com.mojang.blaze3d.platform.cursor.CursorTypes.IBEAM;
+			case imgui.flag.ImGuiMouseCursor.ResizeEW -> com.mojang.blaze3d.platform.cursor.CursorTypes.RESIZE_EW;
+			case imgui.flag.ImGuiMouseCursor.ResizeNS -> com.mojang.blaze3d.platform.cursor.CursorTypes.RESIZE_NS;
+			case imgui.flag.ImGuiMouseCursor.ResizeAll -> com.mojang.blaze3d.platform.cursor.CursorTypes.RESIZE_ALL;
+			case imgui.flag.ImGuiMouseCursor.Hand -> com.mojang.blaze3d.platform.cursor.CursorTypes.POINTING_HAND;
+			case imgui.flag.ImGuiMouseCursor.NotAllowed -> com.mojang.blaze3d.platform.cursor.CursorTypes.NOT_ALLOWED;
+			default -> com.mojang.blaze3d.platform.cursor.CursorType.DEFAULT;
+		};
 	}
 
 	public boolean wantsMouse() {

@@ -32,7 +32,9 @@ import java.util.List;
 
 /** The editor's panels: menu bar, tool bar (left), selection tree (right), status bar, viewport buttons. */
 public final class EditorUI {
-	public static final float LEFT_WIDTH = 300, RIGHT_WIDTH = 320;
+	public static final float DEFAULT_LEFT_WIDTH = 300, DEFAULT_RIGHT_WIDTH = 320;
+	/** Width of the grab area on a panel's inner edge (half over the panel, half over the viewport). */
+	private static final float SPLITTER_WIDTH = 8;
 	private static final String NODE_PAYLOAD = "PLAINSIGHT_NODE";
 	private static final int PANEL_FLAGS = ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse
 			| ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoBringToFrontOnFocus | ImGuiWindowFlags.NoSavedSettings;
@@ -47,6 +49,11 @@ public final class EditorUI {
 	private static final int HIDDEN_TEXT_COLOR = 0xFF808080, HIDDEN_DETAIL_COLOR = 0xFF626262;
 
 	private final Editor editor;
+	/** Widths of the side panels (dragged at their inner edges, saved in the editor config); NaN until read. */
+	private float leftWidth = Float.NaN, rightWidth = Float.NaN;
+	/** The splitter being dragged: 0 none, 1 left, 2 right; and where it was grabbed (mouse x minus the edge's). */
+	private int dragging;
+	private float dragOffset;
 	private final ImString searchField = new ImString(128);
 	/** This frame's tree search, or null while the search field is empty. */
 	private @Nullable TreeSearch search;
@@ -87,10 +94,13 @@ public final class EditorUI {
 		statusHeight = ImGui.getFrameHeight() + 4;
 		menuBar();
 		float top = menuHeight, bottom = height - statusHeight;
-		leftPanel(0, top, LEFT_WIDTH, bottom - top);
-		rightPanel(width - RIGHT_WIDTH, top, RIGHT_WIDTH, bottom - top);
+		panelWidths(width);
+		leftPanel(0, top, leftWidth, bottom - top);
+		rightPanel(width - rightWidth, top, rightWidth, bottom - top);
 		statusBar(0, bottom, width, statusHeight);
-		editor.viewport.set(LEFT_WIDTH, top, width - LEFT_WIDTH - RIGHT_WIDTH, bottom - top, width, height);
+		editor.viewport.set(leftWidth, top, width - leftWidth - rightWidth, bottom - top, width, height);
+		splitter(1, leftWidth, top, bottom - top);
+		splitter(2, width - rightWidth, top, bottom - top);
 		viewportButtons();
 		if (dev.plainsight.compat.Axiom.PRESENT) axiomButton();
 		waypointMarkers(width, height);
@@ -99,6 +109,78 @@ public final class EditorUI {
 			Runnable r = deferred;
 			deferred = null;
 			r.run();
+		}
+	}
+
+	public float leftWidth() {
+		return leftWidth;
+	}
+
+	public float rightWidth() {
+		return rightWidth;
+	}
+
+	/**
+	 * This frame's panel widths, before anything is laid out with them (so the panels and the viewport move
+	 * together): read from the config, following a dragged splitter, fitted to the window.
+	 */
+	private void panelWidths(float width) {
+		if (Float.isNaN(leftWidth)) {
+			leftWidth = dev.plainsight.editor.EditorConfig.getFloat("leftPanelWidth", DEFAULT_LEFT_WIDTH);
+			rightWidth = dev.plainsight.editor.EditorConfig.getFloat("rightPanelWidth", DEFAULT_RIGHT_WIDTH);
+		}
+		if (dragging != 0) {
+			float edge = ImGui.getMousePosX() - dragOffset;
+			if (dragging == 1) leftWidth = PanelWidths.dragged(edge, rightWidth, width);
+			else rightWidth = PanelWidths.dragged(width - edge, leftWidth, width);
+			if (!ImGui.isMouseDown(ImGuiMouseButton.Left)) {
+				dragging = 0;
+				dev.plainsight.editor.EditorConfig.setFloat("leftPanelWidth", leftWidth);
+				dev.plainsight.editor.EditorConfig.setFloat("rightPanelWidth", rightWidth);
+			}
+		}
+		float[] fit = PanelWidths.fit(leftWidth, rightWidth, width);
+		leftWidth = fit[0];
+		rightWidth = fit[1];
+	}
+
+	/** Sets the panel widths (tests); they are fitted to the window in the next frame. Not saved. */
+	public void setPanelWidths(float left, float right) {
+		leftWidth = left;
+		rightWidth = right;
+	}
+
+	/**
+	 * The grab area on a panel's inner edge at {@code x}: a small window over the panels, so it gets the
+	 * mouse before them (not NoBringToFrontOnFocus: ImGui creates such windows behind the others); a drag
+	 * changes the width from the next frame's {@link #panelWidths} on.
+	 */
+	private void splitter(int which, float x, float top, float h) {
+		float x0 = x - SPLITTER_WIDTH / 2;
+		ImGui.setNextWindowPos(x0, top);
+		ImGui.setNextWindowSize(SPLITTER_WIDTH, h);
+		ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0, 0);
+		ImGui.pushStyleVar(ImGuiStyleVar.WindowMinSize, 1, 1);
+		ImGui.pushStyleVar(ImGuiStyleVar.WindowBorderSize, 0);
+		ImGui.begin("##splitter" + which, ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.NoSavedSettings
+				| ImGuiWindowFlags.NoFocusOnAppearing | ImGuiWindowFlags.NoNav | ImGuiWindowFlags.NoMove);
+		ImGui.popStyleVar(3);
+		try {
+			ImGui.setCursorScreenPos(x0, top);
+			ImGui.invisibleButton("##split", SPLITTER_WIDTH, h);
+			rect(which == 1 ? "splitter_left" : "splitter_right");
+			if (ImGui.isItemActivated()) {
+				dragging = which;
+				dragOffset = ImGui.getMousePosX() - x;
+			}
+			boolean hot = ImGui.isItemHovered() || ImGui.isItemActive() || dragging == which;
+			if (hot) {
+				ImGui.setMouseCursor(imgui.flag.ImGuiMouseCursor.ResizeEW);
+				ImGui.getWindowDrawList().addRectFilled(x - 1, top, x + 1, top + h, ImGui.getColorU32(
+						dragging == which ? ImGuiCol.SeparatorActive : ImGuiCol.SeparatorHovered));
+			}
+		} finally {
+			ImGui.end();
 		}
 	}
 
