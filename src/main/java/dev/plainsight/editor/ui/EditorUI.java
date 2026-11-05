@@ -1169,6 +1169,19 @@ public final class EditorUI {
 			ImGui.textColored(0.55f, 0.8f, 1f, 1f, editor.status);
 		}
 		float sliderW = 160;
+		if (dev.infiniterra.api.LodTerrain.distanceScaleSupported()) {
+			// how far the LOD reaches in the editor (Voxy's LOD distance times this)
+			ImGui.sameLine(w - 2 * sliderW - 210);
+			ImGui.text("LOD distance");
+			ImGui.sameLine();
+			ImGui.setNextItemWidth(sliderW);
+			float[] lod = {dev.plainsight.editor.Editor.lodDistanceScale()};
+			if (ImGui.sliderFloat("##lodDistance", lod, 1f, dev.infiniterra.api.LodTerrain.MAX_DISTANCE_SCALE, "x%.1f"))
+				dev.plainsight.editor.Editor.setLodDistanceScale(lod[0], false);
+			if (ImGui.isItemDeactivatedAfterEdit()) dev.plainsight.editor.Editor.setLodDistanceScale(lod[0], true);
+			if (ImGui.isItemHovered()) ImGui.setTooltip("How far Voxy draws terrain in the editor, times its own LOD distance.\nFurther needs more GPU memory.");
+			rect("lod_distance");
+		}
 		ImGui.sameLine(w - sliderW - 70);
 		ImGui.text("Speed");
 		ImGui.sameLine();

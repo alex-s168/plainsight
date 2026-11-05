@@ -281,6 +281,15 @@ public final class EditorDebug {
 		return holes + " " + at;
 	}
 
+	public static String lodDistanceScale() {
+		return Float.toString(Editor.lodDistanceScale());
+	}
+
+	public static String setLodDistanceScale(float scale) {
+		Editor.setLodDistanceScale(scale, false);
+		return "ok";
+	}
+
 	public static String guessTintOpacity(float opacity) {
 		dev.plainsight.module.GuessedTerrain.tintOpacity = opacity;
 		return "ok";
