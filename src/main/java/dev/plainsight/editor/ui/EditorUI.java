@@ -7,6 +7,7 @@ import dev.plainsight.editor.selection.EntityNode;
 import dev.plainsight.editor.selection.GroupNode;
 import dev.plainsight.editor.selection.SelectionNode;
 import dev.plainsight.editor.selection.SelectionTree;
+import dev.plainsight.editor.selection.TreeSearch;
 import dev.plainsight.editor.tool.Tool;
 import dev.plainsight.module.Module;
 import imgui.ImDrawList;
@@ -46,6 +47,12 @@ public final class EditorUI {
 	private static final int HIDDEN_TEXT_COLOR = 0xFF808080, HIDDEN_DETAIL_COLOR = 0xFF626262;
 
 	private final Editor editor;
+	private final ImString searchField = new ImString(128);
+	/** This frame's tree search, or null while the search field is empty. */
+	private @Nullable TreeSearch search;
+	private String searchQuery = "";
+	/** Groups opened or closed by the user during the current search (their own state stays as it was). */
+	private final java.util.Map<java.util.UUID, Boolean> searchOpen = new java.util.HashMap<>();
 	/** Dimension of the tree view's tab ("" until the panel is drawn: the player's). */
 	private String viewDimension = "", lastDimension = "";
 	/** Selects {@link #viewDimension}'s tab in the next frame (after entering a dimension). */
@@ -487,6 +494,7 @@ public final class EditorUI {
 			if (ImGui.smallButton("Delete")) deleteSelected();
 			rect("tree_delete");
 			if (!any) ImGui.endDisabled();
+			searchBar(tree);
 			ImGui.separator();
 			float treeHeight = Math.max(120, h * 0.55f);
 			ImGui.beginChild("##tree", 0, treeHeight, false);
@@ -557,11 +565,44 @@ public final class EditorUI {
 		selectTab = false;
 	}
 
+	/**
+	 * The search field above the tree. While it has text the tree shows only the matches and the groups
+	 * they are in, opened ({@link TreeSearch}); opening or closing groups then is only for this search, so
+	 * clearing it brings back how the groups were.
+	 */
+	private void searchBar(SelectionTree tree) {
+		boolean clear = !searchField.isEmpty();
+		ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() - (clear ? ImGui.getFrameHeight() + ImGui.getStyle().getItemSpacingX() : 0));
+		ImGui.inputTextWithHint("##tree_search", "Search", searchField);
+		rect("tree_search");
+		if (ImGui.isItemFocused() && ImGui.isKeyPressed(ImGuiKey.Escape)) searchField.set("");
+		if (clear) {
+			ImGui.sameLine();
+			if (ImGui.button("x##clear_search", ImGui.getFrameHeight(), ImGui.getFrameHeight())) searchField.set("");
+			rect("tree_search_clear");
+			tooltip("Clear the search", "Shows the whole tree again, with the groups opened as before.");
+		}
+		String q = dev.plainsight.imgui.ImText.of(searchField);
+		if (q == null || q.isBlank()) {
+			search = null;
+			searchQuery = "";
+			searchOpen.clear();
+			return;
+		}
+		if (!q.equals(searchQuery)) {
+			// a new query opens the groups with matches again
+			searchQuery = q;
+			searchOpen.clear();
+		}
+		search = new TreeSearch(tree.root(), q);
+	}
+
 	private void treeContents(SelectionTree tree) {
 		// a narrower frame padding brings the open/close arrows closer to the panel edge and the icons
 		ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, TREE_FRAME_PAD_X, ImGui.getStyle().getFramePaddingY());
 		try {
 			for (SelectionNode n : tree.root().children()) node(n);
+			if (search != null && search.matches() == 0) ImGui.textDisabled("No matches");
 			// drop below the last node: move to the end of the top level
 			ImGui.dummy(ImGui.getContentRegionAvailX(), Math.max(20, ImGui.getContentRegionAvailY()));
 			rect("tree_empty");
@@ -580,13 +621,18 @@ public final class EditorUI {
 	}
 
 	private void node(SelectionNode n) {
+		TreeSearch search = this.search;
+		if (search != null && !search.shows(n)) return;
 		SelectionTree tree = viewTree();
 		int flags = ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.SpanAvailWidth | ImGuiTreeNodeFlags.FramePadding
 				| ImGuiTreeNodeFlags.AllowOverlap;
 		if (tree.selected().contains(n)) flags |= ImGuiTreeNodeFlags.Selected;
 		boolean group = n instanceof GroupNode;
 		if (!group) flags |= ImGuiTreeNodeFlags.Leaf | ImGuiTreeNodeFlags.NoTreePushOnOpen;
-		if (group) ImGui.setNextItemOpen(((GroupNode) n).expanded);
+		// while searching, groups open to show matches; what the user opens or closes then is kept apart
+		boolean wantOpen = !group ? false : search == null ? ((GroupNode) n).expanded
+				: searchOpen.getOrDefault(n.id(), search.expand.contains(n));
+		if (group) ImGui.setNextItemOpen(wantOpen);
 		boolean renamingThis = renaming == n;
 		boolean shown = shownInWorld(n);
 		// the label is drawn below (icon, clipped title, grey detail), the tree node only gets an id
@@ -600,7 +646,8 @@ public final class EditorUI {
 			drawNodeIcon(n, iconX, shown);
 			nodeText(n, key, textX, rowMinY, rowMaxY, rowMaxX - ROW_BUTTONS_WIDTH, shown);
 		}
-		if (group) ((GroupNode) n).expanded = open;
+		if (group && search == null) ((GroupNode) n).expanded = open;
+		else if (group && open != wantOpen) searchOpen.put(n.id(), open);
 		if (ImGui.isItemClicked(ImGuiMouseButton.Left) && !ImGui.isItemToggledOpen()) {
 			boolean ctrl = ImGui.getIO().getKeyCtrl();
 			if (!ctrl && n == editor.boxTool.editing()) {

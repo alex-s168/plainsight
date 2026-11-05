@@ -1273,6 +1273,59 @@ def test_selections_per_dimension():
     fresh_tree()
 
 
+def drawn_nodes():
+    return sorted(k[5:] for k in state()["widgets"] if k.startswith("node:"))
+
+
+def test_tree_search():
+    """The search field (#37) shows the fuzzy matches with their groups opened; clearing it brings back
+    the groups as they were."""
+    editor_on()
+    fresh_tree()
+    ed("addGroup", "", "base", "closed")
+    ed("addGroup", "base", "farms", "open")
+    ed("addPointTo", "farms", "iron farm", 1, -60, 1)
+    ed("addPointTo", "farms", "wheat", 2, -60, 1)
+    ed("addGroup", "", "storage", "closed")
+    ed("addPointTo", "storage", "chests", 3, -60, 1)
+    ed("addPointTo", "", "spawn", 0, -60, 0)
+    frames_pass()
+    before = drawn_nodes()
+    check(before == ["base", "spawn", "storage"], "closed groups: %s" % before)
+    c.click(*widget("tree_search"), b=1)
+    time.sleep(0.2)
+    c.type("irfm")
+    time.sleep(0.4)
+    check(drawn_nodes() == ["base", "farms", "iron farm"], "fuzzy match, its groups opened: %s" % drawn_nodes())
+    shot("tree-search")
+    # closing a group during the search only lasts for the search
+    _, r = find_node("base")
+    c.click(r[0] + 10, (r[1] + r[3]) / 2, b=1)
+    time.sleep(0.3)
+    check(drawn_nodes() == ["base"], "base closed while searching: %s" % drawn_nodes())
+    c.click(r[0] + 10, (r[1] + r[3]) / 2, b=1)
+    time.sleep(0.3)
+    check(drawn_nodes() == ["base", "farms", "iron farm"], "and opened again: %s" % drawn_nodes())
+    # a matching group shows what is in it
+    c.click(*widget("tree_search"), b=1)
+    for _ in range(4):
+        c.key(K["BACKSPACE"])
+    c.type("storage")
+    time.sleep(0.4)
+    check(drawn_nodes() == ["storage"], "a matching group, closed (no match inside): %s" % drawn_nodes())
+    # other dimensions' tabs search their own tree
+    c.click(*widget("tab:Nether"), b=1)
+    time.sleep(0.4)
+    check(drawn_nodes() == [] and state()["viewDimension"] == "minecraft:the_nether", "no matches in the nether: %s" % drawn_nodes())
+    c.click(*widget("tab:Overworld"), b=1)
+    time.sleep(0.4)
+    c.click(*widget("tree_search_clear"), b=1)
+    time.sleep(0.4)
+    check(drawn_nodes() == before, "clearing restores the groups: %s" % drawn_nodes())
+    check("tree_search_clear" not in state()["widgets"], "no clear button without a query")
+    fresh_tree()
+
+
 def test_rename_long_then_short():
     editor_on()
     fresh_tree()
