@@ -8,6 +8,8 @@
 		"CameraMixin",
 		"ChunkBorderRendererMixin",
 		"ChatComponentMixin",
+		"ChatScreenMixin",
+		"CommandSuggestionsMixin",
 		"EntityRendererMixin",
 		"FramerateLimitTrackerMixin",
 		"GameRendererMixin",

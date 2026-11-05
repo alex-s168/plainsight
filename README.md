@@ -61,6 +61,9 @@ what the tool is doing and closes ImGui popups.
   and this mod show them as dots; toggle with the editor's Hide seeds module or with `/plainsight seed hide <true|false>`.
   Settings: tint strength, fade cycle (0.2 to 5 s, default 0.5 s), radius around the camera (default 32 chunks, also `/plainsight guess radius <n>`).
 
+  All `/plainsight ...` commands can also be typed as `#ps ...` in chat, with the same suggestions (Baritone's
+  `#` commands keep working; it has no `ps`).
+
   How: a private, headless vanilla server with that seed generates chunks around the editor camera
   (full worldgen: terrain, caves, features, structures; nothing is saved) and hands them to a second
   Voxy LOD world, which the editor renders instead of the normal one. Every real chunk Voxy ingests is
