@@ -78,7 +78,7 @@ public final class VoxyGuess {
 		VoxyGuessImpl.show(guessed);
 		GuessWorld w = GuessWorld.current();
 		if (w == null) return;
-		w.showing = VoxyGuessImpl.showing();
+		w.showing = VoxyGuessImpl.rendering();
 		if (w.reloadView && w.showing) {
 			w.reloadView = false;
 			VoxyGuessImpl.reload();
@@ -95,8 +95,24 @@ public final class VoxyGuess {
 		}
 	}
 
-	/** Whether Voxy currently renders the guessed LOD world. */
+	/** Whether Voxy currently shows the guessed terrain (renders the guessed LOD world, guesses not hidden). */
 	public static boolean showing() {
 		return PRESENT && VoxyGuessImpl.showing();
+	}
+
+	/** Off: switch Voxy's renderer between the worlds as before (tests compare the two). */
+	public static String setSeamless(boolean on) {
+		if (PRESENT) VoxyGuessImpl.seamless = on;
+		return "ok";
+	}
+
+	/** For tests: "rendering hide switches patched importDone". */
+	public static String seamlessDebug() {
+		return PRESENT ? VoxyGuessImpl.debug() : "no voxy";
+	}
+
+	/** Whether Voxy renders the guessed LOD world, also outside the editor with the guesses hidden (tests). */
+	public static boolean rendering() {
+		return PRESENT && VoxyGuessImpl.rendering();
 	}
 }

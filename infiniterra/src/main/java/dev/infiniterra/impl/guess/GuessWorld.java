@@ -54,9 +54,16 @@ public final class GuessWorld {
 	private final LongOpenHashSet guessed = new LongOpenHashSet(), real = new LongOpenHashSet(), inFlight = new LongOpenHashSet();
 	/** 2x2-chunk LOD columns already looked up in the normal LOD world. Kept between sessions. */
 	private final LongOpenHashSet columns = new LongOpenHashSet();
+	/**
+	 * Chunks real in the world being played (this session): the normal LOD world's columns and every chunk
+	 * seen since. {@link #real} also holds chunks real in other worlds with the same seed.
+	 */
+	private final LongOpenHashSet realHere = new LongOpenHashSet();
 	/** Per chunk, which of its 16-block sections real data was copied for (generation leaves those alone). Kept between sessions. */
 	private final it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap realSections = new it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap();
 	public volatile int importTotal, imported;
+	/** Whether all of the normal LOD world is in the guessed one (the import ran to the end). */
+	public volatile boolean importDone;
 	/** Whether Voxy renders this world now (set from the render thread). */
 	volatile boolean showing;
 	/** Set when Voxy should rebuild its view of this world from storage (render thread does it). */
@@ -226,13 +233,19 @@ public final class GuessWorld {
 		return guessed.contains(k) && !real.contains(k);
 	}
 
+	public synchronized boolean isRealHere(int cx, int cz) {
+		return realHere.contains(ChunkPos.pack(cx, cz));
+	}
+
 	public synchronized boolean isReal(int cx, int cz) {
 		return real.contains(ChunkPos.pack(cx, cz));
 	}
 
 	/** A real chunk reached the LOD world: it never shows guesses again. Any thread. */
 	synchronized void markReal(int cx, int cz) {
-		if (real.add(ChunkPos.pack(cx, cz))) version++;
+		long k = ChunkPos.pack(cx, cz);
+		boolean changed = real.add(k);
+		if (realHere.add(k) || changed) version++;
 	}
 
 	/** Requests chunks around {@code centre} (block coordinates) while the editor shows guessed terrain. */
@@ -331,6 +344,13 @@ public final class GuessWorld {
 		Thread t = new Thread(() -> {
 			LongOpenHashSet found = new LongOpenHashSet();
 			VoxyGuess.realColumns(found::add);
+			synchronized (this) {
+				for (long col : found) {
+					int colX = ChunkPos.getX(col), colZ = ChunkPos.getZ(col);
+					for (int i = 0; i < 4; i++) realHere.add(ChunkPos.pack(colX * 2 + (i & 1), colZ * 2 + (i >> 1)));
+				}
+				version++;
+			}
 			long[] todo;
 			synchronized (this) {
 				todo = found.longStream().filter(c -> !columns.contains(c)).toArray();
@@ -372,6 +392,7 @@ public final class GuessWorld {
 				}
 				imported++;
 			}
+			importDone = true;
 			InfiniTerraMod.LOG.info("Copied {} LOD columns into the guessed world", imported);
 			save();
 			// whatever Voxy missed meanwhile: it re-reads the world once
@@ -491,6 +512,16 @@ public final class GuessWorld {
 	}
 
 	/** Fills {@code out} (size×size, row-major by z then x) with 1 where chunks around (originX, originZ) are guessed. */
+	/** Like {@link #fillMask}, but 255 for every chunk not real in the world being played (hidden outside the editor). */
+	public synchronized void fillHideMask(int originX, int originZ, int size, byte[] out) {
+		java.util.Arrays.fill(out, (byte) 255);
+		for (LongIterator it = realHere.iterator(); it.hasNext(); ) {
+			long k = it.nextLong();
+			int x = ChunkPos.getX(k) - originX, z = ChunkPos.getZ(k) - originZ;
+			if (x >= 0 && z >= 0 && x < size && z < size) out[z * size + x] = 0;
+		}
+	}
+
 	public synchronized void fillMask(int originX, int originZ, int size, byte[] out) {
 		java.util.Arrays.fill(out, (byte) 0);
 		for (LongIterator it = guessed.iterator(); it.hasNext(); ) {
