@@ -9,7 +9,7 @@
 	"entrypoints": {
 		"client": ["dev.infiniterra.InfiniTerraMod"]
 	},
-	"mixins": ["infiniterra.mixins.json", "infiniterra.sodium.mixins.json", "infiniterra.voxy.mixins.json", "infiniterra.iris.mixins.json"],
+	"mixins": ["infiniterra.mixins.json", "infiniterra.sodium.mixins.json", "infiniterra.voxy.mixins.json", "infiniterra.iris.mixins.json", "infiniterra.dh.mixins.json"],
 	"depends": {
 		"fabricloader": ">=0.20.0",
 		"fabric-api": "*",

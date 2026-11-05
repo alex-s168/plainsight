@@ -1,0 +1,10 @@
+{
+	"required": false,
+	"package": "dev.infiniterra.mixin.dh",
+	"plugin": "dev.infiniterra.InfiniTerraMixinPlugin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"ServerApiMixin"
+	],
+	"injectors": { "defaultRequire": 1 }
+}
