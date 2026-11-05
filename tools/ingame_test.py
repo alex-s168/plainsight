@@ -2400,6 +2400,7 @@ def test_guess_prefers_real_lod():
     check(s["guessImportTotal"] > 0 and s["guessImported"] >= s["guessImportTotal"],
           "the whole LOD is copied: %d / %d" % (s["guessImported"], s["guessImportTotal"]))
     check(ed("guessChunkIsReal", far >> 4, far >> 4) == "true", "including the far area, before the camera is there")
+    check(state()["guessSeamlessReady"], "then opening the editor switches seamlessly")
     editor_on()
     ed("setCamera", far + 0.5, 40, far + 0.5, 0, 89)
     s = wait_for(lambda s: s["guessShowing"], 40)

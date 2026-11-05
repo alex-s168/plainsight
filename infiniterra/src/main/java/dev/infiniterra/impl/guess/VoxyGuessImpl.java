@@ -396,7 +396,24 @@ final class VoxyGuessImpl {
 	 */
 	static boolean keepGuessed(WorldEngine g) {
 		GuessWorld w = world;
-		return seamless && !seamlessOff && VoxyGuessMask.patched && g != null && w != null && w.importDone;
+		if (!seamless || seamlessOff || !VoxyGuessMask.patched || g == null || w == null) return false;
+		var p = Minecraft.getInstance().player;
+		return p != null ? w.seamlessReady(p.getX(), p.getZ(), lodRadiusColumns()) : w.importDone;
+	}
+
+	/** How far Voxy draws its LOD, in 32-block LOD columns (its section render distance is in 32-chunk units). */
+	static int lodRadiusColumns() {
+		if (radiusOverride > 0) return radiusOverride;
+		var config = me.cortex.voxy.client.config.VoxyConfig.CONFIG;
+		return config == null ? 256 : Math.max(1, (int) Math.ceil(config.sectionRenderDistance * 16));
+	}
+
+	/** For tests: the radius (LOD columns) that has to be imported before seamless switching, instead of Voxy's distance; 0 = Voxy's. */
+	static volatile int radiusOverride;
+
+	/** Whether seamless switching works now (see {@link #keepGuessed}). */
+	static boolean seamlessReady() {
+		return keepGuessed(guessEngine);
 	}
 
 	static void show(boolean guessed) {

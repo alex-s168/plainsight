@@ -89,6 +89,7 @@ public final class EditorDebug {
 		o.addProperty("guessCopied", guess == null ? 0 : guess.copiedThisSession());
 		o.addProperty("guessImported", guess == null ? 0 : guess.imported());
 		o.addProperty("guessImportTotal", guess == null ? 0 : guess.importTotal());
+		o.addProperty("guessSeamlessReady", guess != null && guess.seamlessReady());
 		o.addProperty("guessShowing", dev.infiniterra.api.TerrainGuess.showing());
 		o.addProperty("guessTintDrawn", dev.infiniterra.api.TerrainGuess.tintDrawn());
 		var surface = dev.plainsight.render.DepthPick.at(Editor.get().mouseX, Editor.get().mouseY);
