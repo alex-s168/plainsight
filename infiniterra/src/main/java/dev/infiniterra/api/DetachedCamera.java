@@ -48,4 +48,9 @@ public final class DetachedCamera {
 	public static boolean caveCullingOff() {
 		return CameraState.caveCullingOff;
 	}
+
+	/** Main-view frames in which the LOD covered the loaded chunks too, the camera being outside them (tests). */
+	public static long lodWithoutBoundsFrames() {
+		return CameraState.lodWithoutBounds;
+	}
 }

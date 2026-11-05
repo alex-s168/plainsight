@@ -42,6 +42,22 @@ public final class DhProbe {
 		return "started";
 	}
 
+	/** DH's debug screen lines (world, levels, generation queue). */
+	public static String debug() {
+		if (!present()) return "no Distant Horizons";
+		return String.join(" | ", com.seibel.distanthorizons.core.api.internal.SharedApi.INSTANCE.getDebugMenuString());
+	}
+
+	/** DH's loaded levels: type and dimension of each, and DH's world type. */
+	public static String levels() {
+		if (!present()) return "no Distant Horizons";
+		StringBuilder sb = new StringBuilder();
+		var world = com.seibel.distanthorizons.core.api.internal.SharedApi.getAbstractDhWorld();
+		sb.append(world == null ? "no world" : world.getClass().getSimpleName()).append(": ");
+		clientLevel(sb);
+		return sb.toString();
+	}
+
 	public static String last() {
 		return last;
 	}

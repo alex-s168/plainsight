@@ -25,6 +25,9 @@ public final class InfiniTerraMod implements ClientModInitializer {
 			dev.infiniterra.impl.guess.SeedCheckImpl.loaded(chunk);
 			dev.infiniterra.impl.guess.WorldMirror.loaded(chunk);
 		});
-		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(dev.infiniterra.impl.guess.GuessWorld::shutdown));
+		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> {
+			dev.infiniterra.impl.guess.GuessWorld.shutdown();
+			if (dev.infiniterra.impl.dh.DhProbe.present()) dev.infiniterra.impl.dh.DhHost.disconnected();
+		}));
 	}
 }

@@ -36,7 +36,11 @@ public final class GuessWorld {
 	/** How far around the editor camera chunks are generated, in chunks. */
 	public static volatile int radius = 32;
 	/** Chunks requested from the server at the same time. */
-	private static final int IN_FLIGHT = 24;
+	/**
+	 * Chunks asked of the worldgen server at once. Its generation workers need a deep queue: in the hidden
+	 * client 24 gave 19 chunks/s, 96 gave 42, 256 no more (#20).
+	 */
+	private static final int IN_FLIGHT = Integer.getInteger("infiniterra.guessInFlight", 96);
 
 	private static GuessWorld current;
 	private static String currentKey;

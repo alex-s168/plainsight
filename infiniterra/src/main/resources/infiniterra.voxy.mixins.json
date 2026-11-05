@@ -6,6 +6,7 @@
 	"client": [
 		"IngestMirrorMixin",
 		"ModelFluidFlagMixin",
+		"NodeRequestDiagnosticsMixin",
 		"PassPipelineMixin",
 		"PassNormalPipelineMixin",
 		"PassRenderSystemMixin",

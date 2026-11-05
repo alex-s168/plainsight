@@ -54,6 +54,7 @@ import java.util.function.Supplier;
  * POST /world?name=test&mode=creative  create (if missing) and open a flat world
  * POST /look?yaw=..&pitch=..           set the player's rotation
  * POST /tp?x=..&y=..&z=..              move the player (client side, for framing screenshots)
+ * POST /focus?on=false&pause=true      pretend the window lost (or regained) focus; pause sets pauseOnLostFocus (not saved)
  * POST /static?class=a.B&method=m      call a public static no-argument method
  * POST /imgui/click?x=..&y=..&button=0  click in Axiom's ImGui (window pixels); also /imgui/move, /imgui/type?t=, /imgui/key?k=(ImGuiKey)
  * </pre>
@@ -63,6 +64,8 @@ public final class DevBridge implements ClientModInitializer {
 	private static final int MAX_LOG = 2000;
 	private static final ArrayDeque<String> CHAT = new ArrayDeque<>();
 	private static int chatBase;
+	/** What the window reports as its focus (see mixin.WindowMixin); a hidden window never has real focus. */
+	public static volatile boolean focused = true;
 
 	@Override
 	public void onInitializeClient() {
@@ -183,12 +186,19 @@ public final class DevBridge implements ClientModInitializer {
 					mc.mouseHandler.onScroll(mc.getWindow().handle(), 0, Double.parseDouble(q.getOrDefault("dy", "1")));
 					return "ok";
 				});
+				case "/connect" -> onMain(() -> connect(q.getOrDefault("host", "127.0.0.1"), Integer.parseInt(q.getOrDefault("port", "25565"))));
 				case "/world" -> onMain(() -> world(q.getOrDefault("name", "plainsight-dev"), q.getOrDefault("mode", "creative"), q.getOrDefault("preset", "flat")));
 				case "/look" -> onMain(() -> {
 					LocalPlayer p = player();
 					p.setYRot(Float.parseFloat(q.getOrDefault("yaw", "0")));
 					p.setXRot(Float.parseFloat(q.getOrDefault("pitch", "0")));
 					return "ok";
+				});
+				case "/focus" -> onMain(() -> {
+					focused = Boolean.parseBoolean(q.getOrDefault("on", "true"));
+					Minecraft mc = Minecraft.getInstance();
+					if (q.containsKey("pause")) mc.options.pauseOnLostFocus = Boolean.parseBoolean(q.get("pause"));
+					return "focused=" + focused + " pauseOnLostFocus=" + mc.options.pauseOnLostFocus;
 				});
 				case "/tp" -> onMain(() -> {
 					LocalPlayer p = player();
@@ -367,6 +377,16 @@ public final class DevBridge implements ClientModInitializer {
 		if (!action.equals("release")) mc.keyboardHandler.keyPress(h, 1, ev);
 		if (!action.equals("press")) mc.keyboardHandler.keyPress(h, 0, ev);
 		return "ok";
+	}
+
+	/** Joins a server (tests against a local dedicated server). */
+	private static String connect(String host, int port) {
+		Minecraft mc = Minecraft.getInstance();
+		if (mc.level != null) return "already in a world";
+		var data = new net.minecraft.client.multiplayer.ServerData("test server", host + ":" + port, net.minecraft.client.multiplayer.ServerData.Type.OTHER);
+		net.minecraft.client.gui.screens.ConnectScreen.startConnecting(new net.minecraft.client.gui.screens.TitleScreen(), mc,
+				new net.minecraft.client.multiplayer.resolver.ServerAddress(host, port), data, false, null);
+		return "connecting to " + host + ":" + port;
 	}
 
 	private static String world(String name, String mode, String preset) {
