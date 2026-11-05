@@ -7,7 +7,7 @@ import org.joml.Vector3dc;
 /**
  * The editor's map (M): the camera looks down at the minimap's angle, north up, through a narrow field
  * of view (a slightly 3D map, like the minimap's); the wheel zooms towards the point under the cursor
- * and dragging moves the map. Ctrl + LMB drag turns the map and tilts it (the minimap takes the tilt); both are kept. With Voxy the view is drawn like the minimap (the player's layer, daylight;
+ * and dragging or WASD (in the map's turn) moves the map. Ctrl + LMB drag turns the map and tilts it (the minimap takes the tilt); both are kept. With Voxy the view is drawn like the minimap (the player's layer, daylight;
  * see Minimap's editor map pass). The 3D camera comes back when the map is left. Zoom and drag work on a
  * horizontal plane at the player's height.
  */
@@ -22,6 +22,8 @@ public final class MapMode {
 	public static volatile float yaw = 180;
 	private boolean rotating;
 	public static final double MIN_HEIGHT = 12, MAX_HEIGHT = 6000;
+	/** WASD pan speed, in view distances per second (see {@link #panScale}). */
+	static final double PAN_RATE = 0.6;
 	private boolean active;
 	private final Vector3d saved = new Vector3d();
 	private float savedYaw, savedPitch;
@@ -41,6 +43,14 @@ public final class MapMode {
 	/** Distance from the camera to the map's plane along the view (the "zoom", in metres, as the minimap's). */
 	public double viewDistance() {
 		return height / Math.sin(Math.toRadians(tilt()));
+	}
+
+	/**
+	 * How much faster than in the 3D view WASD moves the map: in proportion to the distance to the map, so it
+	 * pans across the screen at the same rate at every zoom (about 60% of the view distance per second).
+	 */
+	public double panScale() {
+		return Math.max(1, viewDistance() * PAN_RATE / EditorCamera.BASE_SPEED);
 	}
 
 	/** Height of the camera above the player's level (tests). */
@@ -75,7 +85,7 @@ public final class MapMode {
 		Vector3d dir = dev.plainsight.editor.EditorCamera.direction(yaw, pitch, new Vector3d());
 		// from above (at the map's height) and behind the point, in the map's direction
 		c.set(new Vector3d(at.x, planeY, at.z).fma(-height / Math.sin(Math.toRadians(pitch)), dir), yaw, pitch);
-		editor.setStatus("Map: scroll to zoom, drag to move, Ctrl + drag to turn and tilt, " + dev.plainsight.Plainsight.mapKeyName() + " for the 3D view");
+		editor.setStatus("Map: scroll to zoom, drag or WASD to move, Ctrl + drag to turn and tilt, " + dev.plainsight.Plainsight.mapKeyName() + " for the 3D view");
 	}
 
 	public void exit(Editor editor) {
