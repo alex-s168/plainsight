@@ -127,6 +127,7 @@ public final class EditorDebug {
 			rects.addProperty(r.getKey(), v[0] + "," + v[1] + "," + v[2] + "," + v[3]);
 		}
 		o.add("widgets", rects);
+		o.addProperty("nodeTooltip", e.ui.nodeTooltip);
 		return new GsonBuilder().setPrettyPrinting().create().toJson(o);
 	}
 
@@ -586,6 +587,17 @@ public final class EditorDebug {
 			}
 			return "none";
 		}).join();
+	}
+
+	/** Renames the first node whose tree title is {@code title}. */
+	public static String renameNode(String title, String name) {
+		SelectionNode[] found = {null};
+		Editor.get().tree.root().forEach(n -> {
+			if (found[0] == null && n != Editor.get().tree.root() && n.title().equals(title)) found[0] = n;
+		});
+		if (found[0] == null) return "error: no node " + title;
+		Editor.get().tree.rename(found[0], name);
+		return found[0].title();
 	}
 
 	public static String clearTree() {

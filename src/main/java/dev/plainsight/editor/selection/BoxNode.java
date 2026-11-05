@@ -31,8 +31,8 @@ public final class BoxNode extends SelectionNode {
 	}
 
 	@Override
-	public String label() {
-		return name() + " (" + blocks(blockCount(), cachedExact) + ")";
+	public String detail() {
+		return "(" + blocks(blockCount(), cachedExact) + ")";
 	}
 
 	@Override

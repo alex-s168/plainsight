@@ -29,8 +29,8 @@ public final class PointNode extends SelectionNode {
 	}
 
 	@Override
-	public String label() {
-		return name() + " (" + x + ", " + y + ", " + z + ")";
+	public String detail() {
+		return "(" + x + ", " + y + ", " + z + ")";
 	}
 
 	@Override

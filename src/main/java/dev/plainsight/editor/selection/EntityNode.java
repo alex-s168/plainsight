@@ -35,7 +35,7 @@ public final class EntityNode extends SelectionNode {
 
 	/** Entities are named after themselves ("player: Steve") unless the user renamed the node. */
 	@Override
-	public String label() {
+	public String title() {
 		return customName() != null ? customName() : type + ": " + entityName;
 	}
 

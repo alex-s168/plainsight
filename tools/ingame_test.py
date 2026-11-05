@@ -1173,6 +1173,40 @@ def test_see_through_only_in_editor():
     time.sleep(0.5)
 
 
+def rect_of(name):
+    r = state()["widgets"].get(name)
+    check(r is not None, "widget %s not drawn" % name)
+    return tuple(map(float, r.split(",")))
+
+
+def test_tree_row_layout():
+    """Tree rows (#29): icon and text a fixed gap apart, long names clipped and faded before the row's
+    buttons, the whole name in a tooltip on hover."""
+    editor_on()
+    fresh_tree()
+    box = ed("addBox", 1, -61, 4, 7, -57, 10, "shown")
+    ed("addPoint", 3, -60, 3)
+    frames_pass()
+    node, text = rect_of("node:" + box), rect_of("nodetext:" + box)
+    close(text[0] - node[0], 16 + 4 + 16 + 7, 1, "text starts after arrow, icon and a 7 px gap")
+    check("nodefade:" + box not in state()["widgets"], "a short name is not faded")
+    long_name = "a very long selection name that does not fit into the tree panel at all"
+    ed("renameNode", box, long_name)
+    frames_pass()
+    text, wp = rect_of("nodetext:" + long_name), rect_of("wp:" + long_name)
+    check(text[2] <= wp[0] - 2, "the long name ends before the waypoint button: %s vs %s" % (text, wp))
+    fade = rect_of("nodefade:" + long_name)
+    close(fade[2], text[2], 1, "the fade ends where the text is clipped")
+    c.move((text[0] + text[2]) / 2, (text[1] + text[3]) / 2)
+    time.sleep(0.4)
+    check(state()["nodeTooltip"] == long_name, "hovering shows the whole name: %r" % state()["nodeTooltip"])
+    shot("tree-row-layout")
+    c.move(*widget("tree_empty"))
+    time.sleep(0.3)
+    check(state()["nodeTooltip"] == "", "no tooltip away from it")
+    fresh_tree()
+
+
 def test_rename_long_then_short():
     editor_on()
     fresh_tree()
