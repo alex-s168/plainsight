@@ -24,23 +24,41 @@ public abstract class PassTerrainCutMixin {
 	@Final
 	private Shader terrainShader;
 
+	@Shadow
+	@Final
+	private Shader translucentTerrainShader;
+
 	@WrapOperation(method = "renderTerrain", at = @At(value = "INVOKE",
 			target = "Lorg/lwjgl/opengl/ARBIndirectParameters;glMultiDrawElementsIndirectCountARB(IIJJII)V"))
 	private void infiniterra$cutAbovePlayer(int mode, int type, long indirect, long drawCount, int maxDrawCount, int stride, Operation<Void> original) {
+		infiniterra$cut(terrainShader, () -> original.call(mode, type, indirect, drawCount, maxDrawCount, stride));
+	}
+
+	/** Translucent LOD (water, ice, glass) has its own program and draw: cut it as well. */
+	@WrapOperation(method = "renderTranslucent", at = @At(value = "INVOKE",
+			target = "Lorg/lwjgl/opengl/ARBIndirectParameters;glMultiDrawElementsIndirectCountARB(IIJJII)V"))
+	private void infiniterra$cutTranslucent(int mode, int type, long indirect, long drawCount, int maxDrawCount, int stride, Operation<Void> original) {
+		infiniterra$cut(translucentTerrainShader, () -> original.call(mode, type, indirect, drawCount, maxDrawCount, stride));
+	}
+
+	private static void infiniterra$cut(Shader shader, Runnable draw) {
+		dev.infiniterra.impl.guess.VoxyGuessMask.apply(shader.id());
+		int fluid = GL20.glGetUniformLocation(shader.id(), "infiniterraFluidAlpha");
+		if (fluid >= 0) GL41.glProgramUniform1f(shader.id(), fluid, dev.infiniterra.api.TerrainStyle.fluidOpacity());
 		boolean cut = PassVoxy.inPass && dev.infiniterra.impl.pass.Passes.cutY != Float.MAX_VALUE; // (the "top" layer option: no cut)
-		int loc = cut ? GL20.glGetUniformLocation(terrainShader.id(), "infiniterraCutY") : -1;
+		int loc = cut ? GL20.glGetUniformLocation(shader.id(), "infiniterraCutY") : -1;
 		if (loc < 0) {
-			original.call(mode, type, indirect, drawCount, maxDrawCount, stride);
+			draw.run();
 			return;
 		}
-		GL41.glProgramUniform1f(terrainShader.id(), loc, dev.infiniterra.impl.pass.Passes.cutY);
+		GL41.glProgramUniform1f(shader.id(), loc, dev.infiniterra.impl.pass.Passes.cutY);
 		GL30.glEnable(GL30.GL_CLIP_DISTANCE0);
 		try {
-			original.call(mode, type, indirect, drawCount, maxDrawCount, stride);
+			draw.run();
 		} finally {
 			GL30.glDisable(GL30.GL_CLIP_DISTANCE0);
 			// the main view draws with the same program (the patched lighting checks the cut too)
-			GL41.glProgramUniform1f(terrainShader.id(), loc, 1e30f);
+			GL41.glProgramUniform1f(shader.id(), loc, 1e30f);
 		}
 	}
 }

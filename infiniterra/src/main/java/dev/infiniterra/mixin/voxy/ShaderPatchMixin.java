@@ -26,6 +26,10 @@ public abstract class ShaderPatchMixin {
 			patchTerrain(id, cir);
 			return;
 		}
+		if (id.getPath().endsWith("gl46/quads.frag")) {
+			patchGuessMask(id, cir);
+			return;
+		}
 		if (id.getPath().endsWith("lod/quad_util.glsl")) {
 			patchLighting(id, cir);
 			return;
@@ -77,6 +81,11 @@ public abstract class ShaderPatchMixin {
 	 */
 	private static final String CUT_UNIFORM = "#ifndef INFINITERRA_CUT\n#define INFINITERRA_CUT\nuniform float infiniterraCutY = 1e30;\n#endif\n";
 
+	/** Fluid opacity of {@link dev.infiniterra.api.TerrainStyle}, set before every LOD draw ({@link PassTerrainCutMixin}). */
+	private static final String FLUID_UNIFORM = "#ifndef INFINITERRA_FLUID\n#define INFINITERRA_FLUID\nuniform float infiniterraFluidAlpha = 1.0;\n#endif\n";
+
+	private static boolean vertexMaskPatched;
+
 	private static void patchTerrain(Identifier id, CallbackInfoReturnable<String> cir) {
 		String src = cir.getReturnValue();
 		String main = "\nvoid main() {", anchor = "interData = quad.attributeData;";
@@ -84,15 +93,53 @@ public abstract class ShaderPatchMixin {
 			dev.infiniterra.InfiniTerraMod.LOG.warn("Could not patch Voxy's {} (changed?): the camera pass shows all layers", id);
 			return;
 		}
+		vertexMaskPatched = true;
 		cir.setReturnValue(src
 				// NVIDIA's half precision path redeclares the vertex outputs
 				.replace("f16vec4 gl_Position;", "f16vec4 gl_Position;\n    float gl_ClipDistance[1];")
-				.replace(main, "\n" + CUT_UNIFORM + main)
+				.replace(main, "\n" + CUT_UNIFORM + FLUID_UNIFORM + main)
+				.replace(main, "\nlayout(location = 6) out vec2 infiniterraMaskXZ;\nuniform ivec2 infiniterraMaskOrigin;\n" + main)
+				.replace(anchor, anchor + "\n    {\n"
+						+ "        vec2 infiniterraCorner = vec2((cornerId>>1)&1u, cornerId&1u)*quad.lodScale;\n"
+						+ "        vec3 infiniterraP = quad.basePoint + swizzelDataAxis(quad.axis, vec3(quad.quadSizeAddin*infiniterraCorner, 0));\n"
+						+ "        infiniterraMaskXZ = vec2((baseSectionPos.xz<<5) - infiniterraMaskOrigin) + infiniterraP.xz;\n"
+						+ "    }")
+				// fluid opacity 0: fluid quads collapse to a point (nothing is drawn, not even depth)
+				.replace(anchor, anchor + "\n    if (infiniterraFluidAlpha <= 0.0 && (modelData[extractStateId(quadData[uint(gl_VertexID)>>2])].flagsA & "
+						+ dev.infiniterra.impl.style.VoxyStyle.FLUID_FLAG + "u) != 0u) gl_Position = vec4(0.0);")
 				.replace(anchor, anchor + "\n    {\n"
 						+ "        vec2 infiniterraMask = vec2((cornerId>>1)&1u, cornerId&1u)*quad.lodScale;\n"
 						+ "        vec3 infiniterraPoint = quad.basePoint + swizzelDataAxis(quad.axis, vec3(quad.quadSizeAddin*infiniterraMask, 0));\n"
 						+ "        gl_ClipDistance[0] = infiniterraCutY - (infiniterraPoint.y + float(baseSectionPos.y<<5));\n"
 						+ "    }"));
+	}
+
+	/**
+	 * Voxy renders the guessed LOD world in game too (it holds a copy of the real LOD), so switching to the
+	 * editor needs no new renderer; outside the editor the guessed chunks are hidden here, by a mask of
+	 * them ({@link dev.infiniterra.impl.guess.VoxyGuessMask}, one texel per chunk) and the position the vertex
+	 * shader passes on.
+	 */
+	private static void patchGuessMask(Identifier id, CallbackInfoReturnable<String> cir) {
+		String src = cir.getReturnValue(), main = "\nvoid main() {", anchor = "    //Check the minimum bounding texture";
+		// the vertex shader must pass the position on (it is loaded first), or the program would not link
+		if (!vertexMaskPatched || !src.contains(main) || !src.contains(anchor)) {
+			dev.infiniterra.InfiniTerraMod.LOG.warn("Could not patch Voxy's {} (changed?): switching to guessed terrain rebuilds Voxy's view", id);
+			return;
+		}
+		dev.infiniterra.impl.guess.VoxyGuessMask.patched = true;
+		cir.setReturnValue(src
+				.replace(main, "\nlayout(location = 6) in vec2 infiniterraMaskXZ;\n"
+						+ "layout(binding = " + dev.infiniterra.impl.guess.VoxyGuessMask.UNIT + ") uniform sampler2D infiniterraGuessMask;\n"
+						+ "uniform int infiniterraHideGuessed = 0;\nuniform int infiniterraMaskSize = 0;\n" + main)
+				.replace(anchor, "    if (infiniterraHideGuessed != 0) {\n"
+						+ "        ivec2 infiniterraCell = ivec2(floor(infiniterraMaskXZ / 16.0));\n"
+						+ "        if (any(lessThan(infiniterraCell, ivec2(0))) || any(greaterThanEqual(infiniterraCell, ivec2(infiniterraMaskSize)))\n"
+						+ "                || texelFetch(infiniterraGuessMask, infiniterraCell, 0).r > 0.5) {\n"
+						+ "            discard;\n"
+						+ "            return;\n"
+						+ "        }\n"
+						+ "    }\n" + anchor));
 	}
 
 	/**
@@ -105,6 +152,15 @@ public abstract class ShaderPatchMixin {
 			dev.infiniterra.InfiniTerraMod.LOG.warn("Could not patch Voxy's {} (changed?): caves are dark on the camera pass", id);
 			return;
 		}
-		cir.setReturnValue(CUT_UNIFORM + src.replace(anchor, anchor + "\n    if (infiniterraCutY < 1e29) lighting |= 0xFu;"));
+		src = src.replace(anchor, anchor + "\n    if (infiniterraCutY < 1e29) lighting |= 0xFu;");
+		// translucent fluids (water): their alpha times the fluid opacity (the lighting colour's alpha is the
+		// quad's alpha in the translucent pass; opaque quads use it for other data and are left alone)
+		String alpha = "tinting.rgb *= computeDirectionalFaceTint(isShaded, face);";
+		dev.infiniterra.impl.style.VoxyStyle.fluidAlphaPatched = src.contains(alpha);
+		if (src.contains(alpha))
+			src = src.replace(alpha, alpha + "\n    if (isTranslucent && (model.flagsA & " + dev.infiniterra.impl.style.VoxyStyle.FLUID_FLAG + "u) != 0u) tinting.w *= infiniterraFluidAlpha;");
+		else
+			dev.infiniterra.InfiniTerraMod.LOG.warn("Could not patch Voxy's {} (changed?): water in the LOD keeps its opacity", id);
+		cir.setReturnValue(CUT_UNIFORM + FLUID_UNIFORM + src);
 	}
 }

@@ -46,7 +46,8 @@ what the tool is doing and closes ImGui popups.
 
 ### World view (the labelled buttons at the top of the viewport; right-click a button for settings)
 
-* **Transparent fluids**: water and lava drawn translucent (opacity slider, 0 = hidden).
+* **Transparent fluids**: water and lava drawn translucent (opacity slider, 0 = hidden). With Voxy this
+  reaches the LOD too (water takes the opacity, lava is hidden at 0), as shader state without a re-mesh.
 * **See-through to players** (RTS cutaway): a cone from the camera that widens to a large area around
   each player (radius sliders for both ends) is drawn faintly (opacity slider, 0 = hidden), optionally
   for other players too; the ground the player stands on stays. Blocks around the cut are meshed as if
@@ -68,7 +69,10 @@ what the tool is doing and closes ImGui popups.
   has there (from earlier sessions too) is copied over instead, so everywhere you have been shows what
   you saw (useful where the server's terrain differs from today's generator). All of the LOD Voxy has
   gathered in that world is also copied in the background (nearest first, once), so the editor shows
-  it everywhere, at any distance. This works per chunk and 16-block section: sections Voxy has real data
+  it everywhere, at any distance. Once that copy is done, Voxy keeps rendering the guessed world in the
+  normal game too, with the chunks not real in this world hidden by a per-chunk mask in its terrain shader:
+  it looks the same as the normal LOD, and opening or closing the editor switches instantly (no new Voxy
+  renderer). The guessed LOD world is kept per world and seed. This works per chunk and 16-block section: sections Voxy has real data
   for keep it, the rest of a chunk is filled in from generation (chunks without any block in Voxy's LOD
   were never seen, only their LOD section's neighbours; sections without blocks count as unknown where
   terrain runs into them, since Voxy keeps sections it never got data for as air).

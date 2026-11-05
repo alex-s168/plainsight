@@ -2308,6 +2308,30 @@ def test_lod_covers_loaded_edge_from_outside():
     ed("setCamera", px, py + 10, pz - 10, 0, 30)
 
 
+def test_fluid_opacity_in_lod():
+    """Transparent Fluids reaches Voxy's LOD: fluid models are flagged on the GPU and the terrain shader
+    takes the module's opacity (shader state, no re-mesh)."""
+    if not state()["lodMod"] or not state()["sodium"]:
+        print("      (needs Voxy, skipped)")
+        return
+    editor_on()
+    c.command("fill 4 -61 4 6 -61 6 minecraft:water")
+    time.sleep(3)
+    S = "dev.infiniterra.api.TerrainStyle"
+    models, patched = c.static("dev.infiniterra.impl.style.VoxyStyle", "debug").split()
+    check(patched == "true", "Voxy's terrain shader applies the fluid opacity")
+    check(int(models) > 0, "fluid models are flagged: %s" % models)
+    ed("setModule", "fluid_transparency", "true")
+    ed("fluidOpacity", 0.4)
+    time.sleep(0.5)
+    check(abs(float(c.static(S, "fluidOpacity")) - 0.4) < 1e-4, "the module's opacity goes to the LOD: %s" % c.static(S, "fluidOpacity"))
+    ed("setModule", "fluid_transparency", "false")
+    time.sleep(0.5)
+    check(float(c.static(S, "fluidOpacity")) == 1.0, "module off: LOD fluids as Voxy draws them")
+    ed("fluidOpacity", 0.25)
+    c.command("fill 4 -61 4 6 -61 6 minecraft:air")
+
+
 def test_guess_prefers_real_lod():
     """Terrain Voxy already has (here: flat land loaded far from spawn, then unloaded) is copied into the
     guessed view instead of generated (the seed's generator would make hills there)."""
@@ -2559,6 +2583,60 @@ def test_zzzz_distant_horizons_on_a_server():
         c.world("plainsight-test")
         c.wait_world()
         time.sleep(3)
+
+
+def test_guessed_terrain_switch_is_seamless():
+    """Voxy keeps rendering the guessed LOD world outside the editor (it holds a copy of the real LOD), with
+    the chunks not real in this world hidden: opening and closing the editor needs no new renderer, and
+    the game shows the same as with the normal LOD world."""
+    if not state()["lodMod"] or not state()["sodium"]:
+        print("      (needs Voxy, skipped)")
+        return
+    G = "dev.infiniterra.impl.guess.VoxyGuess"
+    dbg = lambda: c.static(G, "seamlessDebug").split()
+    editor_off()
+    c.command("plainsight seed 12345")
+    s = wait_for(lambda s: s["guessState"] not in ("", "STARTING"), 60)
+    check(s["guessState"] == "READY", "worldgen server ready: %s" % s["guessState"])
+    check(dbg()[3] == "true", "Voxy's terrain shader hides guesses by the mask")
+    deadline = time.time() + 180
+    while dbg()[4] != "true" and time.time() < deadline:
+        time.sleep(1)
+    check(dbg()[4] == "true", "the normal LOD is copied into the guessed world: %s" % dbg())
+    # guesses next to the loaded area, in view of the player
+    editor_on()
+    px, py, pz = state()["player"]
+    ed("setCamera", px + 400, 120, pz + 0.5, -90, 30)
+    s = wait_for(lambda s: s["guessShowing"], 30)
+    check(s["guessShowing"], "the editor shows the guesses")
+    time.sleep(15)
+    switches = int(dbg()[2])
+    editor_off()
+    c.command("tp @s %s 200 %s -90 25" % (px, pz))
+    time.sleep(3)
+    d = dbg()
+    check(d[0] == "true" and d[1] == "true", "outside the editor Voxy still renders the guessed world, guesses hidden: %s" % d)
+    check(not state()["guessShowing"], "the guesses are not shown in game")
+    check(int(d[2]) == switches, "closing the editor needs no new renderer: %s -> %s" % (switches, d[2]))
+    time.sleep(5)
+    seamless = shot("guess-seamless-game")
+    editor_on()
+    time.sleep(2)
+    check(int(dbg()[2]) == switches and state()["guessShowing"], "opening it again neither: %s" % dbg())
+    editor_off()
+    # the old way, for comparison: Voxy's renderer back on the normal world
+    c.static(G, "setSeamless", "false")
+    time.sleep(2)
+    check(dbg()[0] == "false", "without seamless switching the normal world is rendered")
+    time.sleep(15)
+    normal = shot("guess-normal-game")
+    c.static(G, "setSeamless", "true")
+    w, h = map(int, re.search(r"window=(\d+)x(\d+)", c.status()).groups())
+    diff = changed_pixels(seamless, normal, 0, 0, w, h)
+    check(diff < w * h * 0.03, "the game looks the same as with the normal LOD world: %d of %d pixels differ" % (diff, w * h))
+    c.command("tp @s %s %s %s" % (px, py, pz))
+    c.command("plainsight seed clear")
+    wait_for(lambda s: s["guessState"] == "", 5)
 
 
 def test_guessed_terrain():
