@@ -88,6 +88,34 @@ final class GuessServer extends MinecraftServer {
 		}
 	}
 
+	/**
+	 * Other mods' server-stop hooks run on this server too, at the start of {@code stopServer}; one that
+	 * throws (Advanced Loot Info, once the game's own server has stopped) would skip the rest, leaving the
+	 * world unsaved and its session.lock held, so the next worldgen server for the seed in this game could
+	 * not open the folder (OverlappingFileLockException). Then the world is saved and closed here.
+	 */
+	@Override
+	protected void stopServer() {
+		try {
+			super.stopServer();
+		} catch (RuntimeException | LinkageError e) {
+			dev.infiniterra.InfiniTerraMod.LOG.warn("Stopping the worldgen server failed ({}); saving and closing its world directly", e.toString());
+			try {
+				saveAllChunks(true, true, false);
+			} catch (RuntimeException ex) {
+				dev.infiniterra.InfiniTerraMod.LOG.warn("Could not save the worldgen world", ex);
+			}
+			for (var level : getAllLevels()) {
+				try {
+					level.close();
+				} catch (Exception ex) {
+					dev.infiniterra.InfiniTerraMod.LOG.warn("Could not close {}", level, ex);
+				}
+			}
+			storageSource.safeClose();
+		}
+	}
+
 	@Override
 	protected boolean initServer() {
 		loadLevel();
