@@ -236,6 +236,38 @@ public final class EditorDebug {
 		return sb.toString();
 	}
 
+	/**
+	 * The open chat screen's input, then the suggestions it offers and the usage hint, one per line
+	 * ("input: ...", "suggestion: ...", "usage: ..."); "no chat" when the chat is not open (tests).
+	 */
+	public static String chatSuggestions() throws ReflectiveOperationException {
+		if (!(net.minecraft.client.Minecraft.getInstance().gui.screen() instanceof net.minecraft.client.gui.screens.ChatScreen chat)) return "no chat";
+		StringBuilder sb = new StringBuilder();
+		var inputField = net.minecraft.client.gui.screens.ChatScreen.class.getDeclaredField("input");
+		inputField.setAccessible(true);
+		sb.append("input: ").append(((net.minecraft.client.gui.components.EditBox) inputField.get(chat)).getValue()).append('\n');
+		var cs = net.minecraft.client.gui.screens.ChatScreen.class.getDeclaredField("commandSuggestions");
+		cs.setAccessible(true);
+		Object suggestions = cs.get(chat);
+		var pending = net.minecraft.client.gui.components.CommandSuggestions.class.getDeclaredField("pendingSuggestions");
+		pending.setAccessible(true);
+		var future = (java.util.concurrent.CompletableFuture<?>) pending.get(suggestions);
+		if (future != null && future.isDone()) {
+			for (var s : ((com.mojang.brigadier.suggestion.Suggestions) future.join()).getList()) sb.append("suggestion: ").append(s.getText()).append('\n');
+		}
+		var usage = net.minecraft.client.gui.components.CommandSuggestions.class.getDeclaredField("commandUsage");
+		usage.setAccessible(true);
+		for (Object line : (java.util.List<?>) usage.get(suggestions)) {
+			StringBuilder text = new StringBuilder();
+			((net.minecraft.util.FormattedCharSequence) line).accept((i, style, cp) -> {
+				text.appendCodePoint(cp);
+				return true;
+			});
+			sb.append("usage: ").append(text).append('\n');
+		}
+		return sb.toString();
+	}
+
 	/** The singleplayer world's seed (tests). */
 	public static String worldSeed() {
 		return Long.toString(net.minecraft.client.Minecraft.getInstance().getSingleplayerServer().overworld().getSeed());
