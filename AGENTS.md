@@ -60,6 +60,11 @@ tools/instance.py list      # slots of all worktrees, and which bridges are up
   worktree.
 * `tools/mc.py stop` only stops this checkout's client. Never `pkill` Java or sway broadly: other
   worktrees' clients are running.
+* Never run `./gradlew --stop` (or kill Gradle daemons): the daemons are shared by all checkouts, so it
+  ends every other session's builds. A hidden client runs inside its Gradle process; `hidden-client.sh`
+  starts it with `--no-daemon` in a daemon registry of its slot (`$XDG_RUNTIME_DIR/plainsight-hidden-<slot>/gradle-daemon`),
+  which a `--stop` elsewhere does not see (`--no-daemon` alone is not enough: the single-use daemon it forks
+  is still stopped by `--stop`). To restart your own client, use `tools/mc.py stop` / `start`.
 * The main checkout always stays on slot 0. The Axiom study client (`--axiom`, :25611) is not slotted:
   only one at a time.
 * Each client takes about 5 GB of RAM and a share of the GPU; keep to about four at once.
