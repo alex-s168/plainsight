@@ -1585,10 +1585,25 @@ def test_map_mode_camera():
         c.drag(800, 450, 900, 450, b=1)
         time.sleep(0.3)
         check(state()["camera"]["pos"][0] < x0 - 1, "dragging the map to the right shows what is west: %s -> %s" % (x0, state()["camera"]["pos"][0]))
+        # WASD pans the map (#52): north up, so W shows what is north (-z), D what is east (+x), at the same height
         p = state()["camera"]["pos"]
+        h = state()["mapHeight"]
         c.hold(K["W"], 0.4)
-        time.sleep(0.2)
-        check(state()["camera"]["pos"] == p, "W does not fly in the map")
+        time.sleep(0.4)
+        q = state()["camera"]["pos"]
+        check(p[2] - q[2] > 15, "W pans the map north: %s -> %s" % (p, q))
+        close(q[0], p[0], 0.05, "W keeps x")
+        close(q[1], p[1], 1e-6, "and the height")
+        c.hold(K["D"], 0.4)
+        time.sleep(0.4)
+        r = state()["camera"]["pos"]
+        check(r[0] - q[0] > 15, "D pans it east: %s -> %s" % (q, r))
+        c.hold(K["SPACE"], 0.3)
+        c.hold(K["LSHIFT"], 0.3)
+        time.sleep(0.3)
+        close(state()["camera"]["pos"][1], p[1], 1e-6, "Space and Shift do not fly up or down in the map")
+        close(state()["mapHeight"], h, 1e-6, "WASD keeps the zoom")
+        check(not state()["tree"], "and does nothing else")
         check("LMB - Move Map" in state()["statusHints"] if "statusHints" in state() else True, "map hints")
         shot("map-mode")
     finally:
@@ -1631,6 +1646,16 @@ def test_map_turn_and_tilt():
         t = state()["camera"]
         check(abs(t["yaw"] - (s["camera"]["yaw"] + 30)) < 1, "Ctrl + LMB drag right turns the map: %s -> %s" % (s["camera"]["yaw"], t["yaw"]))
         check(abs(t["pitch"] - s["camera"]["pitch"]) < 1e-3, "without tilting it")
+        # W pans in the map's turn: towards the top of the screen (#52)
+        a = t["pos"]
+        c.hold(K["W"], 0.3)
+        time.sleep(0.4)
+        b = state()["camera"]["pos"]
+        yr = math.radians(t["yaw"])
+        d = (b[0] - a[0], b[2] - a[2])
+        n = math.hypot(*d)
+        check(n > 10 and abs(d[0] / n + math.sin(yr)) < 0.02 and abs(d[1] / n - math.cos(yr)) < 0.02,
+              "W pans along the turned map's up: %s at yaw %s" % (d, t["yaw"]))
         p0 = t["pitch"]
         ctrl_drag([(900, 450)] + [(900, 450 + 10 * (i + 1)) for i in range(5)])
         close(state()["camera"]["pitch"], p0 + 10, 0.5, "50 px down tilts 10 degrees, as the arcball camera (0.2 deg/px)")

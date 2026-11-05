@@ -26,6 +26,8 @@ public final class EditorCamera {
 	public final Vector3d pos = new Vector3d();
 	public float yaw, pitch;
 	public float speed = 1f;
+	/** Scales keyboard movement on top of {@link #speed}: the editor map pans faster the higher it is (#52). */
+	public double moveScale = 1;
 	public boolean forward, back, left, right, up, down, fast;
 
 	private final Vector3d velocity = new Vector3d();
@@ -136,7 +138,7 @@ public final class EditorCamera {
 		if (up) wish.y += 1;
 		if (down) wish.y -= 1;
 		if (wish.lengthSquared() > 0) {
-			wish.normalize().mul(BASE_SPEED * speed * (fast ? 3 : 1));
+			wish.normalize().mul(BASE_SPEED * speed * moveScale * (fast ? 3 : 1));
 			// flying turns no longer towards the pivot (that would circle around it)
 			if (drag != Drag.ORBIT) centering = false;
 		}
