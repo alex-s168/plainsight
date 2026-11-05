@@ -125,6 +125,11 @@ public final class EditorDebug {
 		}
 		o.add("widgets", rects);
 		o.addProperty("nodeTooltip", e.ui.nodeTooltip);
+		o.addProperty("dimension", e.dimension());
+		o.addProperty("viewDimension", e.ui.viewDimension());
+		o.add("viewTree", tree(e.ui.viewTree().root()));
+		o.addProperty("positionText", e.ui.positionText);
+		o.addProperty("selectionsDir", e.trees().dir().toString());
 		return new GsonBuilder().setPrettyPrinting().create().toJson(o);
 	}
 
@@ -571,6 +576,27 @@ public final class EditorDebug {
 			}
 			return "none";
 		}).join();
+	}
+
+	/** Shows a dimension's selections in the tree view ("minecraft:the_nether"). */
+	public static String showDimension(String dimension) {
+		Editor.get().ui.showDimension(dimension);
+		return "ok";
+	}
+
+	/** Adds a point to a dimension's tree (it need not be the player's). */
+	public static String addPointIn(String dimension, int x, int y, int z) {
+		var t = Editor.get().trees().tree(dimension);
+		var p = t.add(new dev.plainsight.editor.selection.PointNode(x, y, z));
+		t.touch();
+		return p.name();
+	}
+
+	/** Empties a dimension's tree. */
+	public static String clearTreeIn(String dimension) {
+		Editor.get().trees().tree(dimension).clear();
+		Editor.get().trees().tree(dimension).touch();
+		return "ok";
 	}
 
 	/** Renames the first node whose tree title is {@code title}. */

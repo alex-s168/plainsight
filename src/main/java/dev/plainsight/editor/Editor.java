@@ -59,7 +59,11 @@ public final class Editor {
 	private volatile boolean active;
 	public final EditorCamera camera = new EditorCamera();
 	public final Viewport viewport = new Viewport();
-	public final SelectionTree tree = new SelectionTree();
+	/**
+	 * The selections of the dimension the player is in: what the world shows (boxes, waypoints, minimap) and
+	 * where the tools add to. The tree view may show another dimension's tree ({@link #trees()}).
+	 */
+	public SelectionTree tree = new SelectionTree();
 	public final Overlay overlay = new Overlay();
 	public final EditorUI ui = new EditorUI(this);
 
@@ -112,8 +116,10 @@ public final class Editor {
 	private static float partialTick = 1;
 	/** The camera's offset from where the followed entity is drawn, as of the last frame (tests). */
 	public final Vector3d lastFollowOffset = new Vector3d(Double.NaN, 0, 0);
-	private int savedVersion = -1;
-	private @Nullable Path storeFile;
+	/** This world's selection trees, one per dimension; null outside a world. */
+	private dev.plainsight.editor.selection.@Nullable DimensionTrees trees;
+	/** The dimension {@link #tree} belongs to (the player's). */
+	private String dimension = dev.plainsight.editor.selection.DimensionTrees.OVERWORLD;
 	private long lastSaveCheck;
 	/** Draw the editor's overlays (selections) in the normal game too, not only in the editor. */
 	private boolean overlaysInGame;
@@ -281,7 +287,7 @@ public final class Editor {
 			if (mc.level != null && now - lastSaveCheck > 1_000_000_000L) {
 				lastSaveCheck = now;
 				loadSelections();
-				if (tree.version() != savedVersion) saveSelections();
+				saveSelections();
 			}
 			return;
 		}
@@ -299,9 +305,11 @@ public final class Editor {
 			lastFollowOffset.set(camera.pos.x - at.x, camera.pos.y - at.y, camera.pos.z - at.z);
 		} else lastFollowOffset.set(Double.NaN, 0, 0);
 		seeThrough.frame();
+		if (!mc.level.dimension().identifier().toString().equals(dimension)) loadSelections();
 		if (now - lastSaveCheck > 2_000_000_000L) {
 			lastSaveCheck = now;
-			if (tree.version() != savedVersion) saveSelections();
+			loadSelections();
+			saveSelections();
 		}
 		if (System.currentTimeMillis() > statusUntil) status = "";
 	}
@@ -376,42 +384,56 @@ public final class Editor {
 
 	// -- persistence ----------------------------------------------------------------------------------------
 
-	private Path selectionsFile() {
+	/**
+	 * Where this world's selections are kept: in a singleplayer world's folder, else per server under the
+	 * config folder. Also returns the file of the old per-world store (one tree for all dimensions).
+	 */
+	private Path[] selectionsDir() {
 		Minecraft mc = Minecraft.getInstance();
-		String key;
-		if (mc.getSingleplayerServer() != null) {
-			key = "sp_" + mc.getSingleplayerServer().getWorldData().getLevelName();
-		} else if (mc.getCurrentServer() != null) {
-			key = "mp_" + mc.getCurrentServer().ip;
-		} else {
-			key = "unknown";
+		Path config = FabricLoader.getInstance().getConfigDir().resolve(Plainsight.ID).resolve("selections");
+		var sp = mc.getSingleplayerServer();
+		if (sp != null) {
+			Path world = sp.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT).toAbsolutePath().normalize();
+			String legacy = ("sp_" + sp.getWorldData().getLevelName()).replaceAll("[^A-Za-z0-9._-]", "_");
+			return new Path[]{world.resolve(Plainsight.ID).resolve("selections"), config.resolve(legacy + ".json")};
 		}
+		String key = mc.getCurrentServer() != null ? "mp_" + mc.getCurrentServer().ip : "unknown";
 		key = key.replaceAll("[^A-Za-z0-9._-]", "_");
-		return FabricLoader.getInstance().getConfigDir().resolve(Plainsight.ID).resolve("selections").resolve(key + ".json");
+		return new Path[]{config.resolve(key), config.resolve(key + ".json")};
 	}
 
+	/** The dimension the player is in, e.g. {@code minecraft:the_nether}. */
+	public String dimension() {
+		return dimension;
+	}
+
+	/** This world's selection trees by dimension. */
+	public dev.plainsight.editor.selection.DimensionTrees trees() {
+		if (trees == null) loadSelections();
+		if (trees == null) trees = new dev.plainsight.editor.selection.DimensionTrees(selectionsDir()[0], null);
+		return trees;
+	}
+
+	/** Makes {@link #tree} the current world's and dimension's tree, loading it when either changed. */
 	private void loadSelections() {
-		Path f = selectionsFile();
-		if (f.equals(storeFile)) return;
-		storeFile = f;
-		try {
-			SelectionStore.load(tree, f);
-		} catch (Exception e) {
-			Plainsight.LOG.warn("Could not load selections from {}", f, e);
-			tree.clear();
+		Minecraft mc = Minecraft.getInstance();
+		if (mc.level == null) return;
+		Path[] dir = selectionsDir();
+		if (trees == null || !trees.dir().equals(dir[0])) {
+			if (trees != null) trees.saveChanged();
+			trees = new dev.plainsight.editor.selection.DimensionTrees(dir[0], dir[1]);
+			dimension = "";
 		}
+		String dim = mc.level.dimension().identifier().toString();
+		if (dim.equals(dimension)) return;
+		dimension = dim;
 		boxTool.stopEditing();
-		savedVersion = tree.version();
+		pointTool.stopEditing();
+		tree = trees.tree(dim);
 	}
 
 	public void saveSelections() {
-		if (storeFile == null) return;
-		try {
-			SelectionStore.save(tree, storeFile);
-			savedVersion = tree.version();
-		} catch (IOException e) {
-			Plainsight.LOG.warn("Could not save selections to {}", storeFile, e);
-		}
+		if (trees != null) trees.saveChanged();
 	}
 
 	/** Called when leaving a world: forget which file the tree belongs to. */
@@ -419,15 +441,22 @@ public final class Editor {
 		if (active) disable();
 		dev.plainsight.guess.LocateCommands.shutdown();
 		saveSelections();
-		storeFile = null;
-		tree.clear();
+		trees = null;
+		dimension = "";
 		boxTool.stopEditing();
+		pointTool.stopEditing();
+		tree = new SelectionTree();
 	}
 
 	// -- tree helpers ---------------------------------------------------------------------------------------
 
 	/** The group new selections go into: the selected group, or the parent of the selected node. */
 	public @Nullable GroupNode targetGroup() {
+		return targetGroup(tree);
+	}
+
+	/** As {@link #targetGroup()}, in {@code tree}. */
+	public static @Nullable GroupNode targetGroup(SelectionTree tree) {
 		SelectionNode last = null;
 		for (SelectionNode n : tree.selected()) last = n;
 		if (last instanceof GroupNode g) return g;
@@ -436,6 +465,11 @@ public final class Editor {
 	}
 
 	public void deleteSelected() {
+		deleteSelected(tree);
+	}
+
+	/** Deletes the nodes selected in {@code tree} (the current dimension's, or another one shown in the tree view). */
+	public void deleteSelected(SelectionTree tree) {
 		for (SelectionNode n : tree.topLevel(List.copyOf(tree.selected()))) {
 			if (boxTool.editing() != null && (n == boxTool.editing() || n.isAncestorOf(boxTool.editing()))) boxTool.stopEditing();
 			tree.remove(n);
@@ -797,7 +831,8 @@ public final class Editor {
 		}
 		switch (scancode) {
 			case InputConstants.KEY_DELETE -> {
-				deleteSelected();
+				// in the tree view's dimension: what the tree shows as selected
+				deleteSelected(ui.viewTree());
 				return true;
 			}
 			case InputConstants.KEY_ESCAPE -> {
