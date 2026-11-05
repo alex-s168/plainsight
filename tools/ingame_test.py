@@ -1207,6 +1207,72 @@ def test_tree_row_layout():
     fresh_tree()
 
 
+def go_dimension(dim, pos):
+    cmd("execute in %s run tp @s %s" % (dim, pos))
+    wait_for(lambda s: s["dimension"] == dim, 30)
+    time.sleep(1)
+
+
+def test_selections_per_dimension():
+    """Selections are kept per dimension (#22): the world only shows the player's dimension's, the tabs
+    above the tree show any dimension's, positions say real and translated (overworld/nether) or End."""
+    editor_on()
+    fresh_tree()
+    ow, ne, en = "minecraft:overworld", "minecraft:the_nether", "minecraft:the_end"
+    ed("clearTreeIn", ne)
+    ed("clearTreeIn", en)
+    box = ed("addBox", 1, -61, 4, 7, -57, 10, "shown")
+    c.click(*widget("wp:" + box), b=1)
+    time.sleep(0.4)
+    check(ed("waypointMarkers").split()[0] == "1", "a waypoint in the overworld")
+    editor_off()
+    try:
+        go_dimension(ne, "0 130 0")
+        editor_on()
+        s = state()
+        check(s["viewDimension"] == ne and s["tree"] == [] and s["viewTree"] == [], "the nether's own, empty tree: %s" % s)
+        check(ed("waypointMarkers").split()[0] == "0", "the overworld waypoint is not shown in the nether")
+        point = ed("addPoint", 2, 70, 3)
+        frames_pass()
+        c.click(*find_node(point)[0], b=1)
+        time.sleep(0.3)
+        t = state()["positionText"]
+        check(t == "Nether position (real): 2 70 3\nOverworld position (translated): 16 70 24", "real and translated: %r" % t)
+        # the overworld tab shows the overworld's tree, the world still the nether's
+        c.click(*widget("tab:Overworld"), b=1)
+        time.sleep(0.4)
+        s = state()
+        check(s["viewDimension"] == ow and len(s["viewTree"]) == 1 and s["tree"] == ["point 1 (2, 70, 3)"], "overworld tab: %s / %s" % (s["viewTree"], s["tree"]))
+        c.click(*find_node(box)[0], b=1)
+        time.sleep(0.3)
+        t = state()["positionText"]
+        check(t == "Nether centre (translated): 0.56 -58.50 0.94\nOverworld centre (real): 4.50 -58.50 7.50",
+              "seen from the nether, the nether position first: %r" % t)
+        check("editing" not in state(), "another dimension's box is not edited")
+        c.move(800, 450)
+        time.sleep(0.3)
+        shot("tree-dimensions")
+        ed("addPointIn", en, 100, 50, 0)
+        c.click(*widget("tab:End"), b=1)
+        time.sleep(0.4)
+        c.click(*find_node("point 1")[0], b=1)
+        time.sleep(0.3)
+        check(state()["positionText"] == "End position 100 50 0", "End position from outside the end: %r" % state()["positionText"])
+        editor_off()
+        files = os.listdir(state()["selectionsDir"])
+        check("minecraft_the_nether.json" in files and "minecraft_the_end.json" in files, "saved per dimension: %s" % files)
+    finally:
+        editor_off()
+        go_dimension(ow, "0.5 -60 0.5 0 0")
+    editor_on()
+    s = state()
+    check(s["viewDimension"] == ow and s["tree"][0].startswith(box), "back in the overworld, its tab and tree: %s" % s)
+    check(ed("waypointMarkers").split()[0] == "1", "and its waypoint")
+    ed("clearTreeIn", ne)
+    ed("clearTreeIn", en)
+    fresh_tree()
+
+
 def test_rename_long_then_short():
     editor_on()
     fresh_tree()
@@ -2378,8 +2444,9 @@ def test_selection_persists():
     editor_off()
     editor_on()
     check(state()["tree"] == tree, "tree survives closing/opening the editor")
-    files = os.listdir(os.path.join(c.run_dir, "config", "plainsight", "selections"))
-    check(any(f.endswith(".json") for f in files), "selections saved to disk: %s" % files)
+    d = os.path.join(c.run_dir, "saves", "plainsight-test", "plainsight", "selections")
+    files = os.listdir(d)
+    check("minecraft_overworld.json" in files, "selections saved in the world folder, per dimension: %s" % files)
 
 
 def test_fluid_transparency_button():

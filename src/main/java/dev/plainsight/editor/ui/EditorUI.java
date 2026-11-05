@@ -2,6 +2,7 @@ package dev.plainsight.editor.ui;
 
 import dev.plainsight.editor.Editor;
 import dev.plainsight.editor.selection.BoxNode;
+import dev.plainsight.editor.selection.DimensionTrees;
 import dev.plainsight.editor.selection.EntityNode;
 import dev.plainsight.editor.selection.GroupNode;
 import dev.plainsight.editor.selection.SelectionNode;
@@ -18,6 +19,7 @@ import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiStyleVar;
+import imgui.flag.ImGuiTabItemFlags;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;
@@ -44,6 +46,12 @@ public final class EditorUI {
 	private static final int HIDDEN_TEXT_COLOR = 0xFF808080, HIDDEN_DETAIL_COLOR = 0xFF626262;
 
 	private final Editor editor;
+	/** Dimension of the tree view's tab ("" until the panel is drawn: the player's). */
+	private String viewDimension = "", lastDimension = "";
+	/** Selects {@link #viewDimension}'s tab in the next frame (after entering a dimension). */
+	private boolean selectTab;
+	/** The position lines of the selected node's properties, last drawn (for tests). */
+	public String positionText = "";
 	/** Title of the tree row whose full text is shown in a tooltip this frame (for tests), or "". */
 	public String nodeTooltip = "";
 	private @Nullable SelectionNode renaming;
@@ -129,10 +137,10 @@ public final class EditorUI {
 			ImGui.endMenu();
 		}
 		if (ImGui.beginMenu("Edit")) {
-			boolean any = !editor.tree.selected().isEmpty();
+			boolean any = !viewTree().selected().isEmpty();
 			if (ImGui.menuItem("Group selected", "Ctrl+G", false, any)) groupSelected();
 			if (ImGui.menuItem("Duplicate", "Ctrl+D", false, any)) duplicateSelected();
-			if (ImGui.menuItem("Delete", "Del", false, any)) deferred = editor::deleteSelected;
+			if (ImGui.menuItem("Delete", "Del", false, any)) deleteSelected();
 			ImGui.endMenu();
 		}
 		if (ImGui.beginMenu("Help")) {
@@ -461,10 +469,11 @@ public final class EditorUI {
 	private void selectionsPanel(float h) {
 		ImGui.setNextItemOpen(true, ImGuiCond.FirstUseEver);
 		if (ImGui.collapsingHeader("Selections")) {
-			SelectionTree tree = editor.tree;
+			dimensionTabs();
+			SelectionTree tree = viewTree();
 			if (ImGui.smallButton("+ Group")) {
 				deferred = () -> {
-					GroupNode g = tree.add(new GroupNode(), editor.targetGroup(), -1);
+					GroupNode g = tree.add(new GroupNode(), Editor.targetGroup(tree), -1);
 					tree.select(g, false);
 				};
 			}
@@ -475,7 +484,7 @@ public final class EditorUI {
 			if (ImGui.smallButton("Group")) groupSelected();
 			rect("tree_group");
 			ImGui.sameLine();
-			if (ImGui.smallButton("Delete")) deferred = editor::deleteSelected;
+			if (ImGui.smallButton("Delete")) deleteSelected();
 			rect("tree_delete");
 			if (!any) ImGui.endDisabled();
 			ImGui.separator();
@@ -488,6 +497,64 @@ public final class EditorUI {
 			}
 			guarded("properties", this::properties);
 		}
+	}
+
+	/** The tree shown in the tree view: the selections of the dimension picked in the tab bar. */
+	public SelectionTree viewTree() {
+		return editor.trees().tree(viewDimension());
+	}
+
+	/** The dimension whose selections the tree view shows (by default the player's). */
+	public String viewDimension() {
+		return viewDimension.isEmpty() ? editor.dimension() : viewDimension;
+	}
+
+	/** Shows another dimension's selections in the tree view (tests); the world still shows the player's. */
+	public void showDimension(String dimension) {
+		viewDimension = dimension;
+		selectTab = true;
+	}
+
+	/**
+	 * Tabs above the tree: overworld, nether, end (and the player's dimension if it is another one). They
+	 * only switch the tree view; the world only ever shows the selections of the dimension the player is in.
+	 * Entering another dimension switches to its tab.
+	 */
+	private void dimensionTabs() {
+		String here = editor.dimension();
+		if (!here.equals(lastDimension)) {
+			lastDimension = here;
+			viewDimension = here;
+			selectTab = true;
+		}
+		List<String> dims = new ArrayList<>(List.of(DimensionTrees.OVERWORLD, DimensionTrees.NETHER, DimensionTrees.END));
+		if (!dims.contains(here)) dims.add(here);
+		if (!dims.contains(viewDimension())) viewDimension = here;
+		if (ImGui.beginTabBar("##dimensions")) {
+			try {
+				for (String d : dims) {
+					String name = DimensionTrees.displayName(d);
+					boolean isHere = d.equals(here);
+					int flags = selectTab && d.equals(viewDimension()) ? ImGuiTabItemFlags.SetSelected : 0;
+					// room for a dot that marks the player's dimension
+					boolean open = ImGui.beginTabItem(name + (isHere ? "    " : "") + "###dim_" + d, flags);
+					if (open) ImGui.endTabItem();
+					rect("tab:" + name);
+					if (isHere) {
+						float cx = ImGui.getItemRectMaxX() - ImGui.getStyle().getFramePaddingX() - 6;
+						float cy = (ImGui.getItemRectMinY() + ImGui.getItemRectMaxY()) / 2;
+						ImGui.getWindowDrawList().addCircleFilled(cx, cy, 3.5f, 0xFF66D9FF);
+					}
+					tooltip(name, isHere ? "Your dimension: its selections are the ones shown in the world."
+							: "Shows the selections kept for the " + name.toLowerCase(java.util.Locale.ROOT)
+							+ ". They are only drawn in the world while you are there.");
+					if (open && !selectTab) viewDimension = d;
+				}
+			} finally {
+				ImGui.endTabBar();
+			}
+		}
+		selectTab = false;
 	}
 
 	private void treeContents(SelectionTree tree) {
@@ -513,7 +580,7 @@ public final class EditorUI {
 	}
 
 	private void node(SelectionNode n) {
-		SelectionTree tree = editor.tree;
+		SelectionTree tree = viewTree();
 		int flags = ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.SpanAvailWidth | ImGuiTreeNodeFlags.FramePadding
 				| ImGuiTreeNodeFlags.AllowOverlap;
 		if (tree.selected().contains(n)) flags |= ImGuiTreeNodeFlags.Selected;
@@ -543,7 +610,9 @@ public final class EditorUI {
 				editor.pointTool.stopEditing();
 			} else {
 				tree.select(n, ctrl);
-				if (n instanceof BoxNode b && tree.selected().contains(n)) editor.editBox(b);
+				if (tree != editor.tree) {
+					// another dimension's selection: it can be renamed, grouped, hidden..., not moved
+				} else if (n instanceof BoxNode b && tree.selected().contains(n)) editor.editBox(b);
 				else if (n instanceof dev.plainsight.editor.selection.PointNode p && tree.selected().contains(n)) editor.editPoint(p);
 				else if (!ctrl) editor.boxTool.stopEditing();
 			}
@@ -591,7 +660,7 @@ public final class EditorUI {
 		if (hovered) tooltip(n.visible ? "Hide" : "Show", "Show or hide this selection in the world" + (n instanceof GroupNode ? " (with everything in it)." : "."));
 		if (clicked) {
 			n.visible = !n.visible;
-			editor.tree.touch();
+			viewTree().touch();
 		}
 	}
 
@@ -615,7 +684,7 @@ public final class EditorUI {
 				"Show this selection as a waypoint in the world: a marker at its centre, with its name when you look at it.");
 		if (clicked) {
 			n.waypoint = !n.waypoint;
-			editor.tree.touch();
+			viewTree().touch();
 		}
 	}
 
@@ -644,7 +713,7 @@ public final class EditorUI {
 		// the row is drawn in Header colours while selected or hovered (opaque in our style), else on the window
 		boolean hovered = ImGui.isItemHovered(), held = hovered && ImGui.isItemActive();
 		int bgCol = held ? ImGuiCol.HeaderActive : hovered ? ImGuiCol.HeaderHovered
-				: editor.tree.selected().contains(n) ? ImGuiCol.Header : ImGuiCol.WindowBg;
+				: viewTree().selected().contains(n) ? ImGuiCol.Header : ImGuiCol.WindowBg;
 		int bg = ImGui.getColorU32(bgCol) | 0xFF000000, clear = bg & 0x00FFFFFF;
 		float fade = Math.min(FADE_WIDTH, clipX - x);
 		dl.addRectFilledMultiColor(clipX - fade, minY, clipX, maxY, clear, bg, bg, clear);
@@ -699,7 +768,7 @@ public final class EditorUI {
 	}
 
 	private void dragAndDrop(SelectionNode n) {
-		SelectionTree tree = editor.tree;
+		SelectionTree tree = viewTree();
 		if (ImGui.beginDragDropSource(ImGuiDragDropFlags.None)) {
 			ImGui.setDragDropPayload(NODE_PAYLOAD, n);
 			ImGui.text(n.label());
@@ -722,7 +791,7 @@ public final class EditorUI {
 	}
 
 	private void contextMenu(SelectionNode n) {
-		SelectionTree tree = editor.tree;
+		SelectionTree tree = viewTree();
 		if (ImGui.beginPopupContextItem("ctx" + n.id())) {
 			try {
 				contextMenuItems(n);
@@ -733,7 +802,7 @@ public final class EditorUI {
 	}
 
 	private void contextMenuItems(SelectionNode n) {
-		SelectionTree tree = editor.tree;
+		SelectionTree tree = viewTree();
 		{
 			if (!tree.selected().contains(n)) tree.select(n, false);
 			if (ImGui.menuItem("Rename", "F2")) startRename(n);
@@ -751,17 +820,18 @@ public final class EditorUI {
 				n.waypoint = !n.waypoint;
 				tree.touch();
 			}
-			if (ImGui.menuItem("Focus camera")) editor.focus(n);
+			boolean here = tree == editor.tree;
+			if (ImGui.menuItem("Focus camera", "", false, here)) editor.focus(n);
 			if (n instanceof EntityNode en) {
 				var mc = Minecraft.getInstance();
 				var entity = mc.level == null ? null : mc.level.getEntity(en.entity());
-				if (ImGui.menuItem("Follow with camera", "", false, entity != null)) {
+				if (ImGui.menuItem("Follow with camera", "", false, here && entity != null)) {
 					editor.focus(n);
 					editor.follow(entity);
 				}
 			}
 			ImGui.separator();
-			if (ImGui.menuItem("Delete", "Del")) deferred = editor::deleteSelected;
+			if (ImGui.menuItem("Delete", "Del")) deleteSelected();
 		}
 	}
 
@@ -786,26 +856,33 @@ public final class EditorUI {
 		rect("rename");
 		// Enter or clicking elsewhere commits, Escape cancels
 		if (done || (!starting && !ImGui.isItemActive())) {
-			if (!ImGui.isKeyPressed(ImGuiKey.Escape)) editor.tree.rename(n, dev.plainsight.imgui.ImText.of(renameField));
+			if (!ImGui.isKeyPressed(ImGuiKey.Escape)) viewTree().rename(n, dev.plainsight.imgui.ImText.of(renameField));
 			renaming = null;
 		}
 	}
 
 	private void groupSelected() {
-		List<SelectionNode> sel = new ArrayList<>(editor.tree.selected());
+		SelectionTree tree = viewTree();
+		List<SelectionNode> sel = new ArrayList<>(tree.selected());
 		if (sel.isEmpty()) return;
 		deferred = () -> {
-			GroupNode g = editor.tree.group(sel);
-			editor.tree.select(g, false);
+			GroupNode g = tree.group(sel);
+			tree.select(g, false);
 		};
 	}
 
 	private void duplicateSelected() {
-		List<SelectionNode> sel = editor.tree.topLevel(new ArrayList<>(editor.tree.selected()));
+		SelectionTree tree = viewTree();
+		List<SelectionNode> sel = tree.topLevel(new ArrayList<>(tree.selected()));
 		deferred = () -> {
-			editor.tree.clearSelection();
-			for (SelectionNode n : sel) editor.tree.select(editor.tree.duplicate(n), true);
+			tree.clearSelection();
+			for (SelectionNode n : sel) tree.select(tree.duplicate(n), true);
 		};
+	}
+
+	private void deleteSelected() {
+		SelectionTree tree = viewTree();
+		deferred = () -> editor.deleteSelected(tree);
 	}
 
 	/** Shortcuts that act on the tree while the tree panel is focused or the viewport has focus. */
@@ -813,20 +890,20 @@ public final class EditorUI {
 		if (ImGui.getIO().getWantTextInput()) return;
 		if (ImGui.getIO().getKeyCtrl() && ImGui.isKeyPressed(ImGuiKey.G, false)) groupSelected();
 		if (ImGui.getIO().getKeyCtrl() && ImGui.isKeyPressed(ImGuiKey.D, false)) duplicateSelected();
-		if (ImGui.isKeyPressed(ImGuiKey.F2, false) && editor.tree.selected().size() == 1) startRename(editor.tree.selected().iterator().next());
+		if (ImGui.isKeyPressed(ImGuiKey.F2, false) && viewTree().selected().size() == 1) startRename(viewTree().selected().iterator().next());
 	}
 
 	private void properties() {
 		ImGui.setNextItemOpen(true, ImGuiCond.FirstUseEver);
 		if (!ImGui.collapsingHeader("Properties")) return;
-		var sel = editor.tree.selected();
+		var sel = viewTree().selected();
 		if (sel.isEmpty()) {
 			ImGui.textDisabled("Nothing selected");
 			return;
 		}
 		if (sel.size() > 1) {
 			long blocks = 0;
-			for (SelectionNode n : editor.tree.topLevel(new ArrayList<>(sel))) blocks += n.blockCount();
+			for (SelectionNode n : viewTree().topLevel(new ArrayList<>(sel))) blocks += n.blockCount();
 			ImGui.text(sel.size() + " nodes, " + blocks + " blocks");
 			copyButtons(new ArrayList<>(sel));
 			return;
@@ -837,7 +914,7 @@ public final class EditorUI {
 			case GroupNode g -> ImGui.textDisabled(g.children().size() + " children, " + g.blockCount() + " blocks");
 			case BoxNode b -> {
 				var c = b.box().center;
-				ImGui.textDisabled(String.format("centre %.2f %.2f %.2f", c.x, c.y, c.z));
+				positions("centre", c.x, c.y, c.z, false);
 				ImGui.textDisabled(String.format("size %.2f x %.2f x %.2f%s", b.box().half.x * 2, b.box().half.y * 2, b.box().half.z * 2,
 						b.box().isAxisAligned() ? "" : "  (rotated)"));
 			}
@@ -847,10 +924,46 @@ public final class EditorUI {
 				boolean loaded = mc.level != null && mc.level.getEntity(e.entity()) != null;
 				ImGui.textDisabled(loaded ? "loaded" : "not loaded");
 			}
-			case dev.plainsight.editor.selection.PointNode p -> ImGui.textDisabled("at " + p.x + " " + p.y + " " + p.z);
+			case dev.plainsight.editor.selection.PointNode p -> positions("position", p.x, p.y, p.z, true);
 		}
+		boolean here = viewTree() == editor.tree;
+		if (!here) ImGui.beginDisabled();
 		if (ImGui.button("Focus")) editor.focus(n);
+		if (!here) ImGui.endDisabled();
 		copyButtons(List.of(n));
+	}
+
+	/**
+	 * A selection's position in the shown tree's dimension. Overworld and Nether selections also show where
+	 * that is in the other one (x and z times or divided by 8); an End selection seen from another dimension
+	 * says "End".
+	 */
+	private void positions(String what, double x, double y, double z, boolean blocks) {
+		String dim = viewDimension(), here = editor.dimension();
+		boolean overworld = dim.equals(DimensionTrees.OVERWORLD), nether = dim.equals(DimensionTrees.NETHER);
+		if (overworld || nether) {
+			String other = overworld ? DimensionTrees.NETHER : DimensionTrees.OVERWORLD;
+			double f = overworld ? 1 / 8.0 : 8;
+			String real = DimensionTrees.displayName(dim) + " " + what + " (real): " + coords(x, y, z, blocks);
+			String translated = DimensionTrees.displayName(other) + " " + what + " (translated): " + coords(x * f, y, z * f, blocks);
+			// the player's dimension first
+			boolean swap = here.equals(other);
+			ImGui.textDisabled(swap ? translated : real);
+			rect(swap ? "pos_translated" : "pos_real");
+			ImGui.textDisabled(swap ? real : translated);
+			rect(swap ? "pos_real" : "pos_translated");
+			positionText = (swap ? translated + "\n" + real : real + "\n" + translated);
+		} else {
+			String label = dim.equals(DimensionTrees.END) && !here.equals(dim) ? "End " + what : what;
+			positionText = label + " " + coords(x, y, z, blocks);
+			ImGui.textDisabled(positionText);
+			rect("pos_real");
+		}
+	}
+
+	private static String coords(double x, double y, double z, boolean blocks) {
+		return blocks ? (int) Math.floor(x) + " " + (int) Math.floor(y) + " " + (int) Math.floor(z)
+				: String.format("%.2f %.2f %.2f", x, y, z);
 	}
 
 	/**
