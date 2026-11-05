@@ -60,6 +60,11 @@ tools/instance.py list      # slots of all worktrees, and which bridges are up
   worktree.
 * `tools/mc.py stop` only stops this checkout's client. Never `pkill` Java or sway broadly: other
   worktrees' clients are running.
+* Never run `./gradlew --stop` (or kill Gradle daemons): the daemons are shared by all checkouts, so it
+  ends every other session's builds. A hidden client runs inside its Gradle process; `hidden-client.sh`
+  starts it with `--no-daemon` in a daemon registry of its slot (`$XDG_RUNTIME_DIR/plainsight-hidden-<slot>/gradle-daemon`),
+  which a `--stop` elsewhere does not see (`--no-daemon` alone is not enough: the single-use daemon it forks
+  is still stopped by `--stop`). To restart your own client, use `tools/mc.py stop` / `start`.
 * The main checkout always stays on slot 0. The Axiom study client (`--axiom`, :25611) is not slotted:
   only one at a time.
 * Each client takes about 5 GB of RAM and a share of the GPU; keep to about four at once.
@@ -82,7 +87,34 @@ Unzip wildcard extraction is unreliable; use Python's zipfile.
 Work is tracked as GitHub issues in alex-s168/plainsight (`gh issue list`, `gh issue view N`).
 
 * A new request from the user: create an issue for each item first (`gh issue create`), then work on
-  them one at a time. Items the user wants recorded but not done yet get the `later` label.
+  them one at a time (or in parallel, next section, when the user asks for that). Items the user wants recorded but not done yet get the `later` label.
 * One commit per issue where practical, referencing it (`Fixes #N` closes it when pushed to main).
 * Before closing an issue, test the change (unit tests and, for anything in game, the hidden client).
 * Push to `origin main` (https://github.com/alex-s168/plainsight) once the work is on main.
+
+## Working through many issues in parallel
+
+When the user asks for a batch of issues to be done in parallel (e.g. "all UX bugs"):
+
+1. **Sort.** List the open issues (`gh issue list --json number,title,labels`) and read the candidates with
+   their comments (comments often add requirements or point at the code). Filter to what was asked (by label,
+   area). Leave out issues that belong to, or touch the same code as, a refactor in progress elsewhere (check
+   its issue for the plan and the remaining steps, and `git log origin/main` for what landed); say which and why.
+2. **Schedule.** For each remaining issue, find the files it will touch. Group issues that touch the same
+   files; groups that share no files run in parallel. Within a group, order by priority (bugs that block core
+   use first) and by what builds on what. Present the ranked list with the groups to the user before starting.
+3. **Worktrees with isolated clients.** One session (agent) per group, each in its own worktree cut from
+   the latest `origin/main`, each with its own hidden-client slot (previous section). Hand out the slot
+   numbers up front (`tools/instance.py setup N`) so parallel setups don't race for the same slot. Tooling a
+   batch needs (like the slots themselves) lands first, as its own PR, and the groups start from main after
+   it is merged.
+4. **Many PRs, stacked where it makes sense.** One issue = one commit = one PR (`Fixes #N`), pushed as its
+   own branch. An issue that builds on another, or edits the same code, branches off that issue's branch and
+   its PR uses that branch as base (a stack: #29 -> #22 -> #37); independent issues each branch off main with
+   base `main`. Sessions push and open PRs but do not merge or push to main; the user reviews and merges
+   (bottom of a stack first; after merging a squashed PR, retarget the next PR to `main` and rebase it).
+5. Each brief to a session names its issues and order, its slot, the base branch of every PR, the areas to
+   stay out of (the parallel refactor, files another group owns) and what done means: `./dev ./gradlew build`
+   passes, related in-game tests pass in its own slot, new in-game tests where practical, PR links and test
+   results reported back.
+

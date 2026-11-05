@@ -91,6 +91,9 @@ public final class BlockOverlayRenderer {
 		long offset = Long.MIN_VALUE;
 		long builtAt;
 		int blocks;
+		/** Outline edges in overlay-local coordinates (x1 y1 z1 x2 y2 z2 each), for {@link #edgesVersion}. */
+		float[] edges = new float[0];
+		int edgesVersion = -1;
 
 		void close() {
 			if (vertices != null) vertices.close();
@@ -105,6 +108,11 @@ public final class BlockOverlayRenderer {
 
 	/** Number of overlay blocks drawn in the last frame (tests, debugging). */
 	public static int submitted;
+	/** Number of outline edges drawn in the last frame (tests, debugging). */
+	public static int outlineEdges;
+	/** Outline edges lie this far outside the blocks, so they win the depth test against the overlay's own faces. */
+	private static final float OUTLINE_LIFT = 0.01f;
+	private static final float OUTLINE_WIDTH = 2.5f;
 
 	private BlockOverlayRenderer() {
 	}
@@ -130,6 +138,88 @@ public final class BlockOverlayRenderer {
 			draw(overlay, mesh, camera);
 			submitted += mesh.blocks;
 		}
+	}
+
+	/**
+	 * Adds the outline of every visible overlay with an {@link BlockOverlay#outlineColor} to {@code out}:
+	 * the silhouette and crease edges of its blocks (taken as whole cells), not the edges between
+	 * neighbouring blocks on a flat surface. Call after {@link #render} in the same frame.
+	 */
+	public static void outlines(Overlay out) {
+		outlineEdges = 0;
+		for (BlockOverlay overlay : BlockOverlay.visible()) {
+			if (overlay.outlineColor == 0 || overlay.size() == 0) continue;
+			Mesh mesh = MESHES.get(overlay);
+			if (mesh == null) continue;
+			if (mesh.edgesVersion != overlay.version()) {
+				mesh.edges = edges(overlay.blocks().keySet());
+				mesh.edgesVersion = overlay.version();
+			}
+			float[] e = mesh.edges;
+			double ox = overlay.offset.getX(), oy = overlay.offset.getY(), oz = overlay.offset.getZ();
+			for (int i = 0; i < e.length; i += 6) {
+				out.line(Overlay.Layer.WORLD, ox + e[i], oy + e[i + 1], oz + e[i + 2], ox + e[i + 3], oy + e[i + 4], oz + e[i + 5],
+						overlay.outlineColor, OUTLINE_WIDTH);
+			}
+			outlineEdges += e.length / 6;
+		}
+	}
+
+	/**
+	 * Outline edges of an overlay's cells. A unit edge along axis {@code a} is shared by four cells; it is
+	 * drawn when one or three of them are filled (outer or inner corner) or two diagonal ones are, and
+	 * moved slightly towards the empty side.
+	 */
+	static float[] edges(it.unimi.dsi.fastutil.longs.LongSet cells) {
+		it.unimi.dsi.fastutil.floats.FloatArrayList out = new it.unimi.dsi.fastutil.floats.FloatArrayList();
+		for (int a = 0; a < 3; a++) {
+			it.unimi.dsi.fastutil.longs.LongOpenHashSet seen = new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
+			int u = (a + 1) % 3, v = (a + 2) % 3;
+			for (long key : cells) {
+				int[] c = {BlockPos.getX(key), BlockPos.getY(key), BlockPos.getZ(key)};
+				for (int du = 0; du <= 1; du++) {
+					for (int dv = 0; dv <= 1; dv++) {
+						// the edge from p to p + 1 along a, at lattice point p
+						int[] p = c.clone();
+						p[u] += du;
+						p[v] += dv;
+						if (!seen.add(BlockPos.asLong(p[0], p[1], p[2]))) continue;
+						int count = 0;
+						float su = 0, sv = 0;
+						boolean[] f = new boolean[4];
+						for (int k = 0; k < 4; k++) {
+							int[] q = p.clone();
+							int ku = k & 1, kv = k >> 1;
+							q[u] -= 1 - ku;
+							q[v] -= 1 - kv;
+							f[k] = cells.contains(BlockPos.asLong(q[0], q[1], q[2]));
+							if (f[k]) {
+								count++;
+								su += ku == 1 ? 1 : -1;
+								sv += kv == 1 ? 1 : -1;
+							}
+						}
+						boolean diagonal = count == 2 && f[0] == f[3];
+						if (count != 1 && count != 3 && !diagonal) continue;
+						float[] from = {p[0], p[1], p[2]};
+						float len = (float) Math.sqrt(su * su + sv * sv);
+						if (len > 0) {
+							from[u] -= su / len * OUTLINE_LIFT;
+							from[v] -= sv / len * OUTLINE_LIFT;
+						}
+						float[] to = from.clone();
+						to[a] += 1;
+						out.add(from[0]);
+						out.add(from[1]);
+						out.add(from[2]);
+						out.add(to[0]);
+						out.add(to[1]);
+						out.add(to[2]);
+					}
+				}
+			}
+		}
+		return out.toFloatArray();
 	}
 
 	private static void build(BlockOverlay overlay, Mesh mesh, ClientLevel level) {
