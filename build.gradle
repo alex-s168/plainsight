@@ -61,6 +61,8 @@ loom {
 			source sourceSets.devbridge
 			vmArgs "-XX:+AllowEnhancedClassRedefinition", "-Xmx4G",
 					"-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=127.0.0.1:" + (System.getenv("PLAINSIGHT_JDWP_PORT") ?: "5011")
+			// extra JVM arguments for experiments, e.g. HIDDEN_JVM_ARGS="-Dinfiniterra.guessInFlight=96"
+			if (System.getenv("HIDDEN_JVM_ARGS")) vmArgs(*System.getenv("HIDDEN_JVM_ARGS").split(" "))
 			programArgs "--username", "Dev"
 		}
 		// Vanilla + Axiom (+ dev bridge, without plainsight) to study Axiom's editor UI; own run directory

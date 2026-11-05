@@ -2304,6 +2304,59 @@ def test_editor_lod_distance():
     check(applied() == base, "back to Voxy's own after the editor: %s" % applied())
 
 
+def test_fluid_opacity_in_lod():
+    """Transparent Fluids reaches Voxy's LOD: fluid models are flagged on the GPU and the terrain shader
+    takes the module's opacity (shader state, no re-mesh)."""
+    if not state()["lodMod"] or not state()["sodium"]:
+        print("      (needs Voxy, skipped)")
+        return
+    editor_on()
+    c.command("fill 4 -61 4 6 -61 6 minecraft:water")
+    time.sleep(3)
+    S = "dev.infiniterra.api.TerrainStyle"
+    models, patched = c.static("dev.infiniterra.impl.style.VoxyStyle", "debug").split()
+    check(patched == "true", "Voxy's terrain shader applies the fluid opacity")
+    check(int(models) > 0, "fluid models are flagged: %s" % models)
+    ed("setModule", "fluid_transparency", "true")
+    ed("fluidOpacity", 0.4)
+    time.sleep(0.5)
+    check(abs(float(c.static(S, "fluidOpacity")) - 0.4) < 1e-4, "the module's opacity goes to the LOD: %s" % c.static(S, "fluidOpacity"))
+    ed("setModule", "fluid_transparency", "false")
+    time.sleep(0.5)
+    check(float(c.static(S, "fluidOpacity")) == 1.0, "module off: LOD fluids as Voxy draws them")
+    ed("fluidOpacity", 0.25)
+    c.command("fill 4 -61 4 6 -61 6 minecraft:air")
+
+
+def test_lod_covers_loaded_edge_from_outside():
+    """From an editor camera outside the loaded chunks, looking at their edge, the outermost chunks the game
+    draws show their cut side (its faces are culled against the next ring, loaded but not drawn). Voxy's LOD
+    then covers the loaded chunks too (no chunk bounds, depth-tested against the terrain), so the edge is
+    covered instead of leaving holes to the sky (#12). Inside the loaded chunks Voxy keeps its bounds."""
+    if not state()["lodMod"] or not state()["sodium"]:
+        print("      (needs Voxy, skipped)")
+        return
+    D = "dev.infiniterra.api.DetachedCamera"
+    frames = lambda: int(c.static(D, "lodWithoutBoundsFrames"))
+    editor_on()
+    px, py, pz = state()["player"]
+    ed("setCamera", px, py + 60, pz + 0.5, 180, 40)
+    time.sleep(2)
+    n = frames()
+    time.sleep(1)
+    check(not state()["cameraOutsideLoaded"] and frames() == n, "over the loaded chunks Voxy keeps its chunk bounds")
+    rd = int(re.search(r"D: (\d+)", state()["sodiumChunks"]).group(1))
+    edge = (int(pz) >> 4) * 16 + rd * 16 + 16
+    ed("setCamera", px, py + 60, edge + 72, 180, 40)
+    time.sleep(3)
+    check(state()["cameraOutsideLoaded"], "the camera is outside the loaded chunks")
+    n = frames()
+    time.sleep(1)
+    check(frames() > n, "outside them Voxy draws its LOD over the loaded chunks too (%d -> %d frames)" % (n, frames()))
+    shot("lod-edge-from-outside")
+    ed("setCamera", px, py + 10, pz - 10, 0, 30)
+
+
 def test_guess_prefers_real_lod():
     """Terrain Voxy already has (here: flat land loaded far from spawn, then unloaded) is copied into the
     guessed view instead of generated (the seed's generator would make hills there)."""
@@ -2934,6 +2987,27 @@ def test_chat_and_pause_still_work():
     check("PauseScreen" in c.status(), "Escape with nothing to cancel opens the pause menu: %s" % c.status().splitlines()[0])
     c.key(K["ESC"])
     time.sleep(0.4)
+    check("screen=none" in c.status(), "back from the pause menu")
+
+
+def test_unfocus_does_not_pause_in_editor():
+    editor_on()
+    fresh_tree()
+    check("screen=none" in c.status(), "starts without a screen")
+    # the hidden client's options turn pauseOnLostFocus off; turn it on for this test
+    try:
+        c.focus(False, pause=True)
+        time.sleep(1.2)
+        check("screen=none" in c.status(), "losing focus in the editor must not open the pause menu: %s" % c.status().splitlines()[0])
+        check(state()["active"], "editor still open")
+        editor_off()
+        time.sleep(1.2)
+        check("PauseScreen" in c.status(), "outside the editor, losing focus still pauses: %s" % c.status().splitlines()[0])
+    finally:
+        c.focus(True, pause=False)
+    if "PauseScreen" in c.status():
+        c.key(K["ESC"])
+        time.sleep(0.4)
     check("screen=none" in c.status(), "back from the pause menu")
 
 

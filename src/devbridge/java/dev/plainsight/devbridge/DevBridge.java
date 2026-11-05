@@ -54,6 +54,7 @@ import java.util.function.Supplier;
  * POST /world?name=test&mode=creative  create (if missing) and open a flat world
  * POST /look?yaw=..&pitch=..           set the player's rotation
  * POST /tp?x=..&y=..&z=..              move the player (client side, for framing screenshots)
+ * POST /focus?on=false&pause=true      pretend the window lost (or regained) focus; pause sets pauseOnLostFocus (not saved)
  * POST /static?class=a.B&method=m      call a public static no-argument method
  * POST /imgui/click?x=..&y=..&button=0  click in Axiom's ImGui (window pixels); also /imgui/move, /imgui/type?t=, /imgui/key?k=(ImGuiKey)
  * </pre>
@@ -63,6 +64,8 @@ public final class DevBridge implements ClientModInitializer {
 	private static final int MAX_LOG = 2000;
 	private static final ArrayDeque<String> CHAT = new ArrayDeque<>();
 	private static int chatBase;
+	/** What the window reports as its focus (see mixin.WindowMixin); a hidden window never has real focus. */
+	public static volatile boolean focused = true;
 
 	@Override
 	public void onInitializeClient() {
@@ -190,6 +193,12 @@ public final class DevBridge implements ClientModInitializer {
 					p.setYRot(Float.parseFloat(q.getOrDefault("yaw", "0")));
 					p.setXRot(Float.parseFloat(q.getOrDefault("pitch", "0")));
 					return "ok";
+				});
+				case "/focus" -> onMain(() -> {
+					focused = Boolean.parseBoolean(q.getOrDefault("on", "true"));
+					Minecraft mc = Minecraft.getInstance();
+					if (q.containsKey("pause")) mc.options.pauseOnLostFocus = Boolean.parseBoolean(q.get("pause"));
+					return "focused=" + focused + " pauseOnLostFocus=" + mc.options.pauseOnLostFocus;
 				});
 				case "/tp" -> onMain(() -> {
 					LocalPlayer p = player();

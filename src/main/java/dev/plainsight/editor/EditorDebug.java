@@ -290,6 +290,11 @@ public final class EditorDebug {
 		return "ok";
 	}
 
+	public static String fluidOpacity(float opacity) {
+		Editor.get().fluids.setOpacity(opacity);
+		return "ok";
+	}
+
 	public static String guessTintOpacity(float opacity) {
 		dev.plainsight.module.GuessedTerrain.tintOpacity = opacity;
 		return "ok";
@@ -379,6 +384,53 @@ public final class EditorDebug {
 	public static String renderDistance(int chunks) {
 		Minecraft.getInstance().options.renderDistance().set(chunks);
 		return "ok";
+	}
+
+	/** Which sections of column (x, z) Sodium has built (meshed), by section y: # built, . not (debugging). */
+	public static String sodiumBuilt(int x, int z) {
+		try {
+			Class<?> c = Class.forName("net.caffeinemc.mods.sodium.client.render.SodiumWorldRenderer");
+			Object r = c.getMethod("instanceNullable").invoke(null);
+			var f = c.getDeclaredField("renderSectionManager");
+			f.setAccessible(true);
+			Object m = f.get(r);
+			var built = m.getClass().getMethod("isSectionBuilt", int.class, int.class, int.class);
+			var level = Minecraft.getInstance().level;
+			StringBuilder sb = new StringBuilder();
+			for (int sy = level.getMinSectionY(); sy <= level.getMaxSectionY(); sy++)
+				sb.append((boolean) built.invoke(m, x >> 4, sy, z >> 4) ? '#' : '.');
+			return sb.toString();
+		} catch (ReflectiveOperationException e) {
+			return "failed: " + e;
+		}
+	}
+
+	/** Sodium's render section state of column (x, z): per section y "flags/pendingUpdate", from y min (debugging). */
+	public static String sodiumSections(int x, int z) {
+		try {
+			Class<?> c = Class.forName("net.caffeinemc.mods.sodium.client.render.SodiumWorldRenderer");
+			Object r = c.getMethod("instanceNullable").invoke(null);
+			var f = c.getDeclaredField("renderSectionManager");
+			f.setAccessible(true);
+			Object m = f.get(r);
+			var get = m.getClass().getDeclaredMethod("getRenderSection", int.class, int.class, int.class);
+			get.setAccessible(true);
+			var level = Minecraft.getInstance().level;
+			StringBuilder sb = new StringBuilder();
+			for (int sy = level.getMinSectionY(); sy <= level.getMaxSectionY(); sy++) {
+				Object sec = get.invoke(m, x >> 4, sy, z >> 4);
+				if (sec == null) { sb.append(sy).append(":null "); continue; }
+				boolean invisible = (boolean) sec.getClass().getMethod("isInvisible").invoke(sec);
+				boolean built = (boolean) sec.getClass().getMethod("isBuilt").invoke(sec);
+				int pending = (int) sec.getClass().getMethod("getPendingUpdate").invoke(sec);
+				String flags = (built ? "b" : "") + (invisible ? "i" : "v");
+				boolean air = level.getChunk(x >> 4, z >> 4).getSections()[level.getSectionIndexFromSectionY(sy)].hasOnlyAir();
+				sb.append(sy).append(':').append(flags).append('/').append(pending).append(air ? "a " : " ");
+			}
+			return sb.toString();
+		} catch (ReflectiveOperationException | RuntimeException e) {
+			return "failed: " + e;
+		}
 	}
 
 	public static String clouds(String on) {
