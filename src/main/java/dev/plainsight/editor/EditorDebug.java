@@ -66,6 +66,7 @@ public final class EditorDebug {
 		o.addProperty("cutawaySegments", SeeThrough.region().segments().size());
 		o.addProperty("cutawayRebuilds", e.seeThrough.rebuilds());
 		o.addProperty("overlayBlocksSubmitted", BlockOverlayRenderer.submitted);
+		o.addProperty("overlayOutlineEdges", BlockOverlayRenderer.outlineEdges);
 		o.addProperty("lightOverlayFaces", e.lightOverlay.markedFaces());
 		o.addProperty("lodMod", dev.plainsight.LodSupport.present());
 		o.addProperty("cameraToPlayer", dev.infiniterra.api.DetachedCamera.toPlayer());
@@ -290,6 +291,11 @@ public final class EditorDebug {
 	public static String pathInfo() {
 		var p = Editor.get().pathDemo.path;
 		return "nodes=" + p.nodes.size() + " break=" + p.toBreak.size() + " place=" + p.toPlace.size() + " goal=" + p.goal;
+	}
+
+	public static String overlayOutline(String on) {
+		Editor.get().blockOverlayDemo.overlay.outlineColor = Boolean.parseBoolean(on) ? 0xFF60C0FF : 0;
+		return "ok";
 	}
 
 	public static String overlayOpacity(float o) {
