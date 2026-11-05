@@ -9,6 +9,7 @@
 		"ChunkBorderRendererMixin",
 		"ChatComponentMixin",
 		"EntityRendererMixin",
+		"FramerateLimitTrackerMixin",
 		"GameRendererMixin",
 		"GuiMixin",
 		"GuiRenderStateMixin",

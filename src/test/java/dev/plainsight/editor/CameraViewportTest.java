@@ -120,11 +120,16 @@ class CameraViewportTest {
 		EditorCamera cam = new EditorCamera();
 		cam.set(new Vector3d(0, 70, 0), 0, 0);
 		Vector3d dir = new Vector3d(0, 0, 1);
-		for (int i = 0; i < 50; i++) {
+		// notch by notch until it is against the target
+		for (int i = 0; i < 50 && 10 - cam.pos.z >= EditorCamera.DOLLY_NEAR; i++) {
 			cam.dolly(1, dir, 10 - cam.pos.z);
 			cam.settle();
 		}
-		assertTrue(cam.pos.z <= 9.0 + 1e-9 && cam.pos.z > 8, "approaches but never passes: " + cam.pos.z);
+		assertTrue(cam.pos.z <= 9.0 + 1e-9 && cam.pos.z > 8, "approaches but does not pass: " + cam.pos.z);
+		// once against it, the next notch goes through instead of not moving at all (#28)
+		cam.dolly(1, dir, 10 - cam.pos.z);
+		cam.settle();
+		assertTrue(cam.pos.z > 9.5, "then goes through: " + cam.pos.z);
 		cam.dolly(-1, dir, 10 - cam.pos.z);
 		cam.settle();
 		assertTrue(cam.pos.z < 9);
