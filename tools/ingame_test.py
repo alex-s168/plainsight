@@ -1491,6 +1491,49 @@ def test_seed_hider():
     c.command("plainsight seed clear")
 
 
+def test_chat_alias():
+    """#ps in chat is /plainsight, with its suggestions and usage while typing (issue #47)."""
+    c.command("plainsight seed clear")
+
+    def close_chat():
+        for _ in range(3):  # the first Escape may only close the suggestions
+            if ed("chatSuggestions") == "no chat":
+                return
+            c.key(K["ESC"])
+            time.sleep(0.3)
+
+    def chat(text):
+        c.key(23)  # T
+        time.sleep(0.4)
+        c.type(text)
+        time.sleep(0.5)
+        return ed("chatSuggestions")
+
+    s = chat("#ps se")
+    check("suggestion: seed" in s, "#ps se suggests seed:\n%s" % s)
+    c.type("ed hide ")
+    time.sleep(0.5)
+    s = ed("chatSuggestions")
+    check("suggestion: true" in s and "suggestion: false" in s, "#ps seed hide suggests true/false:\n%s" % s)
+    close_chat()
+    s = chat("#ps guess radius ")
+    check("usage: <chunks>" in s, "#ps guess radius shows its usage:\n%s" % s)
+    close_chat()
+
+    chat("#ps seed 4242424242")
+    c.key(K["ENTER"])
+    time.sleep(0.5)
+    check(c.static("dev.plainsight.guess.SeedStore", "seed") == "OptionalLong[4242424242]",
+          "#ps seed <seed> sets the seed: %s" % c.static("dev.plainsight.guess.SeedStore", "seed"))
+    check("#ps" not in ed("chatShown", 4), "and is not sent as chat:\n%s" % ed("chatShown", 4))
+    chat("#ps nonsense")
+    c.key(K["ENTER"])
+    time.sleep(0.5)
+    shown = ed("chatShown", 3)
+    check("Incorrect argument" in shown or "Unknown" in shown, "a wrong #ps command shows an error:\n%s" % shown)
+    c.command("plainsight seed clear")
+
+
 def test_seed_hider_tool_button():
     """The seed hider is a toggle in the tool bar (next to the brightness toggles)."""
     editor_on()

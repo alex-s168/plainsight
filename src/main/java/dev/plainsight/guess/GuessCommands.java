@@ -25,7 +25,13 @@ public final class GuessCommands {
 	}
 
 	public static void register(CommandDispatcher<FabricClientCommandSource> dispatcher) {
-		dispatcher.register(literal("plainsight")
+		dispatcher.register(tree("plainsight"));
+		dev.plainsight.command.ChatAlias.setTree(tree(dev.plainsight.command.ChatAlias.PREFIX));
+	}
+
+	/** The plainsight command tree under the literal {@code name} ({@code /plainsight}, or the {@code #ps} chat alias). */
+	private static com.mojang.brigadier.builder.LiteralArgumentBuilder<FabricClientCommandSource> tree(String name) {
+		return literal(name)
 				.then(literal("seed")
 						.executes(GuessCommands::show)
 						.then(literal("clear").executes(c -> {
@@ -55,7 +61,7 @@ public final class GuessCommands {
 					TerrainGuess.setRadius(IntegerArgumentType.getInteger(c, "chunks"));
 					c.getSource().sendFeedback(Component.literal("Guessed terrain radius: " + TerrainGuess.radius() + " chunks"));
 					return 1;
-				})))));
+				}))));
 	}
 
 	private static int show(CommandContext<FabricClientCommandSource> c) {
