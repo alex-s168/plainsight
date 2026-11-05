@@ -232,7 +232,14 @@ public final class EditorUI {
 			if (ImGui.menuItem("Delete", "Del", false, any)) deleteSelected();
 			ImGui.endMenu();
 		}
-		if (ImGui.beginMenu("Help")) {
+		boolean help = ImGui.beginMenu("Help");
+		rect("menu_help");
+		if (help) {
+			if (ImGui.menuItem("Copy visuals repro")) copyRepro();
+			rect("menu_copy_repro");
+			if (ImGui.isItemHovered())
+				ImGui.setTooltip("Copies what decides this view (camera, seed, render and LOD distance, modules,\nloaded / real / guessed chunks around the camera) as JSON, for a rendering bug report.\nIt contains the world seed.");
+			ImGui.separator();
 			helpContents();
 			ImGui.endMenu();
 		}
@@ -1118,6 +1125,12 @@ public final class EditorUI {
 			tooltip("Copy specs (text)", "The blocks it covers as \"min X Y Z, max X Y Z\", to paste into chat.");
 		}
 		if (b == null) ImGui.endDisabled();
+	}
+
+	private void copyRepro() {
+		String json = dev.plainsight.editor.VisualsRepro.capture(editor);
+		Minecraft.getInstance().keyboardHandler.setClipboard(json);
+		editor.setStatus("Copied the visuals repro (" + json.length() + " characters, contains the seed)");
 	}
 
 	private void copy(String text) {

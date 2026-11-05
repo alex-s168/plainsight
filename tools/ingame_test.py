@@ -2279,6 +2279,39 @@ def test_minimap_through_shader_pack():
     shot("minimap-pack-hud")
 
 
+def test_visuals_repro():
+    """Help > Copy visuals repro copies the view as JSON (camera, seed, render distance, modules, chunk
+    bitsets); applying it puts the camera back."""
+    editor_on()
+    if state()["map"]:
+        c.key(K["M"])
+    cam(12.5, -40, 7.5, 33, 41)
+    time.sleep(0.5)
+    text = ed("captureRepro")
+    r = json.loads(text)
+    check(r["plainsightRepro"] == 1, "a repro: %s" % text[:80])
+    check(abs(r["camera"]["pos"][0] - 12.5) < 0.01 and abs(r["camera"]["yaw"] - 33) < 0.01, "with the camera: %s" % r["camera"])
+    check(r["render"]["renderDistance"] > 0 and "minecraft" in r and "modules" in r, "render distance, version and modules")
+    n = r["chunks"]["size"]
+    import base64
+    bits = int.from_bytes(base64.b64decode(r["chunks"]["loaded"]), "little")
+    centre = (n // 2) * n + n // 2
+    check(n == 97 and (bits >> centre) & 1, "the chunk at the camera is in the loaded bitset")
+    # the menu item puts it on the clipboard
+    c.click(*widget("menu_help"))
+    time.sleep(0.3)
+    c.click(*widget("menu_copy_repro"))
+    time.sleep(0.3)
+    clip = json.loads(ed("clipboard"))
+    check(clip["camera"]["pos"] == r["camera"]["pos"] and clip["chunks"]["loaded"] == r["chunks"]["loaded"],
+          "Help > Copy visuals repro copies it")
+    cam(100.5, 20, 100.5, 0, 0)
+    check(ed("applyRepro", "clipboard") == "ok", "applies")
+    time.sleep(0.3)
+    p = state()["camera"]
+    check(math.dist(p["pos"], (12.5, -40, 7.5)) < 0.01, "the camera is back: %s" % p)
+
+
 def test_guess_prefers_real_lod():
     """Terrain Voxy already has (here: flat land loaded far from spawn, then unloaded) is copied into the
     guessed view instead of generated (the seed's generator would make hills there)."""

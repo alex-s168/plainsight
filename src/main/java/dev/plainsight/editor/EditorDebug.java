@@ -570,6 +570,21 @@ public final class EditorDebug {
 		return "no such selection";
 	}
 
+	public static String captureRepro() {
+		return VisualsRepro.capture(Editor.get());
+	}
+
+	/** Puts a repro's view back: "clipboard", "file:<path>" (the bridge splits arguments at commas), or the JSON. */
+	public static String applyRepro(String json) {
+		try {
+			String text = json.equals("clipboard") ? clipboard()
+					: json.startsWith("file:") ? java.nio.file.Files.readString(java.nio.file.Path.of(json.substring(5))) : json;
+			return VisualsRepro.apply(Editor.get(), text);
+		} catch (java.io.IOException e) {
+			return "could not read " + json + ": " + e;
+		}
+	}
+
 	public static String clipboard() {
 		return net.minecraft.client.Minecraft.getInstance().keyboardHandler.getClipboard();
 	}
