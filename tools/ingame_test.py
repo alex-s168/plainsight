@@ -1611,6 +1611,9 @@ def test_map_turn_and_tilt():
         t = state()["camera"]
         check(abs(t["yaw"] - (s["camera"]["yaw"] + 30)) < 1, "Ctrl + LMB drag right turns the map: %s -> %s" % (s["camera"]["yaw"], t["yaw"]))
         check(abs(t["pitch"] - s["camera"]["pitch"]) < 1e-3, "without tilting it")
+        p0 = t["pitch"]
+        ctrl_drag([(900, 450)] + [(900, 450 + 10 * (i + 1)) for i in range(5)])
+        close(state()["camera"]["pitch"], p0 + 10, 0.5, "50 px down tilts 10 degrees, as the arcball camera (0.2 deg/px)")
         ctrl_drag([(900, 150)] + [(900, 150 + 30 * (i + 1)) for i in range(20)])
         t = state()["camera"]
         check(abs(t["pitch"] - 90) < 1e-3, "dragging down tilts it to top-down, no further: %s" % t["pitch"])
