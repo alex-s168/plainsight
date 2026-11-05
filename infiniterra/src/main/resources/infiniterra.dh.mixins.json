@@ -4,7 +4,10 @@
 	"plugin": "dev.infiniterra.InfiniTerraMixinPlugin",
 	"compatibilityLevel": "JAVA_25",
 	"client": [
-		"ServerApiMixin"
+		"ClientLevelWrapperMixin",
+		"MinecraftClientWrapperMixin",
+		"ServerApiMixin",
+		"ServerLevelTargetMixin"
 	],
 	"injectors": { "defaultRequire": 1 }
 }

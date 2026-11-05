@@ -50,3 +50,4 @@ infiniterra/logs/
 
 # hidden-client slot of this checkout (tools/instance.py)
 .plainsight-instance
+/run-server/

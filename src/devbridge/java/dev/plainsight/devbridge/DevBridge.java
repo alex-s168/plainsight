@@ -183,6 +183,7 @@ public final class DevBridge implements ClientModInitializer {
 					mc.mouseHandler.onScroll(mc.getWindow().handle(), 0, Double.parseDouble(q.getOrDefault("dy", "1")));
 					return "ok";
 				});
+				case "/connect" -> onMain(() -> connect(q.getOrDefault("host", "127.0.0.1"), Integer.parseInt(q.getOrDefault("port", "25565"))));
 				case "/world" -> onMain(() -> world(q.getOrDefault("name", "plainsight-dev"), q.getOrDefault("mode", "creative"), q.getOrDefault("preset", "flat")));
 				case "/look" -> onMain(() -> {
 					LocalPlayer p = player();
@@ -367,6 +368,16 @@ public final class DevBridge implements ClientModInitializer {
 		if (!action.equals("release")) mc.keyboardHandler.keyPress(h, 1, ev);
 		if (!action.equals("press")) mc.keyboardHandler.keyPress(h, 0, ev);
 		return "ok";
+	}
+
+	/** Joins a server (tests against a local dedicated server). */
+	private static String connect(String host, int port) {
+		Minecraft mc = Minecraft.getInstance();
+		if (mc.level != null) return "already in a world";
+		var data = new net.minecraft.client.multiplayer.ServerData("test server", host + ":" + port, net.minecraft.client.multiplayer.ServerData.Type.OTHER);
+		net.minecraft.client.gui.screens.ConnectScreen.startConnecting(new net.minecraft.client.gui.screens.TitleScreen(), mc,
+				new net.minecraft.client.multiplayer.resolver.ServerAddress(host, port), data, false, null);
+		return "connecting to " + host + ":" + port;
 	}
 
 	private static String world(String name, String mode, String preset) {
