@@ -55,6 +55,8 @@ public final class EditorDebug {
 		o.addProperty("mouse", e.mouseX + "," + e.mouseY);
 		o.addProperty("tool", e.tool().id());
 		o.addProperty("map", e.map.active());
+		o.addProperty("mapBlits", dev.plainsight.render.EditorRendering.mapBlits);
+		o.addProperty("mapHeld", dev.plainsight.minimap.Minimap.holdingEditorMap());
 		o.addProperty("mapHeight", e.map.height());
 		o.addProperty("hints", e.tool().hints());
 		o.addProperty("statusHints", e.ui.statusHintsText);
@@ -290,6 +292,14 @@ public final class EditorDebug {
 	public static String pathInfo() {
 		var p = Editor.get().pathDemo.path;
 		return "nodes=" + p.nodes.size() + " break=" + p.toBreak.size() + " place=" + p.toPlace.size() + " goal=" + p.goal;
+	}
+
+	/** Switches the paused editor's savings (held map image, frame limit) on or off, to measure them (#53). */
+	public static String pausedThrottle(String on) {
+		boolean b = Boolean.parseBoolean(on);
+		dev.plainsight.minimap.Minimap.holdPausedMap = b;
+		Editor.pausedFps = b ? 60 : 0;
+		return "ok";
 	}
 
 	public static String overlayOpacity(float o) {

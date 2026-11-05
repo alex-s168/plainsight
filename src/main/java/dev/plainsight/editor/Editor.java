@@ -56,6 +56,9 @@ public final class Editor {
 		return INSTANCE.active;
 	}
 
+	/** Frame rate limit while the editor is open behind the pause menu (see FramerateLimitTrackerMixin); 0: none. */
+	public static int pausedFps = 60;
+
 	private volatile boolean active;
 	public final EditorCamera camera = new EditorCamera();
 	public final Viewport viewport = new Viewport();

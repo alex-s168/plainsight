@@ -1730,6 +1730,52 @@ def test_point_select():
         ed("selectTool", "box_select")
 
 
+def test_editor_map_paused():
+    """Behind the pause menu the editor map keeps its last image instead of rendering a pass every frame,
+    and the paused editor runs at no more than 60 fps (#53)."""
+    if not state()["lodMod"] or not state()["sodium"]:
+        print("      (needs Voxy, skipped)")
+        return
+    editor_on()
+    fresh_tree()
+    cam(0, 150, 0, 30, 40)
+    try:
+        c.key(K["M"])
+        time.sleep(3)
+        r0 = int(ed("minimap").split(" ")[2])
+        time.sleep(2)
+        r1 = int(ed("minimap").split(" ")[2])
+        check(r1 - r0 > 20, "the map renders while not paused: %s passes in 2 s" % (r1 - r0))
+        c.key(K["ESC"])
+        time.sleep(1.5)
+        check("PauseScreen" in c.status(), "Escape opens the pause menu: %s" % c.status().split("\n")[0])
+        s = state()
+        r2, b2 = int(ed("minimap").split(" ")[2]), s["mapBlits"]
+        check(s["mapHeld"], "the paused map holds its image")
+        time.sleep(3)
+        r3, b3 = int(ed("minimap").split(" ")[2]), state()["mapBlits"]
+        fps = int(re.search(r"fps=(\d+)", c.status()).group(1))
+        print("      paused: %d passes, %d map frames in 3 s, fps %d" % (r3 - r2, b3 - b2, fps))
+        check(r3 - r2 <= 1, "no map passes while paused: %s" % (r3 - r2))
+        check(b3 - b2 > 60, "the held map is still shown every frame: %s" % (b3 - b2))
+        check(fps <= 62, "the paused editor is limited to 60 fps: %s" % fps)
+        shot("editor-map-paused")
+        c.key(K["ESC"])
+        time.sleep(2)
+        check("PauseScreen" not in c.status(), "Escape closes the pause menu")
+        r4 = int(ed("minimap").split(" ")[2])
+        time.sleep(1)
+        check(int(ed("minimap").split(" ")[2]) - r4 > 10, "the map renders again after the pause")
+        check(not state()["mapHeld"], "and no longer holds its image")
+    finally:
+        if "PauseScreen" in c.status():
+            c.key(K["ESC"])
+            time.sleep(0.5)
+        if state()["map"]:
+            c.key(K["M"])
+        fresh_tree()
+
+
 def test_map_mode_shows_player_layer():
     """With Voxy the map is drawn like the minimap: under a roof it shows the player's layer, and the
     editor aims at what the map shows (the ground, not the roof)."""
