@@ -574,9 +574,15 @@ public final class EditorDebug {
 		return VisualsRepro.capture(Editor.get());
 	}
 
-	/** Puts a repro's view back (the JSON, or "clipboard" for the clipboard's). */
+	/** Puts a repro's view back: "clipboard", "file:<path>" (the bridge splits arguments at commas), or the JSON. */
 	public static String applyRepro(String json) {
-		return VisualsRepro.apply(Editor.get(), json.equals("clipboard") ? clipboard() : json);
+		try {
+			String text = json.equals("clipboard") ? clipboard()
+					: json.startsWith("file:") ? java.nio.file.Files.readString(java.nio.file.Path.of(json.substring(5))) : json;
+			return VisualsRepro.apply(Editor.get(), text);
+		} catch (java.io.IOException e) {
+			return "could not read " + json + ": " + e;
+		}
 	}
 
 	public static String clipboard() {
