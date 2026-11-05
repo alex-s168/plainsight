@@ -66,6 +66,16 @@ class Client:
         lines = self.call("/chatlog", "GET", since=before)
         return res + "\n" + "\n".join(l for l in lines.splitlines() if not l.startswith("next="))
 
+    def connect(self, host="127.0.0.1", port=25599):
+        return self.call("/connect", host=host, port=port)
+
+    def focus(self, on=True, pause=None):
+        """Pretends the window gained (True) or lost (False) focus; pause sets pauseOnLostFocus (not saved)."""
+        params = {"on": str(bool(on)).lower()}
+        if pause is not None:
+            params["pause"] = str(bool(pause)).lower()
+        return self.call("/focus", **params)
+
     def world(self, name="plainsight-dev", mode="creative", preset="flat"):
         return self.call("/world", name=name, mode=mode, preset=preset)
 

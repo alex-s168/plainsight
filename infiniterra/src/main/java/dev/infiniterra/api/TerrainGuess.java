@@ -67,6 +67,7 @@ public final class TerrainGuess {
 	public static void update(@Nullable String worldKey, OptionalLong seed, boolean show, double focusX, double focusZ) {
 		dev.infiniterra.impl.guess.SeedCheckImpl.update(worldKey, seed);
 		dev.infiniterra.impl.guess.WorldMirror.update(worldKey, seed);
+		if (dev.infiniterra.impl.dh.DhProbe.present()) dev.infiniterra.impl.dh.DhHost.update(worldKey, seed);
 		GuessWorld.reconcile(worldKey, seed);
 		GuessWorld world = GuessWorld.current();
 		boolean shown = show && world != null && world.state() == GuessWorld.State.READY;

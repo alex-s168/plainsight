@@ -2303,6 +2303,35 @@ def test_fluid_opacity_in_lod():
     c.command("fill 4 -61 4 6 -61 6 minecraft:air")
 
 
+def test_lod_covers_loaded_edge_from_outside():
+    """From an editor camera outside the loaded chunks, looking at their edge, the outermost chunks the game
+    draws show their cut side (its faces are culled against the next ring, loaded but not drawn). Voxy's LOD
+    then covers the loaded chunks too (no chunk bounds, depth-tested against the terrain), so the edge is
+    covered instead of leaving holes to the sky (#12). Inside the loaded chunks Voxy keeps its bounds."""
+    if not state()["lodMod"] or not state()["sodium"]:
+        print("      (needs Voxy, skipped)")
+        return
+    D = "dev.infiniterra.api.DetachedCamera"
+    frames = lambda: int(c.static(D, "lodWithoutBoundsFrames"))
+    editor_on()
+    px, py, pz = state()["player"]
+    ed("setCamera", px, py + 60, pz + 0.5, 180, 40)
+    time.sleep(2)
+    n = frames()
+    time.sleep(1)
+    check(not state()["cameraOutsideLoaded"] and frames() == n, "over the loaded chunks Voxy keeps its chunk bounds")
+    rd = int(re.search(r"D: (\d+)", state()["sodiumChunks"]).group(1))
+    edge = (int(pz) >> 4) * 16 + rd * 16 + 16
+    ed("setCamera", px, py + 60, edge + 72, 180, 40)
+    time.sleep(3)
+    check(state()["cameraOutsideLoaded"], "the camera is outside the loaded chunks")
+    n = frames()
+    time.sleep(1)
+    check(frames() > n, "outside them Voxy draws its LOD over the loaded chunks too (%d -> %d frames)" % (n, frames()))
+    shot("lod-edge-from-outside")
+    ed("setCamera", px, py + 10, pz - 10, 0, 30)
+
+
 def test_guess_prefers_real_lod():
     """Terrain Voxy already has (here: flat land loaded far from spawn, then unloaded) is copied into the
     guessed view instead of generated (the seed's generator would make hills there)."""
@@ -2483,6 +2512,74 @@ def test_zzz_seed_check_against_bedrock():
         deadline = time.time() + 40
         while time.time() < deadline and "world=none" not in c.status():
             time.sleep(1)
+        c.world("plainsight-test")
+        c.wait_world()
+        time.sleep(3)
+
+
+def test_zzzz_distant_horizons_on_a_server():
+    """On a server (tools/test-server.sh: vanilla, seed 12345) with Distant Horizons and the seed known, DH runs
+    on the worldgen server as in singleplayer: it builds LOD from the seed far beyond the server's view
+    distance; without the seed DH is back to its own world for the server. Runs last: it switches worlds."""
+    import socket
+    T = "dev.infiniterra.impl.dh.DhProbe"
+    if c.static(T, "present") != "true":
+        print("      (needs Distant Horizons, skipped)")
+        return
+    try:
+        socket.create_connection(("127.0.0.1", 25599), 1).close()
+    except OSError:
+        print("      (needs the test server: tools/test-server.sh, skipped)")
+        return
+
+    def run(what, wait=60):
+        c.static(T, "run", what)
+        deadline = time.time() + wait
+        while time.time() < deadline:
+            r = c.static(T, "last")
+            if r != "running":
+                return r
+            time.sleep(0.5)
+        return "timeout"
+
+    def leave():
+        ed("leaveWorld")
+        deadline = time.time() + 40
+        while time.time() < deadline and "world=none" not in c.status():
+            time.sleep(1)
+
+    leave()
+    c.connect("127.0.0.1", 25599)
+    c.wait_world(120)
+    try:
+        # (the seed may be known for this server from an earlier run)
+        c.command("plainsight seed clear")
+        deadline = time.time() + 20
+        while time.time() < deadline and not c.static(T, "levels").startswith("DhClientWorld"):
+            time.sleep(1)
+        check(c.static(T, "levels").startswith("DhClientWorld"), "without a seed DH has its own world for the server: %s" % c.static(T, "levels"))
+        c.command("plainsight seed 12345")
+        deadline = time.time() + 60
+        while time.time() < deadline and not c.static(T, "levels").startswith("DhClientServerWorld"):
+            time.sleep(1)
+        check(c.static(T, "levels").startswith("DhClientServerWorld"), "with the seed DH runs on the worldgen server: %s" % c.static(T, "levels"))
+        check(state()["seedCheck"].startswith(("MATCHES", "UNKNOWN")), "and the seed fits: %s" % state()["seedCheck"])
+        # 1280 blocks out: far beyond the server's 8 chunks, only the worldgen server has it
+        deadline, far = time.time() + 240, ""
+        while time.time() < deadline:
+            far = run("surface 1280 8")
+            if "up to" in far:
+                break
+            time.sleep(10)
+        check("up to" in far, "DH builds LOD from the seed far away: %s" % far)
+        c.command("plainsight seed clear")
+        deadline = time.time() + 20
+        while time.time() < deadline and not c.static(T, "levels").startswith("DhClientWorld"):
+            time.sleep(1)
+        check(c.static(T, "levels").startswith("DhClientWorld"), "without the seed DH is back to its own world: %s" % c.static(T, "levels"))
+    finally:
+        c.command("plainsight seed clear")
+        leave()
         c.world("plainsight-test")
         c.wait_world()
         time.sleep(3)
@@ -2865,6 +2962,27 @@ def test_chat_and_pause_still_work():
     check("PauseScreen" in c.status(), "Escape with nothing to cancel opens the pause menu: %s" % c.status().splitlines()[0])
     c.key(K["ESC"])
     time.sleep(0.4)
+    check("screen=none" in c.status(), "back from the pause menu")
+
+
+def test_unfocus_does_not_pause_in_editor():
+    editor_on()
+    fresh_tree()
+    check("screen=none" in c.status(), "starts without a screen")
+    # the hidden client's options turn pauseOnLostFocus off; turn it on for this test
+    try:
+        c.focus(False, pause=True)
+        time.sleep(1.2)
+        check("screen=none" in c.status(), "losing focus in the editor must not open the pause menu: %s" % c.status().splitlines()[0])
+        check(state()["active"], "editor still open")
+        editor_off()
+        time.sleep(1.2)
+        check("PauseScreen" in c.status(), "outside the editor, losing focus still pauses: %s" % c.status().splitlines()[0])
+    finally:
+        c.focus(True, pause=False)
+    if "PauseScreen" in c.status():
+        c.key(K["ESC"])
+        time.sleep(0.4)
     check("screen=none" in c.status(), "back from the pause menu")
 
 
