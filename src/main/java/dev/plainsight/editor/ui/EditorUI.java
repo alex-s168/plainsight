@@ -901,7 +901,7 @@ public final class EditorUI {
 	private void statusContents(float w) {
 		boolean ctrl = editor.ctrl;
 		String[] hints = editor.map.active()
-				? new String[]{"LMB - Move Map", "Scroll - Zoom", "Ctrl + LMB - Turn / Tilt", dev.plainsight.Plainsight.mapKeyName() + " - 3D View", editor.tool().hints()}
+				? new String[]{"LMB - Move Map", "WASD - Move Map", "Scroll - Zoom", "Ctrl + LMB - Turn / Tilt", dev.plainsight.Plainsight.mapKeyName() + " - 3D View", editor.tool().hints()}
 				: ctrl
 				? new String[]{"Ctrl+LMB - Arcball Camera", "Ctrl+Shift+LMB - Arcball through rock", "Ctrl+RMB - Pan Camera"}
 				: new String[]{"LMB - Rotate Camera", "MMB - Pick Block", editor.tool().hints()};

@@ -18,12 +18,16 @@ import org.joml.Vector3dc;
 public final class EditorCamera {
 	public static final double BASE_SPEED = 10.0;
 	public static final float LOOK_DEGREES_PER_PIXEL = 0.2f;
+	/** Scroll targets nearer than this (blocks) are ones the camera is in or against: zooming goes through them. */
+	public static final double DOLLY_NEAR = 1.5;
 
 	public enum Drag {NONE, LOOK, ORBIT, PAN}
 
 	public final Vector3d pos = new Vector3d();
 	public float yaw, pitch;
 	public float speed = 1f;
+	/** Scales keyboard movement on top of {@link #speed}: the editor map pans faster the higher it is (#52). */
+	public double moveScale = 1;
 	public boolean forward, back, left, right, up, down, fast;
 
 	private final Vector3d velocity = new Vector3d();
@@ -134,7 +138,7 @@ public final class EditorCamera {
 		if (up) wish.y += 1;
 		if (down) wish.y -= 1;
 		if (wish.lengthSquared() > 0) {
-			wish.normalize().mul(BASE_SPEED * speed * (fast ? 3 : 1));
+			wish.normalize().mul(BASE_SPEED * speed * moveScale * (fast ? 3 : 1));
 			// flying turns no longer towards the pivot (that would circle around it)
 			if (drag != Drag.ORBIT) centering = false;
 		}
@@ -270,12 +274,15 @@ public final class EditorCamera {
 	/**
 	 * Scroll towards ({@code notches > 0}) or away from {@code target} along {@code dir}, the ray through
 	 * the cursor. Moves 20% of the distance per notch but at least one block; never passes the target.
+	 * A target closer than {@link #DOLLY_NEAR} (the camera is in or against it, often after zooming out
+	 * into terrain) does not stop the zoom: it would allow no step at all (#28).
 	 */
 	public void dolly(double notches, Vector3dc dir, double targetDistance) {
+		if (targetDistance < DOLLY_NEAR) targetDistance = 0;
 		// the distance still to go after the pending part of earlier steps
 		double dist = Math.max(0, targetDistance - pendingZoom.dot(dir));
 		double step = Math.max(1.0, dist * 0.2) * notches * Math.max(0.25, speed);
-		if (notches > 0 && dist > 0) step = Math.min(step, Math.max(0, dist - 1.0));
+		if (notches > 0 && targetDistance > 0) step = Math.min(step, Math.max(0, dist - 1.0));
 		pendingZoom.fma(step, dir);
 	}
 }
