@@ -128,6 +128,8 @@ public final class EditorDebug {
 		}
 		o.add("widgets", rects);
 		o.addProperty("nodeTooltip", e.ui.nodeTooltip);
+		o.addProperty("leftWidth", e.ui.leftWidth());
+		o.addProperty("rightWidth", e.ui.rightWidth());
 		o.addProperty("dimension", e.dimension());
 		o.addProperty("viewDimension", e.ui.viewDimension());
 		o.add("viewTree", tree(e.ui.viewTree().root()));
@@ -642,6 +644,20 @@ public final class EditorDebug {
 		t.rename(p, name);
 		t.touch();
 		return p.title();
+	}
+
+	/** Reads the panel widths from the editor config again. */
+	public static String reloadPanelWidths() {
+		EditorConfig.reload();
+		Editor.get().ui.setPanelWidths(Float.NaN, Float.NaN);
+		return "ok";
+	}
+
+	/** Sets the default panel widths, also in the editor config. */
+	public static String resetPanelWidths() {
+		EditorConfig.setFloat("leftPanelWidth", dev.plainsight.editor.ui.EditorUI.DEFAULT_LEFT_WIDTH);
+		EditorConfig.setFloat("rightPanelWidth", dev.plainsight.editor.ui.EditorUI.DEFAULT_RIGHT_WIDTH);
+		return reloadPanelWidths();
 	}
 
 	/** Renames the first node whose tree title is {@code title}. */

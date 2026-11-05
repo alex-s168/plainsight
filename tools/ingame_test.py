@@ -1326,6 +1326,51 @@ def test_tree_search():
     fresh_tree()
 
 
+def test_panels_resize():
+    """The side panels are resized at their inner edges (#27): the viewport follows in the same frame, the
+    widths are clamped and kept in the editor config."""
+    editor_on()
+    ed("resetPanelWidths")
+    frames_pass()
+    try:
+        s = state()
+        check(s["leftWidth"] == 300 and s["rightWidth"] == 320, "default widths: %s %s" % (s["leftWidth"], s["rightWidth"]))
+        win = s["viewport"][0] + s["viewport"][2] + s["rightWidth"]
+        a = widget("splitter_left")
+        close(a[0], 300, 1, "the left splitter is on the panel's edge")
+        ui_drag(a, (a[0] + 80, a[1]))
+        s = state()
+        close(s["leftWidth"], 380, 2, "dragged 80 px wider")
+        close(s["viewport"][0], s["leftWidth"], 0.01, "the viewport starts at the panel's new edge")
+        close(widget("splitter_left")[0], s["leftWidth"], 0.01, "and the splitter with it")
+        # grabbed on the panel's side of the edge
+        b = widget("splitter_right")
+        b = (b[0] + 3, b[1])
+        ui_drag(b, (b[0] - 60, b[1]))
+        s = state()
+        close(s["rightWidth"], 380, 2, "right panel 60 px wider")
+        close(s["viewport"][0] + s["viewport"][2], win - s["rightWidth"], 0.01, "the viewport ends at it")
+        shot("panels-resized")
+        # limits: panels at least 180 px, the viewport at least 240 px
+        ui_drag(widget("splitter_left"), (5, a[1]))
+        check(state()["leftWidth"] == 180, "left panel minimum: %s" % state()["leftWidth"])
+        ui_drag(widget("splitter_left"), (win - 10, a[1]))
+        s = state()
+        close(s["viewport"][2], 240, 0.01, "the viewport keeps its minimum width")
+        ui_drag(widget("splitter_left"), (420, a[1]))
+        # saved in the editor config, read again
+        with open(os.path.join(c.run_dir, "config", "plainsight", "editor.json")) as f:
+            saved = json.load(f)
+        close(saved["leftPanelWidth"], 420, 2, "left width saved: %s" % saved)
+        close(saved["rightPanelWidth"], 380, 2, "right width saved: %s" % saved)
+        ed("reloadPanelWidths")
+        frames_pass()
+        close(state()["leftWidth"], 420, 2, "read back from the config")
+    finally:
+        ed("resetPanelWidths")
+        frames_pass()
+
+
 def test_rename_long_then_short():
     editor_on()
     fresh_tree()

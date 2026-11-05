@@ -24,6 +24,16 @@ public abstract class GuiMixin {
 		HudInViewport.extract(graphics, () -> original.call(hud, graphics, deltaTracker));
 	}
 
+	/** In the editor (without a screen over it) the mouse cursor is the one the editor's UI asks for. */
+	@WrapOperation(method = "extractRenderState", at = @At(value = "INVOKE",
+			target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;applyCursor(Lcom/mojang/blaze3d/platform/Window;)V"))
+	private void plainsight$editorCursor(GuiGraphicsExtractor graphics, com.mojang.blaze3d.platform.Window window, Operation<Void> original) {
+		if (dev.plainsight.editor.Editor.isActive() && net.minecraft.client.Minecraft.getInstance().gui.screen() == null) {
+			graphics.requestCursor(dev.plainsight.imgui.ImGuiLayer.get().cursor());
+		}
+		original.call(graphics, window);
+	}
+
 	@WrapOperation(method = "extractRenderState", at = @At(value = "INVOKE",
 			target = "Lnet/minecraft/client/gui/Hud;extractDebugOverlay(Lnet/minecraft/client/gui/GuiGraphicsExtractor;)V"))
 	private void plainsight$debugInViewport(Hud hud, GuiGraphicsExtractor graphics, Operation<Void> original) {
