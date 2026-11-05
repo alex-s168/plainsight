@@ -50,4 +50,7 @@ infiniterra/logs/
 
 # hidden-client slot of this checkout (tools/instance.py)
 .plainsight-instance
+
+# the local test server (tools/test-server.sh), and logs unit tests write in the root
 /run-server/
+/logs/
