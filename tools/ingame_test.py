@@ -2058,6 +2058,48 @@ def test_zz_leave_world_with_guessed_terrain():
     c.command("plainsight seed clear")
 
 
+def test_distant_horizons_keeps_its_world():
+    """With Distant Horizons, a worldgen server starting (a seed set) does not replace DH's world, and a chunk
+    generated from the seed can be given to DH's LOD (the prototype of a DH backend, #48)."""
+    T = "dev.infiniterra.impl.dh.DhProbe"
+    if c.static(T, "present") != "true":
+        print("      (needs Distant Horizons, skipped)")
+        return
+
+    def run(what, wait=120):
+        c.static(T, "run", what)
+        deadline = time.time() + wait
+        while time.time() < deadline:
+            r = c.static(T, "last")
+            if r != "running":
+                return r
+            time.sleep(0.5)
+        return "timeout"
+
+    check(not run("surface 8 8").startswith(("error", "no DH")), "DH has a world")
+    c.command("plainsight seed 12345")
+    try:
+        wait_for(lambda s: s["guessState"] != "", 60)
+        time.sleep(10)
+        r = run("surface 8 8")
+        check(not r.startswith(("error", "no DH")), "DH keeps its world while a worldgen server runs: %s" % r)
+        # far beyond what DH generates itself in singleplayer (it would replace the chunk with the flat world's)
+        # (a new chunk each run: DH keeps what it was given)
+        import random
+        cx = random.randrange(5000, 60000)
+        x = cx * 16 + 8
+        before = run("surface %d %d" % (x, x))
+        r = run("inject 12345 %d %d" % (cx, cx), 240)
+        check(r.startswith("ok"), "a chunk from the seed goes to DH: %s" % r)
+        time.sleep(5)
+        after = run("surface %d %d" % (x, x))
+        m = re.search(r"up to (-?\d+)", after)
+        check(before.startswith(("none", "only air")) and m and int(m.group(1)) > -40,
+              "and DH has its (normal, not flat) terrain: %s -> %s" % (before, after))
+    finally:
+        c.command("plainsight seed clear")
+
+
 def test_zzz_seed_check_against_bedrock():
     """In a world with normal terrain, the bedrock of the loaded chunks matches its seed; another seed does not:
     plainsight then stops using it, says so, and does not take it again from SeedcrackerX. In the flat test
