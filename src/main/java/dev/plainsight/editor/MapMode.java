@@ -16,8 +16,8 @@ public final class MapMode {
 	public static final float FOV = 40;
 	/** Tilt limits (degrees down from the horizon): fully top-down, and 10 degrees above the side view. */
 	public static final float MIN_PITCH = 10, MAX_PITCH = 90;
-	/** Degrees of turn and of tilt per pixel of mouse movement with Ctrl. */
-	static final double TURN_PER_PIXEL = 0.3, TILT_PER_PIXEL = 0.1;
+	/** Degrees of turn and of tilt per pixel of mouse movement with Ctrl; the tilt as fast as the arcball camera's (#51). */
+	static final double TURN_PER_PIXEL = 0.3, TILT_PER_PIXEL = EditorCamera.LOOK_DEGREES_PER_PIXEL;
 	/** The map's direction: north up (yaw 180) until it is turned; kept (settings of the minimap module). */
 	public static volatile float yaw = 180;
 	private boolean rotating;
@@ -106,7 +106,7 @@ public final class MapMode {
 
 	/**
 	 * Ctrl + LMB drag: turns the map around the up axis through the point at the view's centre (left/right)
-	 * and tilts it slowly (down: towards top-down, as dragging the arcball camera). The minimap takes the tilt.
+	 * and tilts it (down: towards top-down, as fast as dragging the arcball camera). The minimap takes the tilt.
 	 */
 	public void rotate(Editor editor, double dx, double dy) {
 		var c = editor.camera;
