@@ -462,6 +462,26 @@ def test_camera_scroll_dolly():
     check(p2[2] < p1[2], "scrolling down moves away")
 
 
+def test_camera_scroll_dolly_against_block():
+    """#28: with the camera in or right against a block (e.g. after zooming out into terrain), scrolling up still
+    zooms in, through it, instead of not moving at all."""
+    editor_on()
+    vp = state()["viewport"]
+    cx, cy = vp[0] + vp[2] / 2, vp[1] + vp[3] / 2
+    # the plank wall at z 8..10 in front of the spawn point, looking south (+z) at it
+    for z in (7.6, 7.2, 8.5):
+        cam(6.5, -58.5, z, 0, 0)
+        c.move(cx, cy)
+        time.sleep(0.1)
+        c.scroll(1, cx, cy)
+        time.sleep(0.4)
+        p = state()["camera"]["pos"]
+        check(p[2] - z > 0.9, "scrolling up at z %s moves into the wall: z %s" % (z, p[2]))
+        c.scroll(-1, cx, cy)
+        time.sleep(0.4)
+        check(state()["camera"]["pos"][2] < p[2] - 0.5, "and scrolling down back out")
+
+
 def create_box(x1, y1, x2, y2):
     c.drag(x1, y1, x2, y2, b=3)
     time.sleep(0.3)
@@ -1565,10 +1585,25 @@ def test_map_mode_camera():
         c.drag(800, 450, 900, 450, b=1)
         time.sleep(0.3)
         check(state()["camera"]["pos"][0] < x0 - 1, "dragging the map to the right shows what is west: %s -> %s" % (x0, state()["camera"]["pos"][0]))
+        # WASD pans the map (#52): north up, so W shows what is north (-z), D what is east (+x), at the same height
         p = state()["camera"]["pos"]
+        h = state()["mapHeight"]
         c.hold(K["W"], 0.4)
-        time.sleep(0.2)
-        check(state()["camera"]["pos"] == p, "W does not fly in the map")
+        time.sleep(0.4)
+        q = state()["camera"]["pos"]
+        check(p[2] - q[2] > 15, "W pans the map north: %s -> %s" % (p, q))
+        close(q[0], p[0], 0.05, "W keeps x")
+        close(q[1], p[1], 1e-6, "and the height")
+        c.hold(K["D"], 0.4)
+        time.sleep(0.4)
+        r = state()["camera"]["pos"]
+        check(r[0] - q[0] > 15, "D pans it east: %s -> %s" % (q, r))
+        c.hold(K["SPACE"], 0.3)
+        c.hold(K["LSHIFT"], 0.3)
+        time.sleep(0.3)
+        close(state()["camera"]["pos"][1], p[1], 1e-6, "Space and Shift do not fly up or down in the map")
+        close(state()["mapHeight"], h, 1e-6, "WASD keeps the zoom")
+        check(not state()["tree"], "and does nothing else")
         check("LMB - Move Map" in state()["statusHints"] if "statusHints" in state() else True, "map hints")
         shot("map-mode")
     finally:
@@ -1611,6 +1646,19 @@ def test_map_turn_and_tilt():
         t = state()["camera"]
         check(abs(t["yaw"] - (s["camera"]["yaw"] + 30)) < 1, "Ctrl + LMB drag right turns the map: %s -> %s" % (s["camera"]["yaw"], t["yaw"]))
         check(abs(t["pitch"] - s["camera"]["pitch"]) < 1e-3, "without tilting it")
+        # W pans in the map's turn: towards the top of the screen (#52)
+        a = t["pos"]
+        c.hold(K["W"], 0.3)
+        time.sleep(0.4)
+        b = state()["camera"]["pos"]
+        yr = math.radians(t["yaw"])
+        d = (b[0] - a[0], b[2] - a[2])
+        n = math.hypot(*d)
+        check(n > 10 and abs(d[0] / n + math.sin(yr)) < 0.02 and abs(d[1] / n - math.cos(yr)) < 0.02,
+              "W pans along the turned map's up: %s at yaw %s" % (d, t["yaw"]))
+        p0 = t["pitch"]
+        ctrl_drag([(900, 450)] + [(900, 450 + 10 * (i + 1)) for i in range(5)])
+        close(state()["camera"]["pitch"], p0 + 10, 0.5, "50 px down tilts 10 degrees, as the arcball camera (0.2 deg/px)")
         ctrl_drag([(900, 150)] + [(900, 150 + 30 * (i + 1)) for i in range(20)])
         t = state()["camera"]
         check(abs(t["pitch"] - 90) < 1e-3, "dragging down tilts it to top-down, no further: %s" % t["pitch"])
@@ -2472,6 +2520,43 @@ def test_block_overlay_demo_lit():
     c.click(*widget("view_block_overlay_demo"), b=1)
     time.sleep(0.5)
     check(state()["overlayBlocksSubmitted"] == 0, "disabled overlay is gone")
+
+
+def test_block_overlay_outline():
+    editor_on()
+    cmd("tp @s 0.5 -60 0.5 0 0")
+    time.sleep(0.5)
+    ed("overlayOutline", "false")
+    ed("overlayOpacity", 1.0)
+    c.click(*widget("view_block_overlay_demo"), b=1)
+    time.sleep(1.0)
+    # the hut's corner log column stands at x -3, z 5 (y -59..-56); look at it from outside
+    cam(-9, -54, -3, -40, 20)
+    time.sleep(0.8)
+    check(state()["overlayOutlineEdges"] == 0, "no outline while it is off")
+    off = shot("block-overlay-no-outline")
+    ed("overlayOutline", "true")
+    time.sleep(0.6)
+    edges = state()["overlayOutlineEdges"]
+    check(edges > 100, "outline edges drawn: %s" % edges)
+    on = shot("block-overlay-outline")
+    vp = state()["viewport"]
+    # the corner edge of the hut: outline pixels there, blue (0x60C0FF)
+    x, y = map(float, ed("project", -3.01, -57.5, 4.99).split(","))
+    changed = changed_pixels(off, on, int(x) - 6, int(y) - 6, 12, 12)
+    col = avg_color(on, int(x) - 1, int(y) - 1, 3, 3)
+    print("      outline edges", edges, "changed at the corner", changed, "colour", col)
+    check(changed >= 12, "the outline shows at the hut's corner: %s pixels" % changed)
+    check(col[2] > col[0] + 40, "the outline is drawn in its colour: %s" % (col,))
+    # flat surfaces are not gridded: the middle of a wall barely changes
+    x, y = map(float, ed("project", -3.01, -58.5, 7.5).split(","))
+    flat = changed_pixels(off, on, int(x) - 6, int(y) - 6, 12, 12)
+    check(flat <= 6, "no lines between blocks of a flat wall: %s pixels" % flat)
+    ed("overlayOutline", "false")
+    ed("overlayOpacity", 0.65)
+    c.click(*widget("view_block_overlay_demo"), b=1)
+    time.sleep(0.5)
+    check(state()["overlayOutlineEdges"] == 0, "outline gone with the overlay")
 
 
 def test_path_overlay_demo():

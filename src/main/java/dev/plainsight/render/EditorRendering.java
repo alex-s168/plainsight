@@ -35,6 +35,8 @@ public final class EditorRendering {
 		else BlockOverlayRenderer.submitted = 0;
 		editor.buildOverlay();
 		double t = System.nanoTime() / 1e9;
+		if (show) BlockOverlayRenderer.outlines(editor.overlay);
+		else BlockOverlayRenderer.outlineEdges = 0;
 		if (show) for (PathOverlay p : PathOverlay.visible()) p.draw(editor.overlay, t);
 		OVERLAY.render(editor.overlay, renderer.gameRenderState().levelRenderState.cameraRenderState);
 		if (Editor.isActive() && editor.guessedTerrain.active()) TerrainGuess.drawTint(renderer.gameRenderState().levelRenderState.cameraRenderState);

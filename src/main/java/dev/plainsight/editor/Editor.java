@@ -293,6 +293,7 @@ public final class Editor {
 			return;
 		}
 		if (mc.gui.screen() != null) camera.stopMovement();
+		camera.moveScale = map.active() ? map.panScale() : 1;
 		camera.update(dt);
 		mapKeys(dt);
 		trackEntities();
@@ -752,9 +753,20 @@ public final class Editor {
 			return;
 		}
 		Vector3d dir = mouseRay();
-		BlockHitResult hit = raycastUnderCursor(dir);
-		double dist = hit != null ? hit.getLocation().distanceTo(new Vec3(camera.pos.x, camera.pos.y, camera.pos.z)) : 0;
+		double dist = distanceTo(raycastUnderCursor(dir));
+		if (dy > 0 && dist < EditorCamera.DOLLY_NEAR) {
+			// the camera is in or against the block under the cursor (#28): zoom on through it, towards what
+			// is behind it (no target if that is right there too, e.g. inside rock)
+			Vector3d from = new Vector3d(camera.pos).fma(EditorCamera.DOLLY_NEAR, dir);
+			dist = distanceTo(raycastUnderCursor(from, dir));
+			if (dist < EditorCamera.DOLLY_NEAR + 0.5) dist = 0;
+		}
 		camera.dolly(dy, dir, dist);
+	}
+
+	/** Distance from the camera to a hit; 0 for none. */
+	private double distanceTo(@Nullable BlockHitResult hit) {
+		return hit != null ? hit.getLocation().distanceTo(new Vec3(camera.pos.x, camera.pos.y, camera.pos.z)) : 0;
 	}
 
 	private void pickBlock() {
@@ -819,10 +831,21 @@ public final class Editor {
 	}
 
 	private boolean setMovementKey(int sc, boolean down) {
-		if (map.active() && down) {
-			// the map does not fly: the keys are taken but do nothing
-			return sc == InputConstants.KEY_W || sc == InputConstants.KEY_S || sc == InputConstants.KEY_A || sc == InputConstants.KEY_D
-					|| sc == InputConstants.KEY_SPACE || sc == InputConstants.KEY_LSHIFT || sc == InputConstants.KEY_LCONTROL;
+		if (map.active()) {
+			// WASD pans the map (in its turn, as flying in the 3D view; see MapMode.panScale), Ctrl faster;
+			// it does not fly up or down: Space and Shift are taken but do nothing
+			switch (sc) {
+				case InputConstants.KEY_W -> camera.forward = down;
+				case InputConstants.KEY_S -> camera.back = down;
+				case InputConstants.KEY_A -> camera.left = down;
+				case InputConstants.KEY_D -> camera.right = down;
+				case InputConstants.KEY_LCONTROL -> camera.fast = down;
+				case InputConstants.KEY_SPACE, InputConstants.KEY_LSHIFT -> camera.up = camera.down = false;
+				default -> {
+					return false;
+				}
+			}
+			return true;
 		}
 		switch (sc) {
 			case InputConstants.KEY_W -> camera.forward = down;

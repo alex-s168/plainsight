@@ -44,12 +44,16 @@ done
 export ALSOFT_DRIVERS=null
 [ -n "${GL:-}" ] && export SDL_VIDEO_DRIVER=wayland
 export PLAINSIGHT_BRIDGE_PORT=$PORT
+# The client runs inside Gradle's build process. A shared daemon would be ended by "gradlew --stop" (or a
+# daemon restart) from any checkout, taking every hidden client with it: run it in a single-use Gradle process
+# registered in a daemon registry of this slot only, which "--stop" elsewhere does not see.
+GRADLE_ISOLATION="--no-daemon -Dorg.gradle.daemon.registry.base=$STATE/gradle-daemon"
 
 cat > "$STATE/sway.conf" <<CONF
 output HEADLESS-1 resolution 1600x900 position 0 0
 default_border none
 xwayland enable
-exec sh -c 'cd "$PWD" && ./gradlew --no-configuration-cache $TASK > "$LOG" 2>&1; echo \$? > "$STATE/exit"; swaymsg exit'
+exec sh -c 'cd "$PWD" && ./gradlew --no-configuration-cache $GRADLE_ISOLATION $TASK > "$LOG" 2>&1; echo \$? > "$STATE/exit"; swaymsg exit'
 CONF
 
 unset WAYLAND_DISPLAY DISPLAY SWAYSOCK
