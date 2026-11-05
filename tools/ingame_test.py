@@ -2279,6 +2279,30 @@ def test_minimap_through_shader_pack():
     shot("minimap-pack-hud")
 
 
+def test_fluid_opacity_in_lod():
+    """Transparent Fluids reaches Voxy's LOD: fluid models are flagged on the GPU and the terrain shader
+    takes the module's opacity (shader state, no re-mesh)."""
+    if not state()["lodMod"] or not state()["sodium"]:
+        print("      (needs Voxy, skipped)")
+        return
+    editor_on()
+    c.command("fill 4 -61 4 6 -61 6 minecraft:water")
+    time.sleep(3)
+    S = "dev.infiniterra.api.TerrainStyle"
+    models, patched = c.static("dev.infiniterra.impl.style.VoxyStyle", "debug").split()
+    check(patched == "true", "Voxy's terrain shader applies the fluid opacity")
+    check(int(models) > 0, "fluid models are flagged: %s" % models)
+    ed("setModule", "fluid_transparency", "true")
+    ed("fluidOpacity", 0.4)
+    time.sleep(0.5)
+    check(abs(float(c.static(S, "fluidOpacity")) - 0.4) < 1e-4, "the module's opacity goes to the LOD: %s" % c.static(S, "fluidOpacity"))
+    ed("setModule", "fluid_transparency", "false")
+    time.sleep(0.5)
+    check(float(c.static(S, "fluidOpacity")) == 1.0, "module off: LOD fluids as Voxy draws them")
+    ed("fluidOpacity", 0.25)
+    c.command("fill 4 -61 4 6 -61 6 minecraft:air")
+
+
 def test_guess_prefers_real_lod():
     """Terrain Voxy already has (here: flat land loaded far from spawn, then unloaded) is copied into the
     guessed view instead of generated (the seed's generator would make hills there)."""

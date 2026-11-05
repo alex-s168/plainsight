@@ -281,6 +281,11 @@ public final class EditorDebug {
 		return holes + " " + at;
 	}
 
+	public static String fluidOpacity(float opacity) {
+		Editor.get().fluids.setOpacity(opacity);
+		return "ok";
+	}
+
 	public static String guessTintOpacity(float opacity) {
 		dev.plainsight.module.GuessedTerrain.tintOpacity = opacity;
 		return "ok";

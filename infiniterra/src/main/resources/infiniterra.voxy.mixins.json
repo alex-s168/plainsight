@@ -5,6 +5,7 @@
 	"compatibilityLevel": "JAVA_25",
 	"client": [
 		"IngestMirrorMixin",
+		"ModelFluidFlagMixin",
 		"PassPipelineMixin",
 		"PassNormalPipelineMixin",
 		"PassRenderSystemMixin",

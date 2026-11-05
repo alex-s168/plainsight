@@ -42,6 +42,8 @@ public abstract class PassTerrainCutMixin {
 	}
 
 	private static void infiniterra$cut(Shader shader, Runnable draw) {
+		int fluid = GL20.glGetUniformLocation(shader.id(), "infiniterraFluidAlpha");
+		if (fluid >= 0) GL41.glProgramUniform1f(shader.id(), fluid, dev.infiniterra.api.TerrainStyle.fluidOpacity());
 		boolean cut = PassVoxy.inPass && dev.infiniterra.impl.pass.Passes.cutY != Float.MAX_VALUE; // (the "top" layer option: no cut)
 		int loc = cut ? GL20.glGetUniformLocation(shader.id(), "infiniterraCutY") : -1;
 		if (loc < 0) {
