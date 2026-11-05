@@ -54,4 +54,16 @@ class EditorCameraDollyTest {
 		assertTrue(cam.pos.y <= EditorCamera.MAX_ZOOM_OUT_Y + 1e-6, "stays at or below the limit: " + cam.pos.y);
 		assertTrue(cam.pos.y > EditorCamera.MAX_ZOOM_OUT_Y - 1, "reaches it: " + cam.pos.y);
 	}
+
+	@Test
+	void zoomingInTowardsTheSkyStopsAtTheHeightLimitToo() {
+		// the cursor over sky while looking up: no target, so each notch steps by the height and would climb
+		// exponentially (the game froze far out)
+		EditorCamera cam = new EditorCamera();
+		cam.set(new Vector3d(0, 4000, 0), 0, -10);
+		Vector3d up = new Vector3d(0, 0.2, 1).normalize();
+		for (int i = 0; i < 50; i++) cam.dolly(1, up, 0, cam.pos.y + cam.pendingZoomY() - 63);
+		settle(cam);
+		assertTrue(cam.pos.y <= EditorCamera.MAX_ZOOM_OUT_Y + 1e-6, "stays at or below the limit: " + cam.pos.y);
+	}
 }

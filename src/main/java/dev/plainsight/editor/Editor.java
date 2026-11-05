@@ -809,7 +809,7 @@ public final class Editor {
 		Vector3d dir = mouseRay();
 		// far out, zooming away speeds up (20% of the distance per notch): stop at a height the LOD still covers,
 		// past which Voxy can stall the game
-		if (dy < 0 && camera.pos.y + camera.pendingZoomY() >= EditorCamera.MAX_ZOOM_OUT_Y && dir.y() < 0) return;
+		if (dy * dir.y() > 0 && camera.pos.y + camera.pendingZoomY() >= EditorCamera.MAX_ZOOM_OUT_Y) return;
 		BlockHitResult under = raycastUnderCursor(dir);
 		double dist = distanceTo(under);
 		if (under == null) {

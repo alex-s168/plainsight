@@ -297,10 +297,12 @@ public final class EditorCamera {
 		// the distance still to go after the pending part of earlier steps
 		double dist = Math.max(0, targetDistance - pendingZoom.dot(dir));
 		double step = Math.max(1.0, Math.max(dist, scale) * 0.2) * notches * Math.max(0.25, speed);
-		// zooming out never climbs above MAX_ZOOM_OUT_Y
-		if (notches < 0 && dir.y() < 0) {
+		// no step climbs above MAX_ZOOM_OUT_Y: zooming out while looking down, and zooming in towards the sky
+		// (which with no target steps by the height, so it would climb exponentially too)
+		double up = step * dir.y();
+		if (up > 0) {
 			double room = Math.max(0, MAX_ZOOM_OUT_Y - (pos.y + pendingZoom.y));
-			step = Math.max(step, -room / -dir.y());
+			if (up > room) step = room / dir.y();
 		}
 		if (notches > 0 && targetDistance > 0) step = Math.min(step, Math.max(0, dist - 1.0));
 		pendingZoom.fma(step, dir);
