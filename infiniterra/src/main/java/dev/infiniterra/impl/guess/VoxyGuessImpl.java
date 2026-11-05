@@ -46,8 +46,10 @@ final class VoxyGuessImpl {
 		if (instance == null || mc.level == null) return;
 		WorldIdentifier real = WorldIdentifier.of(mc.level);
 		if (real == null) return;
-		Identifier id = Identifier.fromNamespaceAndPath(InfiniTerraMod.ID, "guess/" + w.dimension.identifier().getNamespace() + "/"
-				+ w.dimension.identifier().getPath() + "/" + dev.infiniterra.impl.DataDirs.seedKey(w.seed));
+		// per world, like the guess state (GuessWorld's real/guessed chunks): worlds sharing a seed would
+		// otherwise see each other's real terrain, which this world's state does not know about
+		Identifier id = Identifier.fromNamespaceAndPath(InfiniTerraMod.ID, "guess/" + worldPath(w.worldKey) + "/"
+				+ w.dimension.identifier().getNamespace() + "/" + w.dimension.identifier().getPath() + "/" + dev.infiniterra.impl.DataDirs.seedKey(w.seed));
 		WorldEngine engine = instance.getOrCreate(new WorldIdentifier(ResourceKey.create(Registries.DIMENSION, id), real.biomeSeed, real.dimension));
 		if (engine == null) return;
 		engine.acquireRef();
@@ -64,8 +66,17 @@ final class VoxyGuessImpl {
 			}
 	}
 
+	/** The world key as an identifier path part (lower case, [a-z0-9_.-]; long keys hashed). */
+	static String worldPath(String worldKey) {
+		String p = worldKey.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9_.-]", "_");
+		return p.length() <= 48 ? p : p.substring(0, 32) + "_" + Integer.toHexString(worldKey.hashCode());
+	}
+
 	static void detach() {
+		seamlessOff = true;
 		show(false);
+		seamlessOff = false;
+		VoxyGuessMask.hide = false;
 		WorldEngine e = guessEngine;
 		guessEngine = null;
 		world = null;
@@ -132,6 +143,9 @@ final class VoxyGuessImpl {
 	static net.minecraft.world.level.block.state.BlockState lodBlock(int x, int y, int z) {
 		WorldEngine engine = renderedWorld();
 		if (engine == null || !engine.isLive()) return null;
+		// outside the editor the guesses are hidden: they are not what the LOD knows
+		GuessWorld w = world;
+		if (VoxyGuessMask.hide && engine == guessEngine && w != null && !w.isRealHere(x >> 4, z >> 4)) return null;
 		var section = engine.acquireIfExists(0, x >> 5, y >> 5, z >> 5);
 		if (section == null) return null;
 		try {
@@ -351,9 +365,36 @@ final class VoxyGuessImpl {
 		return level.registryAccess().lookupOrThrow(Registries.BIOME).get(key).map(h -> to.getMapper().getIdForBiome(h)).orElse(0);
 	}
 
+	/** Whether the guesses are on screen: Voxy renders the guessed world and does not hide them. */
 	static boolean showing() {
+		return rendering() && !VoxyGuessMask.hide;
+	}
+
+	/** For tests: "rendering hide switches patched importDone". */
+	public static String debug() {
+		GuessWorld w = world;
+		return rendering() + " " + VoxyGuessMask.hide + " " + switches + " " + VoxyGuessMask.patched + " " + (w != null && w.importDone);
+	}
+
+	/** Whether Voxy renders the guessed world (guesses shown or, outside the editor, hidden). */
+	static boolean rendering() {
 		WorldEngine g = guessEngine;
 		return g != null && renderedWorld() == g;
+	}
+
+	/** Off: the old way, switching Voxy's renderer between the two worlds (tests, or if the mask misbehaves). */
+	public static volatile boolean seamless = !Boolean.getBoolean("infiniterra.noSeamlessGuess");
+	private static boolean seamlessOff;
+	/** Times Voxy's renderer was rebuilt on the other world (tests: seamless switching keeps this). */
+	public static volatile int switches;
+
+	/**
+	 * Whether Voxy renders the guessed world even outside the editor (guesses hidden by the mask): once it
+	 * holds all of the normal world's LOD, it shows the same there.
+	 */
+	static boolean keepGuessed(WorldEngine g) {
+		GuessWorld w = world;
+		return seamless && !seamlessOff && VoxyGuessMask.patched && g != null && w != null && w.importDone;
 	}
 
 	static void show(boolean guessed) {
@@ -364,11 +405,19 @@ final class VoxyGuessImpl {
 		VoxyRenderSystem rs = holder.voxy$getRenderSystem();
 		if (rs == null) return; // Voxy off or not set up yet
 		WorldEngine rendered = renderedWorld();
+		boolean keep = keepGuessed(g);
+		VoxyGuessMask.hide = !guessed && rendered == g && g != null;
+		GuessWorld w = world;
+		if (w != null && rendered == g && g != null && mc.gameRenderer != null)
+			VoxyGuessMask.update(w, mc.gameRenderer.mainCamera().position().x, mc.gameRenderer.mainCamera().position().z);
+		if (keep) guessed = true;
 		try {
 			if (guessed && g != null && rendered != g) {
+				switches++;
 				holder.voxy$shutdownRenderer();
 				createEngineDirect().invoke(mc.levelRenderer, g);
 			} else if ((!guessed || g == null) && rendered != null && rendered != WorldIdentifier.ofEngineNullable(mc.level)) {
+				switches++;
 				holder.voxy$shutdownRenderer();
 				holder.voxy$createRenderer();
 			}
