@@ -10,7 +10,8 @@ CLI:   tools/mc.py [--axiom] OP ARGS...
 Keys are SDL scancodes (MC 26.3 uses SDL): W=26 A=4 S=22 D=7 Q=20 E=8 Space=44 LShift=225 LCtrl=224
 LAlt=226 RShift=229 Escape=41 Tab=43 Enter=40. Mouse buttons: 1 left, 2 middle, 3 right.
 
-Targets: the hidden test client (default; run-hidden/, bridge 25612, JDWP 5011), `--axiom` the vanilla + Axiom
+Targets: the hidden test client (default; run-hidden/, bridge 25612, JDWP 5011, or this checkout's slot from
+tools/instance.py), `--axiom` the vanilla + Axiom
 client (run-axiom/, bridge 25611) used to study Axiom's UI, `--visible` the visible runClient (run/, 25610).
 Importable: `import mc; c = mc.Client(); c.key(26, "press")`.
 """
@@ -22,6 +23,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+import instance
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 SC = dict(W=26, A=4, S=22, D=7, Q=20, E=8, R=21, F=9, G=10, X=27, Y=28, Z=29, C=6, V=25, SPACE=44, LSHIFT=225,
@@ -32,7 +35,10 @@ MOD_SHIFT, MOD_CTRL, MOD_ALT = 0x0001, 0x0040, 0x0100  # SDL_KMOD_LSHIFT / LCTRL
 class Client:
     def __init__(self, target="main"):
         self.target = target
-        self.port = {"axiom": 25611, "visible": 25610}.get(target, 25612)
+        slot = instance.current()
+        self.slot_name = {"axiom": "axiom", "visible": "visible"}.get(target, slot.name)
+        self.jdwp = slot.jdwp
+        self.port = {"axiom": 25611, "visible": 25610}.get(target, slot.bridge)
         self.base = "http://127.0.0.1:%d" % self.port
         self.run_dir = os.path.join(ROOT, {"axiom": "run-axiom", "visible": "run"}.get(target, "run-hidden"))
 
@@ -124,7 +130,7 @@ class Client:
     def fullshot(self, path):
         """Whole compositor output (game + ImGui), taken with grim."""
         rt = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/run/user/%d" % os.getuid()),
-                          "plainsight-hidden-" + self.target)
+                          "plainsight-hidden-" + self.slot_name)
         if not os.path.isdir(rt):
             return "hidden compositor not running"
         sockets = [s for s in os.listdir(rt) if s.startswith("wayland-") and not s.endswith(".lock")]
@@ -176,13 +182,13 @@ class Client:
         return "stopped"
 
 
-def hotswap():
+def hotswap(c):
     # tools/build.sh does not wait for the dev shell wrapper, which can linger with a Gradle daemon
     build = subprocess.run([os.path.join(ROOT, "tools", "build.sh"), "classes", "devbridgeClasses", ":infiniterra:classes"], cwd=ROOT,
                            capture_output=True, text=True, stdin=subprocess.DEVNULL)
     if build.returncode != 0:
         return "build failed:\n" + build.stdout[-4000:] + build.stderr[-4000:]
-    swap = subprocess.run([os.path.join(ROOT, "dev"), "java", "tools/Hotswap.java", "5011"], cwd=ROOT, capture_output=True,
+    swap = subprocess.run([os.path.join(ROOT, "dev"), "java", "tools/Hotswap.java", str(c.jdwp)], cwd=ROOT, capture_output=True,
                           text=True, stdin=subprocess.DEVNULL, timeout=120)
     return (swap.stdout + swap.stderr).strip()
 
@@ -220,7 +226,7 @@ def main(argv):
         "uitype": lambda: c.call("/imgui/type", t=" ".join(r)),
         "uikey": lambda: c.call("/imgui/key", k=r[0]),
         "uiscroll": lambda: c.call("/imgui/scroll", x=r[0], y=r[1], dy=f(2, -1)),
-        "hotswap": hotswap,
+        "hotswap": lambda: hotswap(c),
         "start": lambda: c.start(gl=f(0) == "gl"),
         "stop": lambda: c.stop(),
         "wait": lambda: c.wait(),

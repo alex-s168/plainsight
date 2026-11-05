@@ -47,3 +47,6 @@ __pycache__/
 
 # logs the unit tests write (Minecraft's logging setup)
 infiniterra/logs/
+
+# hidden-client slot of this checkout (tools/instance.py)
+.plainsight-instance

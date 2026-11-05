@@ -33,8 +33,38 @@ passes, detached camera, the Voxy/Sodium/Iris mixins for those); plainsight only
 * The suite builds its scenery in the `plainsight-test` world and opens it itself when no world is
   loaded: start the client and run the tests, without `tools/mc.py world` (which opens `plainsight-dev`,
   where the cave and rock tests fail).
-* In a worktree, `run-hidden` is a symlink to the main checkout's (`ln -s ~/Repos/plainsight/run-hidden`).
+* In a worktree, `run-hidden` is a symlink to the main checkout's (`ln -s ~/Repos/plainsight/run-hidden`),
+  unless the worktree has its own slot (next section).
 * Hot-swap (`tools/mc.py hotswap`) cannot add fields or change mixins: restart the client instead.
+
+## Parallel worktrees: one hidden client each
+
+All checkouts share slot 0 by default: bridge :25612, JDWP :5011, the compositor state in
+`$XDG_RUNTIME_DIR/plainsight-hidden-main` and (through the symlink) the main checkout's `run-hidden/`. Two clients
+on slot 0 cannot both start, and the tools of one worktree drive and stop the other's client. When other
+worktrees may run a hidden client at the same time (several agents in parallel), give yours its own slot
+first:
+
+```sh
+tools/instance.py setup     # lowest free slot N >= 1; writes .plainsight-instance (untracked)
+tools/instance.py           # this checkout's slot, ports and run dir
+tools/instance.py list      # slots of all worktrees, and which bridges are up
+```
+
+* Slot N uses bridge :2562N (25620+N), JDWP :502N (5020+N) and `plainsight-hidden-sN`. `tools/mc.py`,
+  `tools/ingame_test.py`, `tools/hidden-client.sh`, `tools/stop-hidden-client.sh` and `tools/mc.py hotswap`
+  all follow it; `PLAINSIGHT_INSTANCE=N` overrides the file.
+* `setup` replaces the `run-hidden` symlink with the worktree's own directory, seeded with the main
+  checkout's `options.txt` and `config/` (no worlds, guess caches or extra mods: the suite builds its
+  `plainsight-test` world itself on first run, which takes a few minutes). Mods a test adds stay in this
+  worktree.
+* `tools/mc.py stop` only stops this checkout's client. Never `pkill` Java or sway broadly: other
+  worktrees' clients are running.
+* The main checkout always stays on slot 0. The Axiom study client (`--axiom`, :25611) is not slotted:
+  only one at a time.
+* Each client takes about 5 GB of RAM and a share of the GPU; keep to about four at once.
+* `tools/instance.py release` returns the worktree to slot 0 (its run-hidden/ directory is kept; re-create
+  the symlink by hand if wanted).
 
 ## Installing into the user's Prism instance
 

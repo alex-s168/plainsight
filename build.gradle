@@ -53,14 +53,14 @@ loom {
 			programArgs "--username", "Dev"
 		}
 		// the client automated tests drive (tools/hidden-client.sh): own run directory and debug port, so it
-		// can run next to a visible runClient
+		// can run next to a visible runClient (the port is per checkout slot, see tools/instance.py)
 		hiddenClient {
 			client()
 			name = "Hidden Test Client"
 			runDir = "run-hidden"
 			source sourceSets.devbridge
 			vmArgs "-XX:+AllowEnhancedClassRedefinition", "-Xmx4G",
-					"-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=127.0.0.1:5011"
+					"-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=127.0.0.1:" + (System.getenv("PLAINSIGHT_JDWP_PORT") ?: "5011")
 			programArgs "--username", "Dev"
 		}
 		// Vanilla + Axiom (+ dev bridge, without plainsight) to study Axiom's editor UI; own run directory
