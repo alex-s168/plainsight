@@ -2,7 +2,8 @@
 # Runs a dev client in a private headless sway session: nothing appears on the desktop and no real
 # input devices are attached. Control it through the dev bridge or tools/mc.py.
 #
-#   tools/hidden-client.sh                         plainsight test client in run-hidden/ (bridge port 25612)
+#   tools/hidden-client.sh                         plainsight test client in run-hidden/ (bridge port 25612,
+#                                                  or this checkout's slot: tools/instance.py)
 #   TASK=runAxiomClient tools/hidden-client.sh     vanilla + Axiom in run-axiom/ (bridge port 25611)
 #   GPU=/dev/dri/renderD128 tools/hidden-client.sh  use another GPU (default: integrated GPU)
 #   GL=1 tools/hidden-client.sh                    OpenGL instead of Vulkan (SDL's Wayland driver; the
@@ -15,7 +16,12 @@ TASK="${TASK:-runHiddenClient}"
 GPU="${GPU:-/dev/dri/renderD129}"
 case "$TASK" in
 	runAxiomClient) RUN=run-axiom; NAME=axiom; PORT=25611 ;;
-	*) RUN=run-hidden; NAME=main; PORT=25612 ;;
+	*) RUN=run-hidden; eval "$(python3 tools/instance.py env)"
+	   export PLAINSIGHT_JDWP_PORT=$JDWP
+	   if [ "$SLOT" != 0 ] && [ -L run-hidden ]; then
+		echo "slot $SLOT but run-hidden is a symlink (shared with another checkout): run tools/instance.py setup" >&2
+		exit 1
+	   fi ;;
 esac
 STATE="${XDG_RUNTIME_DIR:-/tmp}/plainsight-hidden-$NAME"
 mkdir -p "$STATE" "$RUN"
@@ -24,7 +30,7 @@ rm -f "$STATE/exit"
 
 # the test client starts with plainsight's default module settings (tests expect them; they are saved
 # while it runs)
-[ "$NAME" = main ] && rm -rf "$RUN/config/plainsight/modules"
+[ "$RUN" = run-hidden ] && rm -rf "$RUN/config/plainsight/modules"
 
 # headless-friendly defaults (narrator/audio would need a sound server)
 OPTS=$RUN/options.txt

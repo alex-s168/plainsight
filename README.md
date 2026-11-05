@@ -169,6 +169,10 @@ tools/ingame_test.py [filter...]   # end-to-end tests in the hidden client (scre
 tools/mc.py --axiom start          # vanilla + Axiom in run-axiom/ (bridge :25611), plainsight disabled
 ```
 
+Several worktrees can each run their own hidden client: `tools/instance.py setup` gives a checkout its own slot
+(bridge and JDWP port, compositor, run-hidden/), which all the tools above then use. See AGENTS.md, "Parallel
+worktrees".
+
 The visible dev client gets extra mods in `run/mods` (`installDevMods`, versions in `gradle.properties`):
 Voxy 0.2.20-beta with the Sodium 0.9.2 it requires, and SeedcrackerX 2.16.2 with Cloth Config. The hidden
 test client stays vanilla so the tests exercise vanilla rendering. Voxy only supports OpenGL; the hidden
